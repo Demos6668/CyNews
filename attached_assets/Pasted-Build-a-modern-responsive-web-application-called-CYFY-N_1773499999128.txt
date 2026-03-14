@@ -1,0 +1,214 @@
+Build a modern, responsive web application called "CYFY News Board" - an internal cybersecurity threat intelligence, advisories, and news aggregation platform. The app should have two main segments: Local Threats/News and Global Threats/News.
+
+=== TECH STACK ===
+- Frontend: React.js with Vite
+- Styling: Tailwind CSS (custom theme)
+- Backend: Node.js with Express
+- Database: SQLite
+- State Management: Zustand
+- Icons: Lucide React
+- Date Handling: date-fns
+
+=== COLOR PALETTE (MANDATORY - USE THESE EXACT COLORS) ===
+--primary-teal: #0095AF
+--primary-teal-dark: #007A91
+--primary-teal-light: #00B8D4
+--accent-amber: #FFB74B
+--accent-amber-dark: #F5A623
+--accent-amber-light: #FFCA77
+--dark-navy: #1A2332
+--dark-navy-light: #243044
+--background-dark: #0D1117
+--background-card: #161B22
+--text-primary: #FFFFFF
+--text-secondary: #8B949E
+--danger-red: #F85149
+--warning-yellow: #F0C000
+--success-green: #3FB950
+
+=== APPLICATION STRUCTURE ===
+src/
+├── components/
+│   ├── Layout/ (Header.jsx, Sidebar.jsx, Footer.jsx)
+│   ├── Dashboard/ (StatsCard.jsx, ThreatMeter.jsx, QuickActions.jsx)
+│   ├── News/ (NewsCard.jsx, NewsList.jsx, NewsFilter.jsx, NewsDetail.jsx)
+│   ├── Threats/ (ThreatCard.jsx, ThreatTimeline.jsx, SeverityBadge.jsx, ThreatModal.jsx)
+│   ├── Advisories/ (AdvisoryCard.jsx, AdvisoryList.jsx, AdvisoryDetail.jsx)
+│   └── Common/ (SearchBar.jsx, TabSwitch.jsx, Loader.jsx, EmptyState.jsx)
+├── pages/ (Dashboard.jsx, LocalNews.jsx, GlobalNews.jsx, Advisories.jsx, ThreatIntel.jsx, Settings.jsx)
+├── hooks/
+├── context/
+├── utils/
+└── api/
+
+=== CORE FEATURES ===
+
+1. DASHBOARD (HOME)
+- Threat Level Indicator: Visual gauge showing current threat level (Low/Medium/High/Critical) with animated gradient using teal-to-amber-to-red
+- Stats Cards: Total threats today (local/global), Active advisories count, Critical alerts needing attention, Resolved incidents
+- Recent Activity Feed: Live-updating timeline of latest entries
+- Quick Filters: Toggle between Local/Global view
+
+2. LOCAL NEWS & THREATS SECTION
+- Filter by: Region, Industry Sector, Threat Type, Severity, Date Range
+- Categories: Regional cyber attacks, Local infrastructure threats, Country-specific malware campaigns, National CERT advisories, Local compliance updates
+- Card display with: Title, Severity Badge, Source, Timestamp, Brief Summary
+- Click to expand full details in modal/slide-over
+
+3. GLOBAL NEWS & THREATS SECTION
+- Filter by: Region, Attack Vector, Threat Actor, Severity, Date Range
+- Categories: Global ransomware campaigns, APT group activities, Zero-day vulnerabilities, International CERT bulletins, Major breach disclosures
+- Same card structure as local but with geographic tags
+
+4. ADVISORIES SECTION
+- Security advisories from: CISA, NIST, CVE Database, Vendor bulletins
+- CVSS Score display with color coding
+- Affected products/versions listing
+- Mitigation steps accordion
+- Status: New / Under Review / Patched / Dismissed
+
+5. THREAT INTELLIGENCE FEED
+- IOC (Indicators of Compromise) listings
+- TTPs (Tactics, Techniques, Procedures)
+- Threat actor profiles
+- Campaign tracking
+- Export functionality (CSV/JSON)
+
+=== UI/UX DESIGN SPECIFICATIONS ===
+
+HEADER:
+- Dark navy background (#1A2332)
+- CYFY logo with teal accent (#0095AF)
+- Search bar with amber focus ring (#FFB74B)
+- Notification bell with badge counter
+- User profile dropdown
+
+SIDEBAR NAVIGATION:
+- Collapsible sidebar
+- Active state: Teal background with white text
+- Hover state: Subtle teal glow
+- Icons with text labels
+- Section dividers for organization
+
+CARDS DESIGN:
+- Background: #161B22 (dark card background)
+- Border: 1px solid rgba(0, 149, 175, 0.2)
+- Border-radius: 12px
+- Hover: Subtle lift effect + teal border glow
+- Severity indicators (left border):
+  - Critical: Red (#F85149)
+  - High: Amber (#FFB74B)
+  - Medium: Yellow (#F0C000)
+  - Low: Green (#3FB950)
+  - Info: Teal (#0095AF)
+
+TAB SWITCH (LOCAL/GLOBAL TOGGLE):
+- Pill-style toggle at top of news sections
+- Active tab: Solid teal background
+- Inactive tab: Transparent with teal border
+- Smooth transition animation
+
+BUTTONS:
+- Primary: Teal background (#0095AF), white text
+- Secondary: Transparent, teal border, teal text
+- Accent/CTA: Amber background (#FFB74B), dark text
+- Danger: Red background for critical actions
+
+=== DATA MODELS ===
+
+Threat/News Item:
+{
+  id: string,
+  title: string,
+  summary: string,
+  content: string,
+  type: 'threat' | 'news' | 'advisory',
+  scope: 'local' | 'global',
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info',
+  category: string,
+  source: string,
+  sourceUrl: string,
+  region: string[],
+  tags: string[],
+  iocs: string[],
+  affectedSystems: string[],
+  mitigations: string[],
+  publishedAt: timestamp,
+  updatedAt: timestamp,
+  status: 'active' | 'resolved' | 'monitoring'
+}
+
+Advisory:
+{
+  id: string,
+  cveId: string,
+  title: string,
+  description: string,
+  cvssScore: number,
+  severity: string,
+  affectedProducts: string[],
+  vendor: string,
+  patchAvailable: boolean,
+  patchUrl: string,
+  workarounds: string[],
+  references: string[],
+  publishedAt: timestamp
+}
+
+=== API ENDPOINTS ===
+GET    /api/dashboard/stats
+GET    /api/news?scope=local|global&severity=&category=&page=&limit=
+GET    /api/news/:id
+POST   /api/news (admin)
+PUT    /api/news/:id (admin)
+DELETE /api/news/:id (admin)
+GET    /api/threats?scope=local|global&type=&severity=
+GET    /api/threats/:id
+GET    /api/threats/timeline
+GET    /api/advisories?severity=&vendor=&status=
+GET    /api/advisories/:id
+GET    /api/search?q=&type=
+
+=== SAMPLE SEED DATA ===
+Include 15-20 sample entries mixing:
+- Recent ransomware attacks (global)
+- Regional phishing campaigns (local)
+- CVE advisories with CVSS scores
+- APT group activity reports
+- Data breach notifications
+- Infrastructure vulnerability alerts
+
+=== ADDITIONAL FEATURES ===
+1. Real-time Updates: WebSocket or polling for live feed updates
+2. Bookmarking: Save important items for quick access
+3. Dark/Light Mode Toggle: Default dark with light option
+4. Export Reports: PDF/CSV export of filtered data
+5. RSS Integration Ready: Structure to pull from external feeds
+6. Responsive Design: Mobile-first approach, tablet and desktop optimized
+7. Keyboard Shortcuts: Quick navigation (j/k for items, / for search)
+
+=== RESPONSIVE BREAKPOINTS ===
+- Mobile: < 640px (single column, bottom nav)
+- Tablet: 640px - 1024px (collapsible sidebar)
+- Desktop: > 1024px (full sidebar, multi-column grid)
+
+=== PERFORMANCE REQUIREMENTS ===
+- Lazy load images and heavy components
+- Virtualized lists for large datasets
+- Skeleton loaders during fetch
+- Debounced search input
+- Cached API responses where appropriate
+
+=== PRIORITY BUILD ORDER ===
+1. Set up Tailwind with custom color theme
+2. Build Layout components (Header, Sidebar, Footer)
+3. Create Dashboard with stats cards
+4. Build NewsCard and NewsList components
+5. Implement Local/Global tab switching
+6. Add filtering and search functionality
+7. Create detail modals/pages
+8. Set up backend API with seed data
+9. Connect frontend to API
+10. Add polish: animations, loading states, empty states
+
+Build this as a production-ready internal tool with clean code, proper error handling, and a polished user experience. The design should feel modern, professional, and appropriate for a security operations center environment. Use the exact color palette specified above - teal (#0095AF) as primary, amber (#FFB74B) as accent, and dark navy (#1A2332) backgrounds.
