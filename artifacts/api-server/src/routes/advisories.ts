@@ -1,6 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
   GetAdvisoriesQueryParams,
   GetAdvisoriesResponse,
@@ -10,10 +11,29 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/advisories", async (req, res) => {
+function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
+  return {
+    id: item.id,
+    cveId: item.cveId,
+    title: item.title,
+    description: item.description,
+    cvssScore: item.cvssScore,
+    severity: item.severity,
+    affectedProducts: (item.affectedProducts as string[]) ?? [],
+    vendor: item.vendor,
+    patchAvailable: item.patchAvailable,
+    patchUrl: item.patchUrl,
+    workarounds: (item.workarounds as string[]) ?? [],
+    references: (item.references as string[]) ?? [],
+    status: item.status,
+    publishedAt: item.publishedAt.toISOString(),
+  };
+}
+
+router.get("/advisories", async (req: Request, res: Response) => {
   try {
     const query = GetAdvisoriesQueryParams.parse(req.query);
-    const conditions: any[] = [];
+    const conditions: SQL[] = [];
 
     if (query.severity) conditions.push(eq(advisoriesTable.severity, query.severity));
     if (query.vendor) conditions.push(eq(advisoriesTable.vendor, query.vendor));
@@ -54,7 +74,7 @@ router.get("/advisories", async (req, res) => {
   }
 });
 
-router.get("/advisories/:id", async (req, res) => {
+router.get("/advisories/:id", async (req: Request, res: Response) => {
   try {
     const params = GetAdvisoryByIdParams.parse({ id: Number(req.params.id) });
 
@@ -75,24 +95,5 @@ router.get("/advisories/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch advisory" });
   }
 });
-
-function formatAdvisory(item: any) {
-  return {
-    id: item.id,
-    cveId: item.cveId,
-    title: item.title,
-    description: item.description,
-    cvssScore: item.cvssScore,
-    severity: item.severity,
-    affectedProducts: item.affectedProducts ?? [],
-    vendor: item.vendor,
-    patchAvailable: item.patchAvailable,
-    patchUrl: item.patchUrl,
-    workarounds: item.workarounds ?? [],
-    references: item.references ?? [],
-    status: item.status,
-    publishedAt: item.publishedAt.toISOString(),
-  };
-}
 
 export default router;

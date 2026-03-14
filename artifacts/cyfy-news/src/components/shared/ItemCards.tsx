@@ -1,7 +1,7 @@
 import { Bookmark, ExternalLink, Calendar, ShieldAlert, Target } from "lucide-react";
 import { Card, Badge, Button } from "@/components/ui/shared";
 import { cn, formatDate, getSeverityColors, getSeverityBadgeColors, formatRelative } from "@/lib/utils";
-import type { NewsItem, Advisory } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { NewsItem, Advisory } from "@workspace/api-client-react";
 import { useToggleBookmark } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -188,7 +188,7 @@ export function DetailModal({ item, isOpen, onClose }: { item: NewsItem | Adviso
                 <div className="flex-1">
                   <div className="text-sm font-medium mb-1">Affected Vendor: <span className="text-white">{(item as Advisory).vendor}</span></div>
                   <div className="text-sm text-muted-foreground flex flex-wrap gap-1">
-                    {(item as Advisory).affectedProducts.map(p => <span key={p} className="bg-secondary px-2 py-0.5 rounded text-xs">{p}</span>)}
+                    {(item as Advisory).affectedProducts.map((p: string) => <span key={p} className="bg-secondary px-2 py-0.5 rounded text-xs">{p}</span>)}
                   </div>
                 </div>
               </div>
@@ -202,7 +202,7 @@ export function DetailModal({ item, isOpen, onClose }: { item: NewsItem | Adviso
                 <div>
                   <h3 className="text-lg font-semibold mb-3 text-accent border-b border-border pb-2">Mitigation / Workarounds</h3>
                   <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-                    {(item as Advisory).workarounds.map((w, i) => <li key={i}>{w}</li>)}
+                    {(item as Advisory).workarounds.map((w: string, i: number) => <li key={i}>{w}</li>)}
                   </ul>
                 </div>
               )}
@@ -224,7 +224,7 @@ export function DetailModal({ item, isOpen, onClose }: { item: NewsItem | Adviso
                     <Target className="h-4 w-4"/> Indicators of Compromise (IOCs)
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {(item as NewsItem).iocs!.map(ioc => (
+                    {(item as NewsItem).iocs!.map((ioc: string) => (
                       <code key={ioc} className="text-xs bg-destructive/10 text-destructive-foreground px-2 py-1 rounded select-all border border-destructive/20">{ioc}</code>
                     ))}
                   </div>

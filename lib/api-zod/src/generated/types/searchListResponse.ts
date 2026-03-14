@@ -7,7 +7,7 @@
  */
 import type { SearchResult } from "./searchResult";
 
-export interface SearchResponse {
+export interface SearchListResponse {
   results: SearchResult[];
   total: number;
 }

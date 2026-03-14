@@ -1,6 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
-import { eq, sql, and, ilike } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
   GetNewsQueryParams,
   GetNewsResponse,
@@ -13,7 +14,31 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/news/bookmarked", async (_req, res) => {
+function formatNewsItem(item: typeof newsItemsTable.$inferSelect) {
+  return {
+    id: item.id,
+    title: item.title,
+    summary: item.summary,
+    content: item.content,
+    type: item.type,
+    scope: item.scope,
+    severity: item.severity,
+    category: item.category,
+    source: item.source,
+    sourceUrl: item.sourceUrl,
+    region: (item.region as string[]) ?? [],
+    tags: (item.tags as string[]) ?? [],
+    iocs: (item.iocs as string[]) ?? [],
+    affectedSystems: (item.affectedSystems as string[]) ?? [],
+    mitigations: (item.mitigations as string[]) ?? [],
+    status: item.status,
+    bookmarked: item.bookmarked,
+    publishedAt: item.publishedAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  };
+}
+
+router.get("/news/bookmarked", async (_req: Request, res: Response) => {
   try {
     const items = await db
       .select()
@@ -36,10 +61,10 @@ router.get("/news/bookmarked", async (_req, res) => {
   }
 });
 
-router.get("/news", async (req, res) => {
+router.get("/news", async (req: Request, res: Response) => {
   try {
     const query = GetNewsQueryParams.parse(req.query);
-    const conditions: any[] = [];
+    const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));
     if (query.severity) conditions.push(eq(newsItemsTable.severity, query.severity));
@@ -82,7 +107,7 @@ router.get("/news", async (req, res) => {
   }
 });
 
-router.get("/news/:id", async (req, res) => {
+router.get("/news/:id", async (req: Request, res: Response) => {
   try {
     const params = GetNewsByIdParams.parse({ id: Number(req.params.id) });
 
@@ -104,7 +129,7 @@ router.get("/news/:id", async (req, res) => {
   }
 });
 
-router.post("/news/:id/bookmark", async (req, res) => {
+router.post("/news/:id/bookmark", async (req: Request, res: Response) => {
   try {
     const params = ToggleBookmarkParams.parse({ id: Number(req.params.id) });
 
@@ -135,29 +160,5 @@ router.post("/news/:id/bookmark", async (req, res) => {
     res.status(500).json({ error: "Failed to toggle bookmark" });
   }
 });
-
-function formatNewsItem(item: any) {
-  return {
-    id: item.id,
-    title: item.title,
-    summary: item.summary,
-    content: item.content,
-    type: item.type,
-    scope: item.scope,
-    severity: item.severity,
-    category: item.category,
-    source: item.source,
-    sourceUrl: item.sourceUrl,
-    region: item.region ?? [],
-    tags: item.tags ?? [],
-    iocs: item.iocs ?? [],
-    affectedSystems: item.affectedSystems ?? [],
-    mitigations: item.mitigations ?? [],
-    status: item.status,
-    bookmarked: item.bookmarked,
-    publishedAt: item.publishedAt.toISOString(),
-    updatedAt: item.updatedAt.toISOString(),
-  };
-}
 
 export default router;

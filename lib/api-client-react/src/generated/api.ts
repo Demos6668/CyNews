@@ -22,13 +22,15 @@ import type {
   BookmarkResponse,
   DashboardStats,
   ErrorResponse,
+  ExportThreatsParams,
   GetAdvisoriesParams,
   GetNewsParams,
+  GetThreatsParams,
   HealthStatus,
   NewsItem,
   NewsListResponse,
+  SearchListResponse,
   SearchParams,
-  SearchResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -545,6 +547,281 @@ export function useGetAdvisoryById<
 }
 
 /**
+ * @summary List threat intelligence items
+ */
+export const getGetThreatsUrl = (params?: GetThreatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/threats?${stringifiedParams}`
+    : `/api/threats`;
+};
+
+export const getThreats = async (
+  params?: GetThreatsParams,
+  options?: RequestInit,
+): Promise<NewsListResponse> => {
+  return customFetch<NewsListResponse>(getGetThreatsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThreatsQueryKey = (params?: GetThreatsParams) => {
+  return [`/api/threats`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetThreatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThreatsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThreats>>> = ({
+    signal,
+  }) => getThreats(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThreats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThreatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThreats>>
+>;
+export type GetThreatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List threat intelligence items
+ */
+
+export function useGetThreats<
+  TData = Awaited<ReturnType<typeof getThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThreatsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get threat by ID
+ */
+export const getGetThreatByIdUrl = (id: number) => {
+  return `/api/threats/${id}`;
+};
+
+export const getThreatById = async (
+  id: number,
+  options?: RequestInit,
+): Promise<NewsItem> => {
+  return customFetch<NewsItem>(getGetThreatByIdUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThreatByIdQueryKey = (id: number) => {
+  return [`/api/threats/${id}`] as const;
+};
+
+export const getGetThreatByIdQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThreatById>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreatById>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThreatByIdQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThreatById>>> = ({
+    signal,
+  }) => getThreatById(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatById>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThreatByIdQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThreatById>>
+>;
+export type GetThreatByIdQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get threat by ID
+ */
+
+export function useGetThreatById<
+  TData = Awaited<ReturnType<typeof getThreatById>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreatById>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThreatByIdQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Export threats as CSV
+ */
+export const getExportThreatsUrl = (params?: ExportThreatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/threats/export?${stringifiedParams}`
+    : `/api/threats/export`;
+};
+
+export const exportThreats = async (
+  params?: ExportThreatsParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportThreatsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportThreatsQueryKey = (params?: ExportThreatsParams) => {
+  return [`/api/threats/export`, ...(params ? [params] : [])] as const;
+};
+
+export const getExportThreatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getExportThreatsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportThreats>>> = ({
+    signal,
+  }) => exportThreats(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportThreats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportThreatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportThreats>>
+>;
+export type ExportThreatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Export threats as CSV
+ */
+
+export function useExportThreats<
+  TData = Awaited<ReturnType<typeof exportThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportThreatsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Search across news, threats, and advisories
  */
 export const getSearchUrl = (params: SearchParams) => {
@@ -566,8 +843,8 @@ export const getSearchUrl = (params: SearchParams) => {
 export const search = async (
   params: SearchParams,
   options?: RequestInit,
-): Promise<SearchResponse> => {
-  return customFetch<SearchResponse>(getSearchUrl(params), {
+): Promise<SearchListResponse> => {
+  return customFetch<SearchListResponse>(getSearchUrl(params), {
     ...options,
     method: "GET",
   });

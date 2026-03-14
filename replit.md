@@ -64,6 +64,9 @@ artifacts-monorepo/
 - `POST /api/news/:id/bookmark` - Toggle bookmark
 - `GET /api/advisories` - Paginated advisories with filters (severity, vendor, status)
 - `GET /api/advisories/:id` - Advisory detail
+- `GET /api/threats` - Paginated threat intelligence items with filters (scope, severity, category, status)
+- `GET /api/threats/:id` - Threat detail
+- `GET /api/threats/export` - Export threats as CSV (with CSV injection protection)
 - `GET /api/search?q=` - Global search across news and advisories
 
 ## Frontend Pages

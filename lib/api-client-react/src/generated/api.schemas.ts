@@ -159,7 +159,7 @@ export interface SearchResult {
   publishedAt: string;
 }
 
-export interface SearchResponse {
+export interface SearchListResponse {
   results: SearchResult[];
   total: number;
 }
@@ -244,6 +244,67 @@ export const GetAdvisoriesStatus = {
   under_review: "under_review",
   patched: "patched",
   dismissed: "dismissed",
+} as const;
+
+export type GetThreatsParams = {
+  scope?: GetThreatsScope;
+  severity?: GetThreatsSeverity;
+  category?: string;
+  status?: GetThreatsStatus;
+  page?: number;
+  limit?: number;
+};
+
+export type GetThreatsScope =
+  (typeof GetThreatsScope)[keyof typeof GetThreatsScope];
+
+export const GetThreatsScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type GetThreatsSeverity =
+  (typeof GetThreatsSeverity)[keyof typeof GetThreatsSeverity];
+
+export const GetThreatsSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
+} as const;
+
+export type GetThreatsStatus =
+  (typeof GetThreatsStatus)[keyof typeof GetThreatsStatus];
+
+export const GetThreatsStatus = {
+  active: "active",
+  resolved: "resolved",
+  monitoring: "monitoring",
+} as const;
+
+export type ExportThreatsParams = {
+  scope?: ExportThreatsScope;
+  severity?: ExportThreatsSeverity;
+};
+
+export type ExportThreatsScope =
+  (typeof ExportThreatsScope)[keyof typeof ExportThreatsScope];
+
+export const ExportThreatsScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type ExportThreatsSeverity =
+  (typeof ExportThreatsSeverity)[keyof typeof ExportThreatsSeverity];
+
+export const ExportThreatsSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
 } as const;
 
 export type SearchParams = {

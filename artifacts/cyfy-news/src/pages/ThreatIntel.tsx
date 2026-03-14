@@ -1,14 +1,18 @@
-import { useGetNews } from "@workspace/api-client-react";
+import { useGetThreats } from "@workspace/api-client-react";
 import { NewsCard, DetailModal } from "@/components/shared/ItemCards";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
 import { useState } from "react";
 import { Crosshair, Download, Terminal, Network } from "lucide-react";
-import type { NewsItem } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { NewsItem } from "@workspace/api-client-react";
 
 export default function ThreatIntel() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
-  // Fetching news filtered by type='threat'
-  const { data, isLoading } = useGetNews({ type: 'threat', limit: 20 });
+  const { data, isLoading } = useGetThreats({ limit: 20 });
+
+  const handleExportCSV = () => {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    window.open(`${baseUrl}api/threats/export`, "_blank");
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -20,11 +24,8 @@ export default function ThreatIntel() {
           <p className="text-muted-foreground mt-2">Deep dive into actor profiles, TTPs, and campaign tracking.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <Download size={16} /> JSON
-          </Button>
-          <Button className="gap-2 bg-destructive hover:bg-destructive/90 text-white border-none">
-            <Download size={16} /> Export STIX
+          <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
+            <Download size={16} /> Export CSV
           </Button>
         </div>
       </div>
@@ -37,7 +38,7 @@ export default function ThreatIntel() {
             </div>
             <div>
               <h3 className="font-bold text-lg mb-1">Active Campaigns</h3>
-              <p className="text-sm text-muted-foreground">Tracking 14 active sophisticated threat campaigns targeting financial sectors globally.</p>
+              <p className="text-sm text-muted-foreground">Tracking {data?.items.filter((i) => i.status === "active").length ?? 0} active sophisticated threat campaigns.</p>
             </div>
           </CardContent>
         </Card>
@@ -47,8 +48,8 @@ export default function ThreatIntel() {
               <Network className="text-accent h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-bold text-lg mb-1">New IOCs Identified</h3>
-              <p className="text-sm text-muted-foreground">Over 3,420 new IP addresses and domain hashes added to blocklists in the last 48h.</p>
+              <h3 className="font-bold text-lg mb-1">Total Threats Tracked</h3>
+              <p className="text-sm text-muted-foreground">{data?.total ?? 0} threat intelligence items catalogued across all regions.</p>
             </div>
           </CardContent>
         </Card>

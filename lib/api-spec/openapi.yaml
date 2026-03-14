@@ -181,6 +181,98 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /threats:
+    get:
+      operationId: getThreats
+      tags: [news]
+      summary: List threat intelligence items
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [local, global]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, resolved, monitoring]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated threats list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsListResponse"
+
+  /threats/{id}:
+    get:
+      operationId: getThreatById
+      tags: [news]
+      summary: Get threat by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Threat detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /threats/export:
+    get:
+      operationId: exportThreats
+      tags: [news]
+      summary: Export threats as CSV
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [local, global]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
   /search:
     get:
       operationId: search
@@ -208,7 +300,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SearchResponse"
+                $ref: "#/components/schemas/SearchListResponse"
 
   /news/{id}/bookmark:
     post:
@@ -476,7 +568,7 @@ components:
         totalPages:
           type: integer
 
-    SearchResponse:
+    SearchListResponse:
       type: object
       required:
         - results

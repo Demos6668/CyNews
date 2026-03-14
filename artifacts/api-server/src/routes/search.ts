@@ -1,16 +1,26 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable, advisoriesTable } from "@workspace/db";
 import { sql, ilike, or } from "drizzle-orm";
 import { SearchQueryParams, SearchResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-router.get("/search", async (req, res) => {
+interface SearchResultItem {
+  id: number;
+  title: string;
+  summary: string;
+  type: string;
+  severity: string;
+  source: string;
+  publishedAt: string;
+}
+
+router.get("/search", async (req: Request, res: Response) => {
   try {
     const query = SearchQueryParams.parse(req.query);
     const searchTerm = `%${query.q}%`;
     const limit = query.limit ?? 20;
-    const results: any[] = [];
+    const results: SearchResultItem[] = [];
 
     if (!query.type || query.type === "threat" || query.type === "news") {
       const newsResults = await db
@@ -73,7 +83,7 @@ router.get("/search", async (req, res) => {
           id: item.id,
           title: item.title,
           summary: item.description,
-          type: "advisory",
+          type: "advisory" as const,
           severity: item.severity,
           source: item.vendor,
           publishedAt: item.publishedAt.toISOString(),

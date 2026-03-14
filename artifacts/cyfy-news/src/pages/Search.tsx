@@ -9,7 +9,13 @@ export default function Search() {
   const searchString = useWouterSearch();
   const query = new URLSearchParams(searchString).get("q") || "";
   
-  const { data, isLoading } = useSearch({ q: query }, { query: { enabled: query.length > 0 } });
+  const searchParams = { q: query };
+  const { data, isLoading } = useSearch(searchParams, {
+    query: {
+      enabled: query.length > 0,
+      queryKey: ["/api/search", searchParams],
+    },
+  });
 
   if (!query) {
     return (

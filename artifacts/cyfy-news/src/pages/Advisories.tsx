@@ -3,7 +3,7 @@ import { AdvisoryCard, DetailModal } from "@/components/shared/ItemCards";
 import { Skeleton, Button } from "@/components/ui/shared";
 import { useState } from "react";
 import { ShieldAlert, Download } from "lucide-react";
-import type { Advisory } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { Advisory } from "@workspace/api-client-react";
 
 export default function Advisories() {
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);

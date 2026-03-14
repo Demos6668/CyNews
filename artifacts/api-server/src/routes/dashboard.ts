@@ -1,11 +1,11 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte } from "drizzle-orm";
 import { GetDashboardStatsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-router.get("/dashboard/stats", async (_req, res) => {
+router.get("/dashboard/stats", async (_req: Request, res: Response) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

@@ -175,6 +175,88 @@ export const GetAdvisoryByIdResponse = zod.object({
 });
 
 /**
+ * @summary List threat intelligence items
+ */
+export const getThreatsQueryPageDefault = 1;
+export const getThreatsQueryLimitDefault = 20;
+
+export const GetThreatsQueryParams = zod.object({
+  scope: zod.enum(["local", "global"]).optional(),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
+  category: zod.coerce.string().optional(),
+  status: zod.enum(["active", "resolved", "monitoring"]).optional(),
+  page: zod.coerce.number().default(getThreatsQueryPageDefault),
+  limit: zod.coerce.number().default(getThreatsQueryLimitDefault),
+});
+
+export const GetThreatsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      summary: zod.string(),
+      content: zod.string(),
+      type: zod.enum(["threat", "news", "advisory"]),
+      scope: zod.enum(["local", "global"]),
+      severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+      category: zod.string(),
+      source: zod.string(),
+      sourceUrl: zod.string().nullish(),
+      region: zod.array(zod.string()),
+      tags: zod.array(zod.string()),
+      iocs: zod.array(zod.string()).optional(),
+      affectedSystems: zod.array(zod.string()).optional(),
+      mitigations: zod.array(zod.string()).optional(),
+      status: zod.enum(["active", "resolved", "monitoring"]),
+      publishedAt: zod.string(),
+      updatedAt: zod.string(),
+      bookmarked: zod.boolean(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
+  totalPages: zod.number(),
+});
+
+/**
+ * @summary Get threat by ID
+ */
+export const GetThreatByIdParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetThreatByIdResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  summary: zod.string(),
+  content: zod.string(),
+  type: zod.enum(["threat", "news", "advisory"]),
+  scope: zod.enum(["local", "global"]),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+  category: zod.string(),
+  source: zod.string(),
+  sourceUrl: zod.string().nullish(),
+  region: zod.array(zod.string()),
+  tags: zod.array(zod.string()),
+  iocs: zod.array(zod.string()).optional(),
+  affectedSystems: zod.array(zod.string()).optional(),
+  mitigations: zod.array(zod.string()).optional(),
+  status: zod.enum(["active", "resolved", "monitoring"]),
+  publishedAt: zod.string(),
+  updatedAt: zod.string(),
+  bookmarked: zod.boolean(),
+});
+
+/**
+ * @summary Export threats as CSV
+ */
+export const ExportThreatsQueryParams = zod.object({
+  scope: zod.enum(["local", "global"]).optional(),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
+});
+
+/**
  * @summary Search across news, threats, and advisories
  */
 export const searchQueryLimitDefault = 20;

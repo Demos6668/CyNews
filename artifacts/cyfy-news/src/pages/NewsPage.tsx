@@ -4,7 +4,7 @@ import { Skeleton, Input, Button } from "@/components/ui/shared";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Filter, SlidersHorizontal } from "lucide-react";
-import type { NewsItem, GetNewsScope } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { NewsItem, GetNewsScope } from "@workspace/api-client-react";
 
 export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [location, setLocation] = useLocation();
