@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, newsItemsTable } from "@workspace/db";
+import { db, threatIntelTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import {
@@ -12,25 +12,32 @@ import {
 
 const router: IRouter = Router();
 
-function formatNewsItem(item: typeof newsItemsTable.$inferSelect) {
+function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
   return {
     id: item.id,
     title: item.title,
     summary: item.summary,
-    content: item.content,
-    type: item.type,
+    description: item.description,
     scope: item.scope,
     severity: item.severity,
     category: item.category,
-    source: item.source,
-    sourceUrl: item.sourceUrl,
-    region: (item.region as string[]) ?? [],
-    tags: (item.tags as string[]) ?? [],
+    threatActor: item.threatActor,
+    threatActorAliases: (item.threatActorAliases as string[]) ?? [],
+    targetSectors: (item.targetSectors as string[]) ?? [],
+    targetRegions: (item.targetRegions as string[]) ?? [],
+    ttps: (item.ttps as string[]) ?? [],
     iocs: (item.iocs as string[]) ?? [],
+    malwareFamilies: (item.malwareFamilies as string[]) ?? [],
     affectedSystems: (item.affectedSystems as string[]) ?? [],
     mitigations: (item.mitigations as string[]) ?? [],
+    source: item.source,
+    sourceUrl: item.sourceUrl,
+    references: (item.references as string[]) ?? [],
+    campaignName: item.campaignName,
     status: item.status,
-    bookmarked: item.bookmarked,
+    confidenceLevel: item.confidenceLevel,
+    firstSeen: item.firstSeen?.toISOString() ?? null,
+    lastSeen: item.lastSeen?.toISOString() ?? null,
     publishedAt: item.publishedAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };
@@ -39,18 +46,20 @@ function formatNewsItem(item: typeof newsItemsTable.$inferSelect) {
 router.get("/threats/export", async (req: Request, res: Response) => {
   try {
     const query = ExportThreatsQueryParams.parse(req.query);
-    const conditions: SQL[] = [eq(newsItemsTable.type, "threat")];
+    const conditions: SQL[] = [];
 
-    if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(newsItemsTable.severity, query.severity));
+    if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
+    if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const items = await db
       .select()
-      .from(newsItemsTable)
-      .where(and(...conditions))
-      .orderBy(sql`${newsItemsTable.publishedAt} DESC`);
+      .from(threatIntelTable)
+      .where(where)
+      .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
 
-    const headers = ["ID", "Title", "Summary", "Severity", "Scope", "Category", "Source", "Status", "IOCs", "Affected Systems", "Mitigations", "Published At"];
+    const headers = ["ID", "Title", "Summary", "Severity", "Scope", "Category", "Threat Actor", "Campaign", "Source", "Status", "Confidence", "TTPs", "IOCs", "Malware Families", "Affected Systems", "Mitigations", "Published At"];
     const csvRows = [headers.join(",")];
 
     const sanitizeCsvField = (val: string): string => {
@@ -69,9 +78,14 @@ router.get("/threats/export", async (req: Request, res: Response) => {
         item.severity,
         item.scope,
         item.category,
+        sanitizeCsvField(item.threatActor ?? ""),
+        sanitizeCsvField(item.campaignName ?? ""),
         sanitizeCsvField(item.source ?? ""),
         item.status,
+        item.confidenceLevel,
+        sanitizeCsvField(((item.ttps as string[]) ?? []).join("; ")),
         sanitizeCsvField(((item.iocs as string[]) ?? []).join("; ")),
+        sanitizeCsvField(((item.malwareFamilies as string[]) ?? []).join("; ")),
         sanitizeCsvField(((item.affectedSystems as string[]) ?? []).join("; ")),
         sanitizeCsvField(((item.mitigations as string[]) ?? []).join("; ")),
         item.publishedAt.toISOString(),
@@ -94,15 +108,15 @@ router.get("/threats/:id", async (req: Request, res: Response) => {
 
     const [item] = await db
       .select()
-      .from(newsItemsTable)
-      .where(and(eq(newsItemsTable.id, params.id), eq(newsItemsTable.type, "threat")));
+      .from(threatIntelTable)
+      .where(eq(threatIntelTable.id, params.id));
 
     if (!item) {
       res.status(404).json({ error: "Threat not found" });
       return;
     }
 
-    const data = GetThreatByIdResponse.parse(formatNewsItem(item));
+    const data = GetThreatByIdResponse.parse(formatThreatIntel(item));
     res.json(data);
   } catch (error) {
     console.error("Threat detail error:", error);
@@ -113,18 +127,18 @@ router.get("/threats/:id", async (req: Request, res: Response) => {
 router.get("/threats", async (req: Request, res: Response) => {
   try {
     const query = GetThreatsQueryParams.parse(req.query);
-    const conditions: SQL[] = [eq(newsItemsTable.type, "threat")];
+    const conditions: SQL[] = [];
 
-    if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(newsItemsTable.severity, query.severity));
-    if (query.category) conditions.push(eq(newsItemsTable.category, query.category));
-    if (query.status) conditions.push(eq(newsItemsTable.status, query.status));
+    if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
+    if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
+    if (query.category) conditions.push(eq(threatIntelTable.category, query.category));
+    if (query.status) conditions.push(eq(threatIntelTable.status, query.status));
 
-    const where = and(...conditions);
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [totalResult] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(newsItemsTable)
+      .from(threatIntelTable)
       .where(where);
 
     const total = totalResult?.count ?? 0;
@@ -134,14 +148,14 @@ router.get("/threats", async (req: Request, res: Response) => {
 
     const items = await db
       .select()
-      .from(newsItemsTable)
+      .from(threatIntelTable)
       .where(where)
-      .orderBy(sql`${newsItemsTable.publishedAt} DESC`)
+      .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
       .limit(limit)
       .offset(offset);
 
     const data = GetThreatsResponse.parse({
-      items: items.map(formatNewsItem),
+      items: items.map(formatThreatIntel),
       total,
       page,
       limit,

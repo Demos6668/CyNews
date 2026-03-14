@@ -169,6 +169,81 @@ export interface BookmarkResponse {
   bookmarked: boolean;
 }
 
+export type ThreatIntelItemScope =
+  (typeof ThreatIntelItemScope)[keyof typeof ThreatIntelItemScope];
+
+export const ThreatIntelItemScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type ThreatIntelItemSeverity =
+  (typeof ThreatIntelItemSeverity)[keyof typeof ThreatIntelItemSeverity];
+
+export const ThreatIntelItemSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
+} as const;
+
+export type ThreatIntelItemStatus =
+  (typeof ThreatIntelItemStatus)[keyof typeof ThreatIntelItemStatus];
+
+export const ThreatIntelItemStatus = {
+  active: "active",
+  resolved: "resolved",
+  monitoring: "monitoring",
+} as const;
+
+export type ThreatIntelItemConfidenceLevel =
+  (typeof ThreatIntelItemConfidenceLevel)[keyof typeof ThreatIntelItemConfidenceLevel];
+
+export const ThreatIntelItemConfidenceLevel = {
+  confirmed: "confirmed",
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface ThreatIntelItem {
+  id: number;
+  title: string;
+  summary: string;
+  description: string;
+  scope: ThreatIntelItemScope;
+  severity: ThreatIntelItemSeverity;
+  category: string;
+  threatActor?: string | null;
+  threatActorAliases?: string[];
+  targetSectors: string[];
+  targetRegions: string[];
+  ttps: string[];
+  iocs: string[];
+  malwareFamilies: string[];
+  affectedSystems: string[];
+  mitigations: string[];
+  source: string;
+  sourceUrl?: string | null;
+  references?: string[];
+  campaignName?: string | null;
+  status: ThreatIntelItemStatus;
+  confidenceLevel: ThreatIntelItemConfidenceLevel;
+  firstSeen?: string | null;
+  lastSeen?: string | null;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+export interface ThreatIntelListResponse {
+  items: ThreatIntelItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }

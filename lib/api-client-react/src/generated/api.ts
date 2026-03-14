@@ -31,6 +31,8 @@ import type {
   NewsListResponse,
   SearchListResponse,
   SearchParams,
+  ThreatIntelItem,
+  ThreatIntelListResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -568,8 +570,8 @@ export const getGetThreatsUrl = (params?: GetThreatsParams) => {
 export const getThreats = async (
   params?: GetThreatsParams,
   options?: RequestInit,
-): Promise<NewsListResponse> => {
-  return customFetch<NewsListResponse>(getGetThreatsUrl(params), {
+): Promise<ThreatIntelListResponse> => {
+  return customFetch<ThreatIntelListResponse>(getGetThreatsUrl(params), {
     ...options,
     method: "GET",
   });
@@ -650,8 +652,8 @@ export const getGetThreatByIdUrl = (id: number) => {
 export const getThreatById = async (
   id: number,
   options?: RequestInit,
-): Promise<NewsItem> => {
-  return customFetch<NewsItem>(getGetThreatByIdUrl(id), {
+): Promise<ThreatIntelItem> => {
+  return customFetch<ThreatIntelItem>(getGetThreatByIdUrl(id), {
     ...options,
     method: "GET",
   });

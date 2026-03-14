@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, newsItemsTable, advisoriesTable } from "@workspace/db";
+import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte } from "drizzle-orm";
 import { GetDashboardStatsResponse } from "@workspace/api-zod";
 
@@ -10,37 +10,72 @@ router.get("/dashboard/stats", async (_req: Request, res: Response) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [totalThreats] = await db
+    const [newsToday] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(newsItemsTable)
       .where(gte(newsItemsTable.publishedAt, today));
 
-    const [localThreats] = await db
+    const [threatsToday] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(threatIntelTable)
+      .where(gte(threatIntelTable.publishedAt, today));
+
+    const totalThreatsToday = (newsToday?.count ?? 0) + (threatsToday?.count ?? 0);
+
+    const [localNews] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(newsItemsTable)
       .where(and(gte(newsItemsTable.publishedAt, today), eq(newsItemsTable.scope, "local")));
 
-    const [globalThreats] = await db
+    const [localThreats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(threatIntelTable)
+      .where(and(gte(threatIntelTable.publishedAt, today), eq(threatIntelTable.scope, "local")));
+
+    const localThreatsToday = (localNews?.count ?? 0) + (localThreats?.count ?? 0);
+
+    const [globalNews] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(newsItemsTable)
       .where(and(gte(newsItemsTable.publishedAt, today), eq(newsItemsTable.scope, "global")));
+
+    const [globalThreatsDb] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(threatIntelTable)
+      .where(and(gte(threatIntelTable.publishedAt, today), eq(threatIntelTable.scope, "global")));
+
+    const globalThreatsToday = (globalNews?.count ?? 0) + (globalThreatsDb?.count ?? 0);
 
     const [activeAdv] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(advisoriesTable)
       .where(sql`${advisoriesTable.status} IN ('new', 'under_review')`);
 
-    const [criticalAlerts] = await db
+    const [criticalNews] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(newsItemsTable)
       .where(and(eq(newsItemsTable.severity, "critical"), eq(newsItemsTable.status, "active")));
 
-    const [resolvedIncidents] = await db
+    const [criticalThreats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(threatIntelTable)
+      .where(and(eq(threatIntelTable.severity, "critical"), eq(threatIntelTable.status, "active")));
+
+    const criticalAlerts = (criticalNews?.count ?? 0) + (criticalThreats?.count ?? 0);
+
+    const [resolvedNews] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(newsItemsTable)
       .where(eq(newsItemsTable.status, "resolved"));
 
-    const recentItems = await db
+    const [resolvedThreats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(threatIntelTable)
+      .where(eq(threatIntelTable.status, "resolved"));
+
+    const resolvedIncidents = (resolvedNews?.count ?? 0) + (resolvedThreats?.count ?? 0);
+
+    const recentNewsItems = await db
       .select({
         id: newsItemsTable.id,
         title: newsItemsTable.title,
@@ -50,21 +85,36 @@ router.get("/dashboard/stats", async (_req: Request, res: Response) => {
       })
       .from(newsItemsTable)
       .orderBy(sql`${newsItemsTable.publishedAt} DESC`)
-      .limit(10);
+      .limit(5);
 
-    const critCount = criticalAlerts?.count ?? 0;
+    const recentThreats = await db
+      .select({
+        id: threatIntelTable.id,
+        title: threatIntelTable.title,
+        severity: threatIntelTable.severity,
+        publishedAt: threatIntelTable.publishedAt,
+      })
+      .from(threatIntelTable)
+      .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
+      .limit(5);
+
+    const recentItems = [
+      ...recentNewsItems.map((item) => ({ ...item })),
+      ...recentThreats.map((item) => ({ ...item, type: "threat" as const })),
+    ].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()).slice(0, 10);
+
     let currentThreatLevel: "low" | "medium" | "high" | "critical" = "low";
-    if (critCount >= 3) currentThreatLevel = "critical";
-    else if (critCount >= 2) currentThreatLevel = "high";
-    else if (critCount >= 1) currentThreatLevel = "medium";
+    if (criticalAlerts >= 3) currentThreatLevel = "critical";
+    else if (criticalAlerts >= 2) currentThreatLevel = "high";
+    else if (criticalAlerts >= 1) currentThreatLevel = "medium";
 
     const data = GetDashboardStatsResponse.parse({
-      totalThreatsToday: totalThreats?.count ?? 0,
-      localThreatsToday: localThreats?.count ?? 0,
-      globalThreatsToday: globalThreats?.count ?? 0,
+      totalThreatsToday,
+      localThreatsToday,
+      globalThreatsToday,
       activeAdvisories: activeAdv?.count ?? 0,
-      criticalAlerts: criticalAlerts?.count ?? 0,
-      resolvedIncidents: resolvedIncidents?.count ?? 0,
+      criticalAlerts,
+      resolvedIncidents,
       currentThreatLevel,
       recentActivity: recentItems.map((item) => ({
         id: item.id,

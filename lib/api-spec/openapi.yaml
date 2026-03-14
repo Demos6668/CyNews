@@ -15,6 +15,8 @@ tags:
     description: News and threat items
   - name: advisories
     description: Security advisories
+  - name: threats
+    description: Threat intelligence
   - name: search
     description: Global search
 
@@ -184,7 +186,7 @@ paths:
   /threats:
     get:
       operationId: getThreats
-      tags: [news]
+      tags: [threats]
       summary: List threat intelligence items
       parameters:
         - name: scope
@@ -222,12 +224,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NewsListResponse"
+                $ref: "#/components/schemas/ThreatIntelListResponse"
 
   /threats/{id}:
     get:
       operationId: getThreatById
-      tags: [news]
+      tags: [threats]
       summary: Get threat by ID
       parameters:
         - name: id
@@ -241,7 +243,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NewsItem"
+                $ref: "#/components/schemas/ThreatIntelItem"
         "404":
           description: Not found
           content:
@@ -252,7 +254,7 @@ paths:
   /threats/export:
     get:
       operationId: exportThreats
-      tags: [news]
+      tags: [threats]
       summary: Export threats as CSV
       parameters:
         - name: scope
@@ -617,6 +619,131 @@ components:
           type: integer
         bookmarked:
           type: boolean
+
+    ThreatIntelItem:
+      type: object
+      required:
+        - id
+        - title
+        - summary
+        - description
+        - scope
+        - severity
+        - category
+        - source
+        - ttps
+        - iocs
+        - malwareFamilies
+        - affectedSystems
+        - mitigations
+        - targetSectors
+        - targetRegions
+        - status
+        - confidenceLevel
+        - publishedAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        scope:
+          type: string
+          enum: [local, global]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        category:
+          type: string
+        threatActor:
+          type: string
+          nullable: true
+        threatActorAliases:
+          type: array
+          items:
+            type: string
+        targetSectors:
+          type: array
+          items:
+            type: string
+        targetRegions:
+          type: array
+          items:
+            type: string
+        ttps:
+          type: array
+          items:
+            type: string
+        iocs:
+          type: array
+          items:
+            type: string
+        malwareFamilies:
+          type: array
+          items:
+            type: string
+        affectedSystems:
+          type: array
+          items:
+            type: string
+        mitigations:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+        sourceUrl:
+          type: string
+          nullable: true
+        references:
+          type: array
+          items:
+            type: string
+        campaignName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, resolved, monitoring]
+        confidenceLevel:
+          type: string
+          enum: [confirmed, high, medium, low]
+        firstSeen:
+          type: string
+          nullable: true
+        lastSeen:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ThreatIntelListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+        - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreatIntelItem"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
 
     ErrorResponse:
       type: object

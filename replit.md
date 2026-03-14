@@ -51,8 +51,9 @@ artifacts-monorepo/
 
 ## Database Tables
 
-- `news_items` - Threat intelligence, news, and advisory items with severity, scope (local/global), category, IOCs, mitigations, bookmarks
+- `news_items` - News items with severity, scope (local/global), category, IOCs, mitigations, bookmarks
 - `advisories` - CVE advisories with CVSS scores, affected products, vendor info, patch status, workarounds
+- `threat_intel` - Dedicated threat intelligence table with threat actor profiles, TTPs (MITRE ATT&CK), IOCs, malware families, campaign names, target sectors/regions, confidence levels
 
 ## API Endpoints
 

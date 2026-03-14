@@ -1,0 +1,36 @@
+import { pgTable, serial, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const threatIntelTable = pgTable("threat_intel", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  description: text("description").notNull(),
+  scope: text("scope").notNull().$type<"local" | "global">(),
+  severity: text("severity").notNull().$type<"critical" | "high" | "medium" | "low" | "info">(),
+  category: text("category").notNull(),
+  threatActor: text("threat_actor"),
+  threatActorAliases: jsonb("threat_actor_aliases").$type<string[]>().notNull().default([]),
+  targetSectors: jsonb("target_sectors").$type<string[]>().notNull().default([]),
+  targetRegions: jsonb("target_regions").$type<string[]>().notNull().default([]),
+  ttps: jsonb("ttps").$type<string[]>().notNull().default([]),
+  iocs: jsonb("iocs").$type<string[]>().notNull().default([]),
+  malwareFamilies: jsonb("malware_families").$type<string[]>().notNull().default([]),
+  affectedSystems: jsonb("affected_systems").$type<string[]>().notNull().default([]),
+  mitigations: jsonb("mitigations").$type<string[]>().notNull().default([]),
+  source: text("source").notNull(),
+  sourceUrl: text("source_url"),
+  references: jsonb("references").$type<string[]>().notNull().default([]),
+  campaignName: text("campaign_name"),
+  status: text("status").notNull().$type<"active" | "resolved" | "monitoring">().default("active"),
+  confidenceLevel: text("confidence_level").notNull().$type<"confirmed" | "high" | "medium" | "low">().default("medium"),
+  firstSeen: timestamp("first_seen"),
+  lastSeen: timestamp("last_seen"),
+  publishedAt: timestamp("published_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertThreatIntelSchema = createInsertSchema(threatIntelTable).omit({ id: true });
+export type InsertThreatIntel = z.infer<typeof insertThreatIntelSchema>;
+export type ThreatIntel = typeof threatIntelTable.$inferSelect;

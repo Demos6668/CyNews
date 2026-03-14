@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, newsItemsTable, advisoriesTable } from "@workspace/db";
+import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
 import { sql, ilike, or } from "drizzle-orm";
 import { SearchQueryParams, SearchResponse } from "@workspace/api-zod";
 
@@ -22,7 +22,7 @@ router.get("/search", async (req: Request, res: Response) => {
     const limit = query.limit ?? 20;
     const results: SearchResultItem[] = [];
 
-    if (!query.type || query.type === "threat" || query.type === "news") {
+    if (!query.type || query.type === "news") {
       const newsResults = await db
         .select({
           id: newsItemsTable.id,
@@ -57,6 +57,40 @@ router.get("/search", async (req: Request, res: Response) => {
       );
     }
 
+    if (!query.type || query.type === "threat") {
+      const threatResults = await db
+        .select({
+          id: threatIntelTable.id,
+          title: threatIntelTable.title,
+          summary: threatIntelTable.summary,
+          severity: threatIntelTable.severity,
+          source: threatIntelTable.source,
+          publishedAt: threatIntelTable.publishedAt,
+        })
+        .from(threatIntelTable)
+        .where(
+          or(
+            ilike(threatIntelTable.title, searchTerm),
+            ilike(threatIntelTable.summary, searchTerm),
+            ilike(threatIntelTable.description, searchTerm)
+          )
+        )
+        .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
+        .limit(limit);
+
+      results.push(
+        ...threatResults.map((item) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          type: "threat",
+          severity: item.severity,
+          source: item.source,
+          publishedAt: item.publishedAt.toISOString(),
+        }))
+      );
+    }
+
     if (!query.type || query.type === "advisory") {
       const advisoryResults = await db
         .select({
@@ -83,7 +117,7 @@ router.get("/search", async (req: Request, res: Response) => {
           id: item.id,
           title: item.title,
           summary: item.description,
-          type: "advisory" as const,
+          type: "advisory",
           severity: item.severity,
           source: item.vendor,
           publishedAt: item.publishedAt.toISOString(),
