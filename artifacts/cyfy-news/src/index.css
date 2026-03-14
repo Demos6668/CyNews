@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
+
+:root {
+  /* Dark mode only app - base background #0D1117 */
+  --background: 216 28% 7%;
+  --foreground: 0 0% 100%;
+
+  /* Card background #161B22 */
+  --card: 215 21% 11%;
+  --card-foreground: 0 0% 100%;
+
+  --popover: 215 21% 11%;
+  --popover-foreground: 0 0% 100%;
+
+  /* Primary Teal #0095AF */
+  --primary: 189 100% 34%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary / Sidebar Dark Navy #1A2332 */
+  --secondary: 217 31% 15%;
+  --secondary-foreground: 0 0% 100%;
+
+  /* Muted Text #8B949E */
+  --muted: 217 31% 15%;
+  --muted-foreground: 212 8% 58%;
+
+  /* Accent Amber #FFB74B */
+  --accent: 36 100% 65%;
+  --accent-foreground: 216 28% 7%;
+
+  /* Danger Red #F85149 */
+  --destructive: 3 93% 63%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Warning Yellow #F0C000 */
+  --warning: 48 100% 47%;
+  --warning-foreground: 216 28% 7%;
+
+  /* Success Green #3FB950 */
+  --success: 128 49% 49%;
+  --success-foreground: 0 0% 100%;
+
+  --border: 217 31% 20%;
+  --input: 217 31% 20%;
+  --ring: 189 100% 34%;
+
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground;
+  }
+  
+  /* Custom scrollbar for webkit */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background)); 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border)); 
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground)); 
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-md border border-white/5 shadow-xl;
+  }
+  
+  .glow-hover {
+    @apply transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,149,175,0.2)] hover:border-primary/40;
+  }
+  
+  .glow-text {
+    text-shadow: 0 0 10px rgba(0, 149, 175, 0.5);
+  }
+}

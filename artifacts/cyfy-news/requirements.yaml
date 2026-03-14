@@ -1,0 +1,18 @@
+packages:
+  "recharts": "For threat level gauge and analytics charts"
+  "framer-motion": "For page transitions, card hovering, and complex animations"
+  "date-fns": "For formatting timestamps and relative time"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes without style conflicts"
+
+images:
+  - path: "artifacts/cyfy-news/public/images/soc-bg.png"
+    description: "Dark, high-tech cybersecurity abstract background with glowing teal and amber nodes, subtle grid lines, very dark navy and black base, shallow depth of field"
+    aspect_ratio: "16:9"
+  - path: "artifacts/cyfy-news/public/images/logo-mark.png"
+    description: "Modern, sharp geometric logo mark for a cybersecurity platform named CYFY, using neon teal and bright amber, clean tech aesthetic, dark background"
+    aspect_ratio: "1:1"
+
+notes:
+  - API is available at /api via proxy
+  - Using generated React Query hooks from @workspace/api-client-react
