@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte } from "drizzle-orm";
+
 import { GetDashboardStatsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -127,6 +128,10 @@ router.get("/dashboard/stats", async (_req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Dashboard stats error:", error);
     res.status(500).json({ error: "Failed to fetch dashboard stats" });
   }

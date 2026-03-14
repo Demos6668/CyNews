@@ -6,8 +6,8 @@ import { formatRelative } from "@/lib/utils";
 import { NewsCard } from "@/components/shared/ItemCards";
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
-  const { data: recentNews, isLoading: newsLoading } = useGetNews({ limit: 3 });
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats();
+  const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews({ limit: 3 });
 
   if (statsLoading) {
     return (
@@ -24,7 +24,20 @@ export default function Dashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (statsError || !stats) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold font-sans">SOC Overview</h1>
+        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load dashboard</h3>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            Unable to retrieve SOC metrics. Please check your connection and try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const threatLevelColor = 
     stats.currentThreatLevel === 'critical' ? '#F85149' :
@@ -84,13 +97,20 @@ export default function Dashboard() {
               <Activity className="h-5 w-5 text-primary" /> Urgent Intel
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {newsLoading ? (
-               [1,2].map(i => <Skeleton key={i} className="h-48" />)
-            ) : recentNews?.items.map(item => (
-              <NewsCard key={item.id} item={item} />
-            ))}
-          </div>
+          {newsError ? (
+            <div className="p-8 bg-card rounded-xl border border-destructive/30 text-center">
+              <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">Failed to load recent news.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {newsLoading ? (
+                 [1,2].map(i => <Skeleton key={i} className="h-48" />)
+              ) : recentNews?.items.map(item => (
+                <NewsCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+
 import {
   GetAdvisoriesQueryParams,
   GetAdvisoriesResponse,
@@ -69,6 +70,10 @@ router.get("/advisories", async (req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Advisories list error:", error);
     res.status(500).json({ error: "Failed to fetch advisories" });
   }
@@ -91,6 +96,10 @@ router.get("/advisories/:id", async (req: Request, res: Response) => {
     const data = GetAdvisoryByIdResponse.parse(formatAdvisory(item));
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Advisory detail error:", error);
     res.status(500).json({ error: "Failed to fetch advisory" });
   }

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+
 import {
   GetNewsQueryParams,
   GetNewsResponse,
@@ -56,6 +57,10 @@ router.get("/news/bookmarked", async (_req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Bookmarked news error:", error);
     res.status(500).json({ error: "Failed to fetch bookmarked news" });
   }
@@ -102,6 +107,10 @@ router.get("/news", async (req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("News list error:", error);
     res.status(500).json({ error: "Failed to fetch news" });
   }
@@ -124,6 +133,10 @@ router.get("/news/:id", async (req: Request, res: Response) => {
     const data = GetNewsByIdResponse.parse(formatNewsItem(item));
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("News detail error:", error);
     res.status(500).json({ error: "Failed to fetch news item" });
   }
@@ -156,6 +169,10 @@ router.post("/news/:id/bookmark", async (req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Bookmark error:", error);
     res.status(500).json({ error: "Failed to toggle bookmark" });
   }

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+
 import {
   GetThreatsQueryParams,
   GetThreatsResponse,
@@ -97,6 +98,10 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", "attachment; filename=threats-export.csv");
     res.send(csvRows.join("\n"));
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Export threats error:", error);
     res.status(500).json({ error: "Failed to export threats" });
   }
@@ -119,6 +124,10 @@ router.get("/threats/:id", async (req: Request, res: Response) => {
     const data = GetThreatByIdResponse.parse(formatThreatIntel(item));
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Threat detail error:", error);
     res.status(500).json({ error: "Failed to fetch threat" });
   }
@@ -164,6 +173,10 @@ router.get("/threats", async (req: Request, res: Response) => {
 
     res.json(data);
   } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
+      return;
+    }
     console.error("Threats list error:", error);
     res.status(500).json({ error: "Failed to fetch threats" });
   }

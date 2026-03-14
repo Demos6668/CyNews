@@ -2,7 +2,7 @@ import { useSearch } from "@workspace/api-client-react";
 import { useSearch as useWouterSearch } from "wouter";
 import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate } from "@/lib/utils";
-import { Search as SearchIcon, ChevronRight } from "lucide-react";
+import { Search as SearchIcon, ChevronRight, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Search() {
@@ -10,7 +10,7 @@ export default function Search() {
   const query = new URLSearchParams(searchString).get("q") || "";
   
   const searchParams = { q: query };
-  const { data, isLoading } = useSearch(searchParams, {
+  const { data, isLoading, isError, error } = useSearch(searchParams, {
     query: {
       enabled: query.length > 0,
       queryKey: ["/api/search", searchParams],
@@ -33,7 +33,15 @@ export default function Search() {
         Search results for <span className="text-primary">"{query}"</span>
       </h1>
       
-      {isLoading ? (
+      {isError ? (
+        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-destructive mb-2">Search failed</h3>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            {error instanceof Error ? error.message : "An unexpected error occurred. Please try again."}
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-4">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
         </div>
