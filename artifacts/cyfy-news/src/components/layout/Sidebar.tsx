@@ -8,9 +8,10 @@ import {
   Crosshair, 
   Settings,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
@@ -25,12 +26,24 @@ const navItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  return (
-    <motion.aside 
-      animate={{ width: collapsed ? 80 : 260 }}
-      className="h-screen sticky top-0 bg-secondary border-r border-border flex flex-col z-40 shadow-2xl"
-    >
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const sidebarContent = (
+    <>
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/5">
         <AnimatePresence>
           {!collapsed && (
@@ -47,10 +60,16 @@ export function Sidebar() {
         </AnimatePresence>
         
         <button 
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            if (window.innerWidth < 1024) {
+              setMobileOpen(false);
+            } else {
+              setCollapsed(!collapsed);
+            }
+          }}
           className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors ml-auto"
         >
-          {collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+          {window.innerWidth < 1024 ? <X size={20} /> : collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
       </div>
 
@@ -94,6 +113,41 @@ export function Sidebar() {
           </div>
         </div>
       )}
-    </motion.aside>
+    </>
+  );
+
+  return (
+    <>
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-white transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu size={20} />
+      </button>
+
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          "lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[260px] bg-secondary border-r border-border flex flex-col shadow-2xl transition-transform duration-300 ease-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {sidebarContent}
+      </aside>
+
+      <motion.aside 
+        animate={{ width: collapsed ? 80 : 260 }}
+        className="hidden lg:flex h-screen sticky top-0 bg-secondary border-r border-border flex-col z-40 shadow-2xl"
+      >
+        {sidebarContent}
+      </motion.aside>
+    </>
   );
 }

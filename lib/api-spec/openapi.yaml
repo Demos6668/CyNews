@@ -77,6 +77,18 @@ paths:
           schema:
             type: string
             enum: [active, resolved, monitoring]
+        - name: from
+          in: query
+          description: Filter news published on or after this date (ISO 8601)
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Filter news published on or before this date (ISO 8601)
+          schema:
+            type: string
+            format: date
         - name: page
           in: query
           schema:

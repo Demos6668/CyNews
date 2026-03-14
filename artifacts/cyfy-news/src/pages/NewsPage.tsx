@@ -3,7 +3,7 @@ import { NewsCard, DetailModal } from "@/components/shared/ItemCards";
 import { Skeleton, Button } from "@/components/ui/shared";
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Filter, X, AlertTriangle } from "lucide-react";
+import { Filter, X, AlertTriangle, Calendar } from "lucide-react";
 import type { NewsItem, GetNewsScope, GetNewsSeverity } from "@workspace/api-client-react";
 
 const SEVERITY_OPTIONS: { label: string; value: GetNewsSeverity }[] = [
@@ -35,20 +35,26 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [severityFilter, setSeverityFilter] = useState<GetNewsSeverity | undefined>(undefined);
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
 
   const { data, isLoading, isError, error } = useGetNews({
     scope,
     severity: severityFilter,
     category: categoryFilter,
+    from: dateFrom,
+    to: dateTo,
     limit: 20,
   });
 
-  const hasActiveFilters = severityFilter || categoryFilter;
+  const hasActiveFilters = severityFilter || categoryFilter || dateFrom || dateTo;
 
   const clearFilters = () => {
     setSeverityFilter(undefined);
     setCategoryFilter(undefined);
+    setDateFrom(undefined);
+    setDateTo(undefined);
     setShowFilters(false);
   };
 
@@ -103,7 +109,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
       {showFilters && (
         <div className="space-y-4 p-4 bg-card/50 rounded-xl border border-white/5">
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">Severity:</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-20">Severity:</span>
             {SEVERITY_OPTIONS.map((opt) => (
               <Button
                 key={opt.value}
@@ -117,7 +123,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
             ))}
           </div>
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">Category:</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-20">Category:</span>
             {CATEGORY_OPTIONS.map((cat) => (
               <Button
                 key={cat}
@@ -129,6 +135,24 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
                 {cat}
               </Button>
             ))}
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-20 flex items-center gap-1"><Calendar size={12} /> Date:</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom ?? ""}
+                onChange={(e) => setDateFrom(e.target.value || undefined)}
+                className="bg-background border border-border rounded-md px-2 py-1 text-xs text-foreground focus:border-primary outline-none"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <input
+                type="date"
+                value={dateTo ?? ""}
+                onChange={(e) => setDateTo(e.target.value || undefined)}
+                className="bg-background border border-border rounded-md px-2 py-1 text-xs text-foreground focus:border-primary outline-none"
+              />
+            </div>
           </div>
         </div>
       )}

@@ -48,6 +48,14 @@ export const GetNewsQueryParams = zod.object({
   category: zod.coerce.string().optional(),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   status: zod.enum(["active", "resolved", "monitoring"]).optional(),
+  from: zod
+    .date()
+    .optional()
+    .describe("Filter news published on or after this date (ISO 8601)"),
+  to: zod
+    .date()
+    .optional()
+    .describe("Filter news published on or before this date (ISO 8601)"),
   page: zod.coerce.number().default(getNewsQueryPageDefault),
   limit: zod.coerce.number().default(getNewsQueryLimitDefault),
 });

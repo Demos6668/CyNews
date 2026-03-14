@@ -254,6 +254,14 @@ export type GetNewsParams = {
   category?: string;
   type?: GetNewsType;
   status?: GetNewsStatus;
+  /**
+   * Filter news published on or after this date (ISO 8601)
+   */
+  from?: string;
+  /**
+   * Filter news published on or before this date (ISO 8601)
+   */
+  to?: string;
   page?: number;
   limit?: number;
 };

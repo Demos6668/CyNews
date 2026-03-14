@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, gte, lte } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -68,7 +68,10 @@ router.get("/news/bookmarked", async (_req: Request, res: Response) => {
 
 router.get("/news", async (req: Request, res: Response) => {
   try {
-    const query = GetNewsQueryParams.parse(req.query);
+    const rawQuery = { ...req.query } as Record<string, unknown>;
+    if (typeof rawQuery.from === "string") rawQuery.from = new Date(rawQuery.from);
+    if (typeof rawQuery.to === "string") rawQuery.to = new Date(rawQuery.to);
+    const query = GetNewsQueryParams.parse(rawQuery);
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));
@@ -76,6 +79,12 @@ router.get("/news", async (req: Request, res: Response) => {
     if (query.category) conditions.push(eq(newsItemsTable.category, query.category));
     if (query.type) conditions.push(eq(newsItemsTable.type, query.type));
     if (query.status) conditions.push(eq(newsItemsTable.status, query.status));
+    if (query.from) conditions.push(gte(newsItemsTable.publishedAt, query.from));
+    if (query.to) {
+      const toDate = new Date(query.to);
+      toDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(newsItemsTable.publishedAt, toDate));
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 

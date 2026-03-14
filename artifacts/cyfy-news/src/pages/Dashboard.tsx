@@ -5,6 +5,61 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatRelative } from "@/lib/utils";
 import { NewsCard } from "@/components/shared/ItemCards";
 
+function ThreatGauge({ level }: { level: string }) {
+  const levels = ["low", "medium", "high", "critical"];
+  const idx = levels.indexOf(level);
+  const angle = -90 + (idx / (levels.length - 1)) * 180;
+  const colors = ["#3FB950", "#F0C000", "#FFB74B", "#F85149"];
+  const color = colors[idx] || colors[0];
+
+  return (
+    <Card className="glass-panel w-full max-w-sm">
+      <CardContent className="p-6 flex flex-col items-center">
+        <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4">Threat Level</h3>
+        <div className="relative w-48 h-28 overflow-hidden">
+          <svg viewBox="0 0 200 110" className="w-full h-full">
+            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="hsl(var(--border))" strokeWidth="16" strokeLinecap="round" />
+            {levels.map((_, i) => {
+              const startAngle = -180 + (i / levels.length) * 180;
+              const endAngle = -180 + ((i + 1) / levels.length) * 180;
+              const startRad = (startAngle * Math.PI) / 180;
+              const endRad = (endAngle * Math.PI) / 180;
+              const x1 = 100 + 80 * Math.cos(startRad);
+              const y1 = 100 + 80 * Math.sin(startRad);
+              const x2 = 100 + 80 * Math.cos(endRad);
+              const y2 = 100 + 80 * Math.sin(endRad);
+              return (
+                <path
+                  key={i}
+                  d={`M ${x1} ${y1} A 80 80 0 0 1 ${x2} ${y2}`}
+                  fill="none"
+                  stroke={colors[i]}
+                  strokeWidth="16"
+                  strokeLinecap="round"
+                  opacity={i <= idx ? 1 : 0.15}
+                />
+              );
+            })}
+            <line
+              x1="100"
+              y1="100"
+              x2={100 + 55 * Math.cos((angle * Math.PI) / 180)}
+              y2={100 + 55 * Math.sin((angle * Math.PI) / 180)}
+              stroke={color}
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <circle cx="100" cy="100" r="6" fill={color} />
+          </svg>
+        </div>
+        <div className="text-center mt-2">
+          <span className="text-lg font-bold font-mono uppercase tracking-wider" style={{ color }}>{level}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats();
   const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews({ limit: 3 });
@@ -69,6 +124,10 @@ export default function Dashboard() {
             DEFCON: {stats.currentThreatLevel}
           </span>
         </div>
+      </div>
+
+      <div className="flex justify-center mb-2">
+        <ThreatGauge level={stats.currentThreatLevel} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
