@@ -10,6 +10,7 @@
     "live-feed:watch": "tsx ./src/live-feed-aggregator.ts -- --watch",
     "cleanup-fake-urls": "tsx ./src/cleanup-fake-urls.ts",
     "reclassify-scope": "tsx ./src/reclassify-scope.ts",
+    "reclassify-advisories-scope": "tsx ./src/reclassify-advisories-scope.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
