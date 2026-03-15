@@ -10,12 +10,18 @@ export interface FilterParams {
   dateTo?: string;
   timeframe?: string;
   scope?: string;
+  page?: number;
+  limit?: number;
 }
 
 const DEFAULT_TIMEFRAME = "24h";
 
+const DEFAULT_LIMIT = 20;
+
 function parseSearchParams(searchString: string): FilterParams {
   const params = new URLSearchParams(searchString);
+  const pageParam = params.get("page");
+  const limitParam = params.get("limit");
   return {
     severities: params.get("severity")?.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) ?? [],
     categories: params.get("category")?.split(",").map((c) => c.trim()).filter(Boolean) ?? [],
@@ -25,6 +31,8 @@ function parseSearchParams(searchString: string): FilterParams {
     dateTo: params.get("dateTo") ?? undefined,
     timeframe: params.get("timeframe") ?? DEFAULT_TIMEFRAME,
     scope: params.get("scope") ?? undefined,
+    page: pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : undefined,
+    limit: limitParam ? Math.max(1, Math.min(96, parseInt(limitParam, 10) || DEFAULT_LIMIT)) : undefined,
   };
 }
 
@@ -38,6 +46,8 @@ function buildSearchParams(filters: Partial<FilterParams>): URLSearchParams {
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
   if (filters.timeframe && filters.timeframe !== DEFAULT_TIMEFRAME) params.set("timeframe", filters.timeframe);
   if (filters.scope) params.set("scope", filters.scope);
+  if (filters.page && filters.page > 1) params.set("page", String(filters.page));
+  if (filters.limit && filters.limit !== DEFAULT_LIMIT) params.set("limit", String(filters.limit));
   return params;
 }
 
@@ -82,6 +92,8 @@ export function useFilterParamsSync(
     filters.dateTo,
     filters.timeframe,
     filters.scope,
+    filters.page,
+    filters.limit,
     setLocation,
   ]);
 }

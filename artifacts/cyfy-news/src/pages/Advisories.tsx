@@ -1,8 +1,8 @@
 import { useGetAdvisories } from "@workspace/api-client-react";
 import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, type TimeframeValue } from "@/components/Common";
-import { useState, useCallback, useEffect } from "react";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { ShieldAlert, AlertTriangle, Download } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
@@ -27,9 +27,11 @@ export default function Advisories() {
   const [severities, setSeverities] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const [scope, setScope] = useState<"local" | "global">("global");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   useEffect(() => {
     const initial = getInitialFiltersFromUrl(searchString);
@@ -38,13 +40,24 @@ export default function Advisories() {
     if (initial.vendors?.length) setVendors(initial.vendors);
     if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
     if (initial.scope) setScope(initial.scope as "local" | "global");
+    if (initial.page) setPage(initial.page);
+    if (initial.limit) setLimit(initial.limit);
   }, [searchString]);
 
   useFilterParamsSync(
     "/advisories",
-    { severities, statuses, vendors, timeframe, scope },
+    { severities, statuses, vendors, timeframe, scope, page, limit },
     { skipInitialSync: true }
   );
+
+  const skipPageResetRef = useRef(true);
+  useEffect(() => {
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setPage(1);
+  }, [severities.join(","), statuses.join(","), vendors.join(","), timeframe, scope]);
 
   const toggleSeverity = useCallback((value: string) => {
     setSeverities((prev) =>
@@ -70,7 +83,8 @@ export default function Advisories() {
     status: statuses.length > 0 ? statuses.join(",") : undefined,
     vendor: vendors.length > 0 ? vendors.join(",") : undefined,
     timeframe,
-    limit: 20,
+    page,
+    limit,
   });
 
   const activeFilterCount = severities.length + statuses.length + vendors.length;
@@ -109,6 +123,19 @@ export default function Advisories() {
     window.URL.revokeObjectURL(url);
     setSelectedIds(new Set());
   };
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  }, []);
+
+  const totalPages = data?.totalPages ?? 0;
+  const totalItems = data?.total ?? 0;
 
   const handleExportAll = async () => {
     const res = await fetch("/api/export/advisories/bulk", {
@@ -198,13 +225,25 @@ export default function Advisories() {
           }
         />
       ) : (
-        <AdvisoryList
-          items={data?.items ?? []}
-          onItemClick={(item) => setSelectedItem(item)}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          showCheckboxes
-        />
+        <>
+          <AdvisoryList
+            items={data?.items ?? []}
+            onItemClick={(item) => setSelectedItem(item)}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            showCheckboxes
+          />
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
+        </>
       )}
 
       <AdvisoryDetail

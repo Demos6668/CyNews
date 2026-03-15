@@ -1,9 +1,9 @@
 import { useGetNews } from "@workspace/api-client-react";
 import { NewsList, NewsDetail } from "@/components/News";
-import { TabSwitch, TimeframeSelector, FilterSection, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
 import { Skeleton } from "@/components/ui/shared";
 import { EmptyState } from "@/components/Common";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { AlertTriangle, FileQuestion } from "lucide-react";
 import type { NewsItem, GetNewsScope } from "@workspace/api-client-react";
@@ -34,30 +34,45 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(undefined);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   useEffect(() => {
     const initial = getInitialFiltersFromUrl(searchString);
-    if (initial.severities.length || initial.categories.length || initial.dateFrom || initial.dateTo) {
+    if (initial.severities.length || initial.categories.length || initial.dateFrom || initial.dateTo || initial.page || initial.limit) {
       setSeverities(initial.severities);
       setCategories(initial.categories);
       setDateFrom(initial.dateFrom);
       setDateTo(initial.dateTo);
       if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
+      if (initial.page) setPage(initial.page);
+      if (initial.limit) setLimit(initial.limit);
     }
   }, [searchString]);
 
   useFilterParamsSync(
     `/news/${scope}`,
     {
-    severities,
-    categories,
-    dateFrom,
-    dateTo,
-    timeframe,
-  },
+      severities,
+      categories,
+      dateFrom,
+      dateTo,
+      timeframe,
+      page,
+      limit,
+    },
     { skipInitialSync: true }
   );
+
+  const skipPageResetRef = useRef(true);
+  useEffect(() => {
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setPage(1);
+  }, [severities.join(","), categories.join(","), dateFrom, dateTo, timeframe]);
 
   const toggleSeverity = useCallback((value: string) => {
     setSeverities((prev) =>
@@ -78,7 +93,8 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     from: dateFrom,
     to: dateTo,
     timeframe: dateFrom || dateTo ? undefined : timeframe,
-    limit: 20,
+    page,
+    limit,
   });
 
   const activeFilterCount =
@@ -97,6 +113,19 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     setSeverities(filters.severities);
     setCategories(filters.categories);
   }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  }, []);
+
+  const totalPages = data?.totalPages ?? 0;
+  const totalItems = data?.total ?? 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -174,10 +203,22 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
           }
         />
       ) : (
-        <NewsList
-          items={data?.items ?? []}
-          onItemClick={(item) => setSelectedItem(item)}
-        />
+        <>
+          <NewsList
+            items={data?.items ?? []}
+            onItemClick={(item) => setSelectedItem(item)}
+          />
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
+        </>
       )}
 
       <NewsDetail

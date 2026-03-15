@@ -83,7 +83,7 @@ function FilterChipGroup<T extends string>({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+        <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium" title="Click to toggle each option; multiple can be selected">
           {label}
           {selected.length > 0 && (
             <span className={cn("ml-2", accentClass === "bg-primary" ? "text-primary" : "text-amber-500")}>

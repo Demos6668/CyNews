@@ -1,7 +1,7 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, type TimeframeValue } from "@/components/Common";
-import { useState, useCallback, useEffect } from "react";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, type TimeframeValue } from "@/components/Common";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import {
   Crosshair,
@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { ThreatCard, ThreatModal, ThreatTimeline } from "@/components/Threats";
-import { EmptyState } from "@/components/Common";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
 const THREAT_CATEGORY_OPTIONS = [
@@ -34,26 +33,39 @@ export default function ThreatIntel() {
   const [selectedItem, setSelectedItem] = useState<ThreatIntelItem | null>(null);
   const [severities, setSeverities] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const [scope, setScope] = useState<"local" | "global">("global");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
 
   useEffect(() => {
     const initial = getInitialFiltersFromUrl(searchString);
-    if (initial.severities.length || initial.categories.length) {
+    if (initial.severities.length || initial.categories.length || initial.page || initial.limit) {
       setSeverities(initial.severities);
       setCategories(initial.categories);
       if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
       if (initial.scope) setScope(initial.scope as "local" | "global");
+      if (initial.page) setPage(initial.page);
+      if (initial.limit) setLimit(initial.limit);
     }
   }, [searchString]);
 
   useFilterParamsSync(
     "/threat-intel",
-    { severities, categories, timeframe, scope },
+    { severities, categories, timeframe, scope, page, limit },
     { skipInitialSync: true }
   );
+
+  const skipPageResetRef = useRef(true);
+  useEffect(() => {
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setPage(1);
+  }, [severities.join(","), categories.join(","), timeframe, scope]);
 
   const toggleSeverity = useCallback((value: string) => {
     setSeverities((prev) =>
@@ -72,7 +84,8 @@ export default function ThreatIntel() {
     severity: severities.length > 0 ? severities.join(",") : undefined,
     category: categories.length > 0 ? categories.join(",") : undefined,
     timeframe,
-    limit: 50,
+    page,
+    limit,
   });
 
   const activeFilterCount = severities.length + categories.length;
@@ -93,6 +106,19 @@ export default function ThreatIntel() {
     const baseUrl = import.meta.env.BASE_URL || "/";
     window.open(`${baseUrl}api/threats/export?format=${format}`, "_blank");
   };
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  }, []);
+
+  const totalPages = data?.totalPages ?? 0;
+  const totalItems = data?.total ?? 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -228,22 +254,46 @@ export default function ThreatIntel() {
           }
         />
       ) : viewMode === "timeline" ? (
-        <div className="bg-card/50 rounded-xl border border-white/5 overflow-hidden">
-          <ThreatTimeline
-            items={data?.items ?? []}
-            onItemClick={(item) => setSelectedItem(item)}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(data?.items ?? []).map((item) => (
-            <ThreatCard
-              key={item.id}
-              item={item}
-              onClick={() => setSelectedItem(item)}
+        <>
+          <div className="bg-card/50 rounded-xl border border-white/5 overflow-hidden">
+            <ThreatTimeline
+              items={data?.items ?? []}
+              onItemClick={(item) => setSelectedItem(item)}
             />
-          ))}
-        </div>
+          </div>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(data?.items ?? []).map((item) => (
+              <ThreatCard
+                key={item.id}
+                item={item}
+                onClick={() => setSelectedItem(item)}
+              />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
+        </>
       )}
 
       <ThreatModal

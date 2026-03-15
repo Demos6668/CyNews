@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
-import { eq, sql, and, gte, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, inArray, or } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import type { SQL } from "drizzle-orm";
 

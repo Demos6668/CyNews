@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
-import { eq, sql, and, gte, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, inArray, or } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import type { SQL } from "drizzle-orm";
 
@@ -62,7 +62,7 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     if (query.severity) {
       const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
       if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
-      else if (severities.length > 1) conditions.push(inArray(threatIntelTable.severity, severities));
+      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))));
     }
     const categoryParam = (query as { category?: string }).category ?? rawQuery.category;
     if (categoryParam) {
@@ -171,7 +171,7 @@ router.get("/threats", async (req: Request, res: Response) => {
     if (query.severity) {
       const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
       if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
-      else if (severities.length > 1) conditions.push(inArray(threatIntelTable.severity, severities));
+      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))));
     }
     if (query.category) {
       const categories = query.category.split(",").map((c: string) => c.trim()).filter(Boolean);

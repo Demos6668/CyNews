@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
 import { insertNewsItemSchema } from "@workspace/db/schema";
-import { eq, sql, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, lte, inArray, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 
