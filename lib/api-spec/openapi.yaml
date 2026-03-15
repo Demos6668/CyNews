@@ -74,11 +74,12 @@ paths:
             enum: [local, global]
         - name: severity
           in: query
+          description: Comma-separated severities (e.g. critical,high,medium)
           schema:
             type: string
-            enum: [critical, high, medium, low, info]
         - name: category
           in: query
+          description: Comma-separated categories (e.g. ransomware,phishing)
           schema:
             type: string
         - name: type
@@ -236,18 +237,19 @@ paths:
             enum: [local, global]
         - name: severity
           in: query
+          description: Comma-separated severities (e.g. critical,high,medium)
           schema:
             type: string
-            enum: [critical, high, medium, low, info]
         - name: vendor
           in: query
+          description: Comma-separated vendors (e.g. Microsoft,Cisco)
           schema:
             type: string
         - name: status
           in: query
+          description: Comma-separated statuses (e.g. new,under_review)
           schema:
             type: string
-            enum: [new, under_review, patched, dismissed]
         - name: timeframe
           in: query
           description: Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
@@ -310,11 +312,12 @@ paths:
             enum: [local, global]
         - name: severity
           in: query
+          description: Comma-separated severities (e.g. critical,high,medium)
           schema:
             type: string
-            enum: [critical, high, medium, low, info]
         - name: category
           in: query
+          description: Comma-separated categories (e.g. ransomware,phishing)
           schema:
             type: string
         - name: state
@@ -394,9 +397,14 @@ paths:
             enum: [local, global]
         - name: severity
           in: query
+          description: Comma-separated severities (e.g. critical,high)
           schema:
             type: string
-            enum: [critical, high, medium, low, info]
+        - name: category
+          in: query
+          description: Comma-separated categories
+          schema:
+            type: string
         - name: state
           in: query
           description: Indian state code filter

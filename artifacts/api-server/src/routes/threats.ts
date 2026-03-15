@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
-import { eq, sql, and, gte } from "drizzle-orm";
+import { eq, sql, and, gte, inArray } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import type { SQL } from "drizzle-orm";
 
@@ -59,7 +59,17 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
+    if (query.severity) {
+      const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
+      if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
+      else if (severities.length > 1) conditions.push(inArray(threatIntelTable.severity, severities));
+    }
+    const categoryParam = (query as { category?: string }).category ?? rawQuery.category;
+    if (categoryParam) {
+      const categories = categoryParam.split(",").map((c: string) => c.trim()).filter(Boolean);
+      if (categories.length === 1) conditions.push(eq(threatIntelTable.category, categories[0]));
+      else if (categories.length > 1) conditions.push(inArray(threatIntelTable.category, categories));
+    }
     if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
     if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
 
@@ -158,8 +168,16 @@ router.get("/threats", async (req: Request, res: Response) => {
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
-    if (query.category) conditions.push(eq(threatIntelTable.category, query.category));
+    if (query.severity) {
+      const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
+      if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
+      else if (severities.length > 1) conditions.push(inArray(threatIntelTable.severity, severities));
+    }
+    if (query.category) {
+      const categories = query.category.split(",").map((c: string) => c.trim()).filter(Boolean);
+      if (categories.length === 1) conditions.push(eq(threatIntelTable.category, categories[0]));
+      else if (categories.length > 1) conditions.push(inArray(threatIntelTable.category, categories));
+    }
     if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
     if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
     if (query.status) conditions.push(eq(threatIntelTable.status, query.status));

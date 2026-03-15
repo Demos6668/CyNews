@@ -7,3 +7,5 @@ export type { Severity } from "./SeverityBadge";
 export { EmptyState } from "./EmptyState";
 export { Loader } from "./Loader";
 export { SearchBar } from "./SearchBar";
+export { FilterSection } from "./FilterSection";
+export type { FilterSectionProps, FilterSectionVariant } from "./FilterSection";

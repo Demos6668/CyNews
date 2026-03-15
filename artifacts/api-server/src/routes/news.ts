@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
 import { insertNewsItemSchema } from "@workspace/db/schema";
-import { eq, sql, and, gte, lte } from "drizzle-orm";
+import { eq, sql, and, gte, lte, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 
@@ -139,8 +139,16 @@ router.get("/news", async (req: Request, res: Response) => {
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(newsItemsTable.severity, query.severity));
-    if (query.category) conditions.push(eq(newsItemsTable.category, query.category));
+    if (query.severity) {
+      const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
+      if (severities.length === 1) conditions.push(eq(newsItemsTable.severity, severities[0]));
+      else if (severities.length > 1) conditions.push(inArray(newsItemsTable.severity, severities));
+    }
+    if (query.category) {
+      const categories = query.category.split(",").map((c) => c.trim()).filter(Boolean);
+      if (categories.length === 1) conditions.push(eq(newsItemsTable.category, categories[0]));
+      else if (categories.length > 1) conditions.push(inArray(newsItemsTable.category, categories));
+    }
     if (query.type) conditions.push(eq(newsItemsTable.type, query.type));
     if (query.status) conditions.push(eq(newsItemsTable.status, query.status));
     const fromDate = query.from ?? (query.timeframe ? getTimeframeStartDate(query.timeframe) : undefined);

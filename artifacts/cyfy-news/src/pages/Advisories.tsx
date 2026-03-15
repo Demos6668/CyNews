@@ -1,21 +1,15 @@
 import { useGetAdvisories } from "@workspace/api-client-react";
 import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, type TimeframeValue } from "@/components/Common";
-import { useState } from "react";
-import { ShieldAlert, Filter, X, AlertTriangle, Download } from "lucide-react";
-import type { Advisory, GetAdvisoriesSeverity, GetAdvisoriesStatus } from "@workspace/api-client-react";
+import { TabSwitch, TimeframeSelector, FilterSection, type TimeframeValue } from "@/components/Common";
+import { useState, useCallback, useEffect } from "react";
+import { useSearch } from "wouter";
+import { ShieldAlert, AlertTriangle, Download } from "lucide-react";
+import type { Advisory } from "@workspace/api-client-react";
 import { EmptyState } from "@/components/Common";
+import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
-const SEVERITY_OPTIONS: { label: string; value: GetAdvisoriesSeverity }[] = [
-  { label: "Critical", value: "critical" },
-  { label: "High", value: "high" },
-  { label: "Medium", value: "medium" },
-  { label: "Low", value: "low" },
-  { label: "Info", value: "info" },
-];
-
-const STATUS_OPTIONS: { label: string; value: GetAdvisoriesStatus }[] = [
+const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "New", value: "new" },
   { label: "Under Review", value: "under_review" },
   { label: "Patched", value: "patched" },
@@ -27,32 +21,67 @@ const VENDOR_OPTIONS = [
 ];
 
 export default function Advisories() {
+  const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [severityFilter, setSeverityFilter] = useState<GetAdvisoriesSeverity | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<GetAdvisoriesStatus | undefined>(undefined);
-  const [vendorFilter, setVendorFilter] = useState<string | undefined>(undefined);
+  const [severities, setSeverities] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [vendors, setVendors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const [scope, setScope] = useState<"local" | "global">("global");
 
+  useEffect(() => {
+    const initial = getInitialFiltersFromUrl(searchString);
+    if (initial.severities.length) setSeverities(initial.severities);
+    if (initial.statuses?.length) setStatuses(initial.statuses);
+    if (initial.vendors?.length) setVendors(initial.vendors);
+    if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
+    if (initial.scope) setScope(initial.scope as "local" | "global");
+  }, [searchString]);
+
+  useFilterParamsSync(
+    "/advisories",
+    { severities, statuses, vendors, timeframe, scope },
+    { skipInitialSync: true }
+  );
+
+  const toggleSeverity = useCallback((value: string) => {
+    setSeverities((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  }, []);
+
+  const toggleStatus = useCallback((value: string) => {
+    setStatuses((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  }, []);
+
+  const toggleVendor = useCallback((value: string) => {
+    setVendors((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  }, []);
+
   const { data, isLoading, isError, error } = useGetAdvisories({
     scope,
-    severity: severityFilter,
-    status: statusFilter,
-    vendor: vendorFilter,
+    severity: severities.length > 0 ? severities.join(",") : undefined,
+    status: statuses.length > 0 ? statuses.join(",") : undefined,
+    vendor: vendors.length > 0 ? vendors.join(",") : undefined,
     timeframe,
     limit: 20,
   });
 
-  const hasActiveFilters = severityFilter || statusFilter || vendorFilter;
+  const activeFilterCount = severities.length + statuses.length + vendors.length;
+  const hasActiveFilters = activeFilterCount > 0;
 
-  const clearFilters = () => {
-    setSeverityFilter(undefined);
-    setStatusFilter(undefined);
-    setVendorFilter(undefined);
+  const clearFilters = useCallback(() => {
+    setSeverities([]);
+    setStatuses([]);
+    setVendors([]);
     setShowFilters(false);
-  };
+  }, []);
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -126,72 +155,21 @@ export default function Advisories() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button
-          variant={showFilters ? "default" : "outline"}
-          className="gap-2"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter size={16} /> Filters
-          {hasActiveFilters && (
-            <span className="ml-1 bg-primary/20 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-mono">
-              {[severityFilter, statusFilter, vendorFilter].filter(Boolean).length}
-            </span>
-          )}
-        </Button>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={clearFilters}>
-            <X size={14} /> Clear filters
-          </Button>
-        )}
-      </div>
-
-      {showFilters && (
-        <div className="space-y-4 p-4 bg-card/50 rounded-xl border border-white/5">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">Severity:</span>
-            {SEVERITY_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                variant={severityFilter === opt.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSeverityFilter(severityFilter === opt.value ? undefined : opt.value)}
-                className="text-xs"
-              >
-                {opt.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">Status:</span>
-            {STATUS_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                variant={statusFilter === opt.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter(statusFilter === opt.value ? undefined : opt.value)}
-                className="text-xs"
-              >
-                {opt.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">Vendor:</span>
-            {VENDOR_OPTIONS.map((v) => (
-              <Button
-                key={v}
-                variant={vendorFilter === v ? "default" : "outline"}
-                size="sm"
-                onClick={() => setVendorFilter(vendorFilter === v ? undefined : v)}
-                className="text-xs"
-              >
-                {v}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
+      <FilterSection
+        variant="advisories"
+        severities={severities}
+        statuses={statuses}
+        statusOptions={STATUS_OPTIONS}
+        vendors={vendors}
+        vendorOptions={VENDOR_OPTIONS}
+        onToggleSeverity={toggleSeverity}
+        onToggleStatus={toggleStatus}
+        onToggleVendor={toggleVendor}
+        onClearAll={clearFilters}
+        showFilters={showFilters}
+        onShowFiltersToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+      />
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">

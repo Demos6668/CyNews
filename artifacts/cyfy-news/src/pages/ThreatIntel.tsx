@@ -1,31 +1,23 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, type TimeframeValue } from "@/components/Common";
-import { useState } from "react";
+import { TabSwitch, TimeframeSelector, FilterSection, type TimeframeValue } from "@/components/Common";
+import { useState, useCallback, useEffect } from "react";
+import { useSearch } from "wouter";
 import {
   Crosshair,
   Download,
   Terminal,
   Network,
-  Filter,
-  X,
   AlertTriangle,
   List,
   LayoutGrid,
 } from "lucide-react";
-import type { ThreatIntelItem, GetThreatsSeverity } from "@workspace/api-client-react";
+import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { ThreatCard, ThreatModal, ThreatTimeline } from "@/components/Threats";
 import { EmptyState } from "@/components/Common";
+import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
-const SEVERITY_OPTIONS: { label: string; value: GetThreatsSeverity }[] = [
-  { label: "Critical", value: "critical" },
-  { label: "High", value: "high" },
-  { label: "Medium", value: "medium" },
-  { label: "Low", value: "low" },
-  { label: "Info", value: "info" },
-];
-
-const CATEGORY_OPTIONS = [
+const THREAT_CATEGORY_OPTIONS = [
   "Ransomware",
   "Vulnerability Exploitation",
   "Zero-Day",
@@ -38,33 +30,64 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function ThreatIntel() {
+  const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<ThreatIntelItem | null>(null);
-  const [severityFilter, setSeverityFilter] = useState<
-    GetThreatsSeverity | undefined
-  >(undefined);
-  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(
-    undefined
-  );
+  const [severities, setSeverities] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const [scope, setScope] = useState<"local" | "global">("global");
 
+  useEffect(() => {
+    const initial = getInitialFiltersFromUrl(searchString);
+    if (initial.severities.length || initial.categories.length) {
+      setSeverities(initial.severities);
+      setCategories(initial.categories);
+      if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
+      if (initial.scope) setScope(initial.scope as "local" | "global");
+    }
+  }, [searchString]);
+
+  useFilterParamsSync(
+    "/threat-intel",
+    { severities, categories, timeframe, scope },
+    { skipInitialSync: true }
+  );
+
+  const toggleSeverity = useCallback((value: string) => {
+    setSeverities((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  }, []);
+
+  const toggleCategory = useCallback((value: string) => {
+    setCategories((prev) =>
+      prev.includes(value) ? prev.filter((c) => c !== value) : [...prev, value]
+    );
+  }, []);
+
   const { data, isLoading, isError, error } = useGetThreats({
     scope,
-    severity: severityFilter,
-    category: categoryFilter,
+    severity: severities.length > 0 ? severities.join(",") : undefined,
+    category: categories.length > 0 ? categories.join(",") : undefined,
     timeframe,
     limit: 50,
   });
 
-  const hasActiveFilters = severityFilter || categoryFilter;
+  const activeFilterCount = severities.length + categories.length;
+  const hasActiveFilters = activeFilterCount > 0;
 
-  const clearFilters = () => {
-    setSeverityFilter(undefined);
-    setCategoryFilter(undefined);
+  const clearFilters = useCallback(() => {
+    setSeverities([]);
+    setCategories([]);
     setShowFilters(false);
-  };
+  }, []);
+
+  const applyPreset = useCallback((filters: { severities: string[]; categories: string[] }) => {
+    setSeverities(filters.severities);
+    setCategories(filters.categories);
+  }, []);
 
   const handleExport = (format: "csv" | "json") => {
     const baseUrl = import.meta.env.BASE_URL || "/";
@@ -154,73 +177,19 @@ export default function ThreatIntel() {
         </Card>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button
-          variant={showFilters ? "default" : "outline"}
-          className="gap-2"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter size={16} /> Filters
-          {hasActiveFilters && (
-            <span className="ml-1 bg-primary/20 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-mono">
-              {[severityFilter, categoryFilter].filter(Boolean).length}
-            </span>
-          )}
-        </Button>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 text-muted-foreground"
-            onClick={clearFilters}
-          >
-            <X size={14} /> Clear filters
-          </Button>
-        )}
-      </div>
-
-      {showFilters && (
-        <div className="space-y-4 p-4 bg-card/50 rounded-xl border border-white/5">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">
-              Severity:
-            </span>
-            {SEVERITY_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                variant={severityFilter === opt.value ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  setSeverityFilter(
-                    severityFilter === opt.value ? undefined : opt.value
-                  )
-                }
-                className="text-xs"
-              >
-                {opt.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2 w-16">
-              Category:
-            </span>
-            {CATEGORY_OPTIONS.map((cat) => (
-              <Button
-                key={cat}
-                variant={categoryFilter === cat ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  setCategoryFilter(categoryFilter === cat ? undefined : cat)
-                }
-                className="text-xs"
-              >
-                {cat}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
+      <FilterSection
+        variant="threats"
+        severities={severities}
+        categories={categories}
+        categoryOptions={THREAT_CATEGORY_OPTIONS}
+        onToggleSeverity={toggleSeverity}
+        onToggleCategory={toggleCategory}
+        onApplyPreset={applyPreset}
+        onClearAll={clearFilters}
+        showFilters={showFilters}
+        onShowFiltersToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+      />
 
       <h2 className="text-xl font-bold mt-8 mb-4 border-l-4 border-primary pl-3">
         Latest Threat Reports

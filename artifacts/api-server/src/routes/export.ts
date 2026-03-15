@@ -24,8 +24,8 @@ function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
     status: row.status,
     publishedAt: row.publishedAt.toISOString(),
     scope: row.scope,
-    isIndiaRelated: row.isIndiaRelated,
-    indiaConfidence: row.indiaConfidence,
+    isIndiaRelated: row.isIndiaRelated ?? undefined,
+    indiaConfidence: row.indiaConfidence ?? undefined,
   };
 }
 

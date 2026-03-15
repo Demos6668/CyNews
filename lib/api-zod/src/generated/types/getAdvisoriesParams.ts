@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GetAdvisoriesScope } from "./getAdvisoriesScope";
-import type { GetAdvisoriesSeverity } from "./getAdvisoriesSeverity";
-import type { GetAdvisoriesStatus } from "./getAdvisoriesStatus";
 import type { GetAdvisoriesTimeframe } from "./getAdvisoriesTimeframe";
 
 export type GetAdvisoriesParams = {
@@ -15,9 +13,18 @@ export type GetAdvisoriesParams = {
    * Filter by scope (local=India only, global=non-India)
    */
   scope?: GetAdvisoriesScope;
-  severity?: GetAdvisoriesSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated vendors (e.g. Microsoft,Cisco)
+   */
   vendor?: string;
-  status?: GetAdvisoriesStatus;
+  /**
+   * Comma-separated statuses (e.g. new,under_review)
+   */
+  status?: string;
   /**
    * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
    */

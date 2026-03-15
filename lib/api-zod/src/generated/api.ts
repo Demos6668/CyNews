@@ -86,8 +86,14 @@ export const getNewsQueryLimitDefault = 20;
 
 export const GetNewsQueryParams = zod.object({
   scope: zod.enum(["local", "global"]).optional(),
-  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
-  category: zod.coerce.string().optional(),
+  severity: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated severities (e.g. critical,high,medium)"),
+  category: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated categories (e.g. ransomware,phishing)"),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   status: zod.enum(["active", "resolved", "monitoring"]).optional(),
   timeframe: zod
@@ -269,9 +275,18 @@ export const GetAdvisoriesQueryParams = zod.object({
     .enum(["local", "global"])
     .optional()
     .describe("Filter by scope (local=India only, global=non-India)"),
-  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
-  vendor: zod.coerce.string().optional(),
-  status: zod.enum(["new", "under_review", "patched", "dismissed"]).optional(),
+  severity: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated severities (e.g. critical,high,medium)"),
+  vendor: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated vendors (e.g. Microsoft,Cisco)"),
+  status: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated statuses (e.g. new,under_review)"),
   timeframe: zod
     .enum(["1h", "6h", "24h", "7d", "30d", "all"])
     .optional()
@@ -349,8 +364,14 @@ export const getThreatsQueryLimitDefault = 20;
 
 export const GetThreatsQueryParams = zod.object({
   scope: zod.enum(["local", "global"]).optional(),
-  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
-  category: zod.coerce.string().optional(),
+  severity: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated severities (e.g. critical,high,medium)"),
+  category: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated categories (e.g. ransomware,phishing)"),
   state: zod.coerce
     .string()
     .optional()
@@ -455,7 +476,14 @@ export const GetThreatByIdResponse = zod.object({
  */
 export const ExportThreatsQueryParams = zod.object({
   scope: zod.enum(["local", "global"]).optional(),
-  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
+  severity: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated severities (e.g. critical,high)"),
+  category: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated categories"),
   state: zod.coerce.string().optional().describe("Indian state code filter"),
   sector: zod.coerce.string().optional().describe("Indian sector filter"),
 });

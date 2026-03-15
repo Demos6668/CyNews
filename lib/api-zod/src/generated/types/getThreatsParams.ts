@@ -6,13 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GetThreatsScope } from "./getThreatsScope";
-import type { GetThreatsSeverity } from "./getThreatsSeverity";
 import type { GetThreatsStatus } from "./getThreatsStatus";
 import type { GetThreatsTimeframe } from "./getThreatsTimeframe";
 
 export type GetThreatsParams = {
   scope?: GetThreatsScope;
-  severity?: GetThreatsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories (e.g. ransomware,phishing)
+   */
   category?: string;
   /**
    * Indian state code filter (e.g. MH, KA)

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
-import { eq, sql, and, gte } from "drizzle-orm";
+import { eq, sql, and, gte, inArray } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import type { SQL } from "drizzle-orm";
 
@@ -41,9 +41,21 @@ router.get("/advisories", async (req: Request, res: Response) => {
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(advisoriesTable.scope, query.scope));
-    if (query.severity) conditions.push(eq(advisoriesTable.severity, query.severity));
-    if (query.vendor) conditions.push(eq(advisoriesTable.vendor, query.vendor));
-    if (query.status) conditions.push(eq(advisoriesTable.status, query.status));
+    if (query.severity) {
+      const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
+      if (severities.length === 1) conditions.push(eq(advisoriesTable.severity, severities[0]));
+      else if (severities.length > 1) conditions.push(inArray(advisoriesTable.severity, severities));
+    }
+    if (query.vendor) {
+      const vendors = query.vendor.split(",").map((v) => v.trim()).filter(Boolean);
+      if (vendors.length === 1) conditions.push(eq(advisoriesTable.vendor, vendors[0]));
+      else if (vendors.length > 1) conditions.push(inArray(advisoriesTable.vendor, vendors));
+    }
+    if (query.status) {
+      const statuses = query.status.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("new" | "under_review" | "patched" | "dismissed")[];
+      if (statuses.length === 1) conditions.push(eq(advisoriesTable.status, statuses[0]));
+      else if (statuses.length > 1) conditions.push(inArray(advisoriesTable.status, statuses));
+    }
     const fromDate = query.timeframe ? getTimeframeStartDate(query.timeframe) : undefined;
     if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
 

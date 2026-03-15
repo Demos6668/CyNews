@@ -6,11 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExportThreatsScope } from "./exportThreatsScope";
-import type { ExportThreatsSeverity } from "./exportThreatsSeverity";
 
 export type ExportThreatsParams = {
   scope?: ExportThreatsScope;
-  severity?: ExportThreatsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories
+   */
+  category?: string;
   /**
    * Indian state code filter
    */

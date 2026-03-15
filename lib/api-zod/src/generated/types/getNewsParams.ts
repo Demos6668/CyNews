@@ -6,14 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GetNewsScope } from "./getNewsScope";
-import type { GetNewsSeverity } from "./getNewsSeverity";
 import type { GetNewsStatus } from "./getNewsStatus";
 import type { GetNewsTimeframe } from "./getNewsTimeframe";
 import type { GetNewsType } from "./getNewsType";
 
 export type GetNewsParams = {
   scope?: GetNewsScope;
-  severity?: GetNewsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories (e.g. ransomware,phishing)
+   */
   category?: string;
   type?: GetNewsType;
   status?: GetNewsStatus;

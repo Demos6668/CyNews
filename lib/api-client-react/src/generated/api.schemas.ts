@@ -441,7 +441,13 @@ export const GetDashboardStatsScope = {
 
 export type GetNewsParams = {
   scope?: GetNewsScope;
-  severity?: GetNewsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories (e.g. ransomware,phishing)
+   */
   category?: string;
   type?: GetNewsType;
   status?: GetNewsStatus;
@@ -466,17 +472,6 @@ export type GetNewsScope = (typeof GetNewsScope)[keyof typeof GetNewsScope];
 export const GetNewsScope = {
   local: "local",
   global: "global",
-} as const;
-
-export type GetNewsSeverity =
-  (typeof GetNewsSeverity)[keyof typeof GetNewsSeverity];
-
-export const GetNewsSeverity = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-  info: "info",
 } as const;
 
 export type GetNewsType = (typeof GetNewsType)[keyof typeof GetNewsType];
@@ -512,9 +507,18 @@ export type GetAdvisoriesParams = {
    * Filter by scope (local=India only, global=non-India)
    */
   scope?: GetAdvisoriesScope;
-  severity?: GetAdvisoriesSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated vendors (e.g. Microsoft,Cisco)
+   */
   vendor?: string;
-  status?: GetAdvisoriesStatus;
+  /**
+   * Comma-separated statuses (e.g. new,under_review)
+   */
+  status?: string;
   /**
    * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
    */
@@ -531,27 +535,6 @@ export const GetAdvisoriesScope = {
   global: "global",
 } as const;
 
-export type GetAdvisoriesSeverity =
-  (typeof GetAdvisoriesSeverity)[keyof typeof GetAdvisoriesSeverity];
-
-export const GetAdvisoriesSeverity = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-  info: "info",
-} as const;
-
-export type GetAdvisoriesStatus =
-  (typeof GetAdvisoriesStatus)[keyof typeof GetAdvisoriesStatus];
-
-export const GetAdvisoriesStatus = {
-  new: "new",
-  under_review: "under_review",
-  patched: "patched",
-  dismissed: "dismissed",
-} as const;
-
 export type GetAdvisoriesTimeframe =
   (typeof GetAdvisoriesTimeframe)[keyof typeof GetAdvisoriesTimeframe];
 
@@ -566,7 +549,13 @@ export const GetAdvisoriesTimeframe = {
 
 export type GetThreatsParams = {
   scope?: GetThreatsScope;
-  severity?: GetThreatsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high,medium)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories (e.g. ransomware,phishing)
+   */
   category?: string;
   /**
    * Indian state code filter (e.g. MH, KA)
@@ -593,17 +582,6 @@ export const GetThreatsScope = {
   global: "global",
 } as const;
 
-export type GetThreatsSeverity =
-  (typeof GetThreatsSeverity)[keyof typeof GetThreatsSeverity];
-
-export const GetThreatsSeverity = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-  info: "info",
-} as const;
-
 export type GetThreatsStatus =
   (typeof GetThreatsStatus)[keyof typeof GetThreatsStatus];
 
@@ -627,7 +605,14 @@ export const GetThreatsTimeframe = {
 
 export type ExportThreatsParams = {
   scope?: ExportThreatsScope;
-  severity?: ExportThreatsSeverity;
+  /**
+   * Comma-separated severities (e.g. critical,high)
+   */
+  severity?: string;
+  /**
+   * Comma-separated categories
+   */
+  category?: string;
   /**
    * Indian state code filter
    */
@@ -644,17 +629,6 @@ export type ExportThreatsScope =
 export const ExportThreatsScope = {
   local: "local",
   global: "global",
-} as const;
-
-export type ExportThreatsSeverity =
-  (typeof ExportThreatsSeverity)[keyof typeof ExportThreatsSeverity];
-
-export const ExportThreatsSeverity = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-  info: "info",
 } as const;
 
 export type SearchParams = {
