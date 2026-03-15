@@ -1,7 +1,11 @@
 import { Card, CardContent, Button, Input } from "@/components/ui/shared";
-import { User, Bell, Shield, Key } from "lucide-react";
+import { User, Bell, Shield, Key, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
 
 export default function Settings() {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
       <div>
@@ -26,6 +30,35 @@ export default function Settings() {
         </div>
 
         <div className="md:col-span-3 space-y-6">
+          <Card className="bg-card/50">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xl font-semibold">Appearance</h2>
+            </div>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {theme === "dark" ? (
+                    <Moon className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <Sun className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium">Theme</p>
+                    <p className="text-sm text-muted-foreground">
+                      Switch between dark and light mode
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={theme === "light"}
+                  onCheckedChange={(checked) =>
+                    setTheme(checked ? "light" : "dark")
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-card/50">
             <div className="p-6 border-b border-border">
               <h2 className="text-xl font-semibold">Analyst Profile</h2>

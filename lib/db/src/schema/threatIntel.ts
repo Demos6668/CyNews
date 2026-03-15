@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, jsonb, boolean, integer, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -8,6 +8,12 @@ export const threatIntelTable = pgTable("threat_intel", {
   summary: text("summary").notNull(),
   description: text("description").notNull(),
   scope: text("scope").notNull().$type<"local" | "global">(),
+  isIndiaRelated: boolean("is_india_related").default(false),
+  indiaConfidence: integer("india_confidence").default(0),
+  indianState: varchar("indian_state", { length: 5 }),
+  indianStateName: varchar("indian_state_name", { length: 100 }),
+  indianCity: varchar("indian_city", { length: 100 }),
+  indianSector: varchar("indian_sector", { length: 100 }),
   severity: text("severity").notNull().$type<"critical" | "high" | "medium" | "low" | "info">(),
   category: text("category").notNull(),
   threatActor: text("threat_actor"),

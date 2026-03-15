@@ -17,6 +17,19 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Get dashboard statistics
  */
+export const getDashboardStatsQueryTimeframeDefault = `24h`;
+
+export const GetDashboardStatsQueryParams = zod.object({
+  timeframe: zod
+    .enum(["1h", "6h", "24h", "7d", "30d", "all"])
+    .default(getDashboardStatsQueryTimeframeDefault)
+    .describe("Time range filter (1h, 6h, 24h, 7d, 30d, all)"),
+  scope: zod
+    .enum(["local", "global"])
+    .optional()
+    .describe("Filter stats by scope (local=India only, global=non-India)"),
+});
+
 export const GetDashboardStatsResponse = zod.object({
   totalThreatsToday: zod.number(),
   localThreatsToday: zod.number(),
@@ -32,8 +45,37 @@ export const GetDashboardStatsResponse = zod.object({
       type: zod.string(),
       severity: zod.string(),
       timestamp: zod.string(),
+      sourceUrl: zod
+        .string()
+        .nullish()
+        .describe("Real article\/source URL for opening in new tab"),
+      sourceType: zod
+        .string()
+        .optional()
+        .describe("news or threat - for routing"),
     }),
   ),
+  indiaStats: zod
+    .object({
+      byState: zod
+        .array(
+          zod.object({
+            state: zod.string().optional(),
+            count: zod.number().optional(),
+          }),
+        )
+        .optional(),
+      bySector: zod
+        .array(
+          zod.object({
+            sector: zod.string().optional(),
+            count: zod.number().optional(),
+          }),
+        )
+        .optional(),
+    })
+    .nullish()
+    .describe("India-specific stats when scope=local"),
 });
 
 /**
@@ -48,6 +90,10 @@ export const GetNewsQueryParams = zod.object({
   category: zod.coerce.string().optional(),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   status: zod.enum(["active", "resolved", "monitoring"]).optional(),
+  timeframe: zod
+    .enum(["1h", "6h", "24h", "7d", "30d", "all"])
+    .optional()
+    .describe("Time range shorthand (1h, 6h, 24h, 7d, 30d, all)"),
   from: zod
     .date()
     .optional()
@@ -82,12 +128,39 @@ export const GetNewsResponse = zod.object({
       publishedAt: zod.string(),
       updatedAt: zod.string(),
       bookmarked: zod.boolean(),
+      isIndiaRelated: zod.boolean().nullish(),
+      indiaConfidence: zod.number().nullish(),
+      indianState: zod.string().nullish(),
+      indianStateName: zod.string().nullish(),
+      indianCity: zod.string().nullish(),
+      indianSector: zod.string().nullish(),
     }),
   ),
   total: zod.number(),
   page: zod.number(),
   limit: zod.number(),
   totalPages: zod.number(),
+});
+
+/**
+ * @summary Create a news item (admin)
+ */
+export const CreateNewsBody = zod.object({
+  title: zod.string(),
+  summary: zod.string(),
+  content: zod.string(),
+  type: zod.enum(["threat", "news", "advisory"]),
+  scope: zod.enum(["local", "global"]),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+  category: zod.string(),
+  source: zod.string(),
+  sourceUrl: zod.string().nullish(),
+  region: zod.array(zod.string()).optional(),
+  tags: zod.array(zod.string()).optional(),
+  iocs: zod.array(zod.string()).optional(),
+  affectedSystems: zod.array(zod.string()).optional(),
+  mitigations: zod.array(zod.string()).optional(),
+  status: zod.enum(["active", "resolved", "monitoring"]).optional(),
 });
 
 /**
@@ -117,6 +190,72 @@ export const GetNewsByIdResponse = zod.object({
   publishedAt: zod.string(),
   updatedAt: zod.string(),
   bookmarked: zod.boolean(),
+  isIndiaRelated: zod.boolean().nullish(),
+  indiaConfidence: zod.number().nullish(),
+  indianState: zod.string().nullish(),
+  indianStateName: zod.string().nullish(),
+  indianCity: zod.string().nullish(),
+  indianSector: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a news item (admin)
+ */
+export const UpdateNewsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateNewsBody = zod.object({
+  title: zod.string().optional(),
+  summary: zod.string().optional(),
+  content: zod.string().optional(),
+  type: zod.enum(["threat", "news", "advisory"]).optional(),
+  scope: zod.enum(["local", "global"]).optional(),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
+  category: zod.string().optional(),
+  source: zod.string().optional(),
+  sourceUrl: zod.string().nullish(),
+  region: zod.array(zod.string()).optional(),
+  tags: zod.array(zod.string()).optional(),
+  iocs: zod.array(zod.string()).optional(),
+  affectedSystems: zod.array(zod.string()).optional(),
+  mitigations: zod.array(zod.string()).optional(),
+  status: zod.enum(["active", "resolved", "monitoring"]).optional(),
+});
+
+export const UpdateNewsResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  summary: zod.string(),
+  content: zod.string(),
+  type: zod.enum(["threat", "news", "advisory"]),
+  scope: zod.enum(["local", "global"]),
+  severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+  category: zod.string(),
+  source: zod.string(),
+  sourceUrl: zod.string().nullish(),
+  region: zod.array(zod.string()),
+  tags: zod.array(zod.string()),
+  iocs: zod.array(zod.string()).optional(),
+  affectedSystems: zod.array(zod.string()).optional(),
+  mitigations: zod.array(zod.string()).optional(),
+  status: zod.enum(["active", "resolved", "monitoring"]),
+  publishedAt: zod.string(),
+  updatedAt: zod.string(),
+  bookmarked: zod.boolean(),
+  isIndiaRelated: zod.boolean().nullish(),
+  indiaConfidence: zod.number().nullish(),
+  indianState: zod.string().nullish(),
+  indianStateName: zod.string().nullish(),
+  indianCity: zod.string().nullish(),
+  indianSector: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a news item (admin)
+ */
+export const DeleteNewsParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**
@@ -126,9 +265,17 @@ export const getAdvisoriesQueryPageDefault = 1;
 export const getAdvisoriesQueryLimitDefault = 20;
 
 export const GetAdvisoriesQueryParams = zod.object({
+  scope: zod
+    .enum(["local", "global"])
+    .optional()
+    .describe("Filter by scope (local=India only, global=non-India)"),
   severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
   vendor: zod.coerce.string().optional(),
   status: zod.enum(["new", "under_review", "patched", "dismissed"]).optional(),
+  timeframe: zod
+    .enum(["1h", "6h", "24h", "7d", "30d", "all"])
+    .optional()
+    .describe("Time range shorthand (1h, 6h, 24h, 7d, 30d, all)"),
   page: zod.coerce.number().default(getAdvisoriesQueryPageDefault),
   limit: zod.coerce.number().default(getAdvisoriesQueryLimitDefault),
 });
@@ -150,6 +297,12 @@ export const GetAdvisoriesResponse = zod.object({
       references: zod.array(zod.string()),
       status: zod.enum(["new", "under_review", "patched", "dismissed"]),
       publishedAt: zod.string(),
+      scope: zod
+        .enum(["local", "global"])
+        .optional()
+        .describe("India (local) or global"),
+      isIndiaRelated: zod.boolean().optional(),
+      indiaConfidence: zod.number().optional(),
     }),
   ),
   total: zod.number(),
@@ -180,6 +333,12 @@ export const GetAdvisoryByIdResponse = zod.object({
   references: zod.array(zod.string()),
   status: zod.enum(["new", "under_review", "patched", "dismissed"]),
   publishedAt: zod.string(),
+  scope: zod
+    .enum(["local", "global"])
+    .optional()
+    .describe("India (local) or global"),
+  isIndiaRelated: zod.boolean().optional(),
+  indiaConfidence: zod.number().optional(),
 });
 
 /**
@@ -192,7 +351,16 @@ export const GetThreatsQueryParams = zod.object({
   scope: zod.enum(["local", "global"]).optional(),
   severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
   category: zod.coerce.string().optional(),
+  state: zod.coerce
+    .string()
+    .optional()
+    .describe("Indian state code filter (e.g. MH, KA)"),
+  sector: zod.coerce.string().optional().describe("Indian sector filter"),
   status: zod.enum(["active", "resolved", "monitoring"]).optional(),
+  timeframe: zod
+    .enum(["1h", "6h", "24h", "7d", "30d", "all"])
+    .optional()
+    .describe("Time range shorthand (1h, 6h, 24h, 7d, 30d, all)"),
   page: zod.coerce.number().default(getThreatsQueryPageDefault),
   limit: zod.coerce.number().default(getThreatsQueryLimitDefault),
 });
@@ -226,6 +394,12 @@ export const GetThreatsResponse = zod.object({
       lastSeen: zod.string().nullish(),
       publishedAt: zod.string(),
       updatedAt: zod.string(),
+      isIndiaRelated: zod.boolean().nullish(),
+      indiaConfidence: zod.number().nullish(),
+      indianState: zod.string().nullish(),
+      indianStateName: zod.string().nullish(),
+      indianCity: zod.string().nullish(),
+      indianSector: zod.string().nullish(),
     }),
   ),
   total: zod.number(),
@@ -268,6 +442,12 @@ export const GetThreatByIdResponse = zod.object({
   lastSeen: zod.string().nullish(),
   publishedAt: zod.string(),
   updatedAt: zod.string(),
+  isIndiaRelated: zod.boolean().nullish(),
+  indiaConfidence: zod.number().nullish(),
+  indianState: zod.string().nullish(),
+  indianStateName: zod.string().nullish(),
+  indianCity: zod.string().nullish(),
+  indianSector: zod.string().nullish(),
 });
 
 /**
@@ -276,6 +456,8 @@ export const GetThreatByIdResponse = zod.object({
 export const ExportThreatsQueryParams = zod.object({
   scope: zod.enum(["local", "global"]).optional(),
   severity: zod.enum(["critical", "high", "medium", "low", "info"]).optional(),
+  state: zod.coerce.string().optional().describe("Indian state code filter"),
+  sector: zod.coerce.string().optional().describe("Indian sector filter"),
 });
 
 /**
@@ -341,6 +523,12 @@ export const GetBookmarkedNewsResponse = zod.object({
       publishedAt: zod.string(),
       updatedAt: zod.string(),
       bookmarked: zod.boolean(),
+      isIndiaRelated: zod.boolean().nullish(),
+      indiaConfidence: zod.number().nullish(),
+      indianState: zod.string().nullish(),
+      indianStateName: zod.string().nullish(),
+      indianCity: zod.string().nullish(),
+      indianSector: zod.string().nullish(),
     }),
   ),
   total: zod.number(),

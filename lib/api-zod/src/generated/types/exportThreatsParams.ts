@@ -11,4 +11,12 @@ import type { ExportThreatsSeverity } from "./exportThreatsSeverity";
 export type ExportThreatsParams = {
   scope?: ExportThreatsScope;
   severity?: ExportThreatsSeverity;
+  /**
+   * Indian state code filter
+   */
+  state?: string;
+  /**
+   * Indian sector filter
+   */
+  sector?: string;
 };

@@ -7,6 +7,7 @@
  */
 import type { ActivityItem } from "./activityItem";
 import type { DashboardStatsCurrentThreatLevel } from "./dashboardStatsCurrentThreatLevel";
+import type { DashboardStatsIndiaStats } from "./dashboardStatsIndiaStats";
 
 export interface DashboardStats {
   totalThreatsToday: number;
@@ -17,4 +18,6 @@ export interface DashboardStats {
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];
+  /** India-specific stats when scope=local */
+  indiaStats?: DashboardStatsIndiaStats;
 }

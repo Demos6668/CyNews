@@ -8,6 +8,7 @@
 import type { GetNewsScope } from "./getNewsScope";
 import type { GetNewsSeverity } from "./getNewsSeverity";
 import type { GetNewsStatus } from "./getNewsStatus";
+import type { GetNewsTimeframe } from "./getNewsTimeframe";
 import type { GetNewsType } from "./getNewsType";
 
 export type GetNewsParams = {
@@ -16,6 +17,10 @@ export type GetNewsParams = {
   category?: string;
   type?: GetNewsType;
   status?: GetNewsStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetNewsTimeframe;
   /**
    * Filter news published on or after this date (ISO 8601)
    */

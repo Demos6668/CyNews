@@ -9,7 +9,10 @@
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "migrate:indexes": "psql $DATABASE_URL -f ./migrations/001_add_feed_indexes.sql",
+    "migrate:india": "psql $DATABASE_URL -f ./migrations/002_add_india_fields.sql",
+    "migrate:advisory-scope": "psql $DATABASE_URL -f ./migrations/003_add_advisory_scope.sql"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

@@ -8,12 +8,25 @@
 import type { GetThreatsScope } from "./getThreatsScope";
 import type { GetThreatsSeverity } from "./getThreatsSeverity";
 import type { GetThreatsStatus } from "./getThreatsStatus";
+import type { GetThreatsTimeframe } from "./getThreatsTimeframe";
 
 export type GetThreatsParams = {
   scope?: GetThreatsScope;
   severity?: GetThreatsSeverity;
   category?: string;
+  /**
+   * Indian state code filter (e.g. MH, KA)
+   */
+  state?: string;
+  /**
+   * Indian sector filter
+   */
+  sector?: string;
   status?: GetThreatsStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetThreatsTimeframe;
   page?: number;
   limit?: number;
 };

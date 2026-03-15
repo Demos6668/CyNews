@@ -37,4 +37,10 @@ export interface ThreatIntelItem {
   lastSeen?: string | null;
   publishedAt: string;
   updatedAt: string;
+  isIndiaRelated?: boolean | null;
+  indiaConfidence?: number | null;
+  indianState?: string | null;
+  indianStateName?: string | null;
+  indianCity?: string | null;
+  indianSector?: string | null;
 }

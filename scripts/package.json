@@ -6,11 +6,18 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
+    "live-feed": "tsx ./src/live-feed-aggregator.ts",
+    "live-feed:watch": "tsx ./src/live-feed-aggregator.ts -- --watch",
+    "cleanup-fake-urls": "tsx ./src/cleanup-fake-urls.ts",
+    "reclassify-scope": "tsx ./src/reclassify-scope.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "@workspace/feed-aggregator": "workspace:*",
+    "@workspace/india-detector": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "rss-parser": "^3.13.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

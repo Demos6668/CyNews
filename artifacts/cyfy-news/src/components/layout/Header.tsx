@@ -1,13 +1,31 @@
-import { Search, Bell, User, Loader2 } from "lucide-react";
-import { Input, Button } from "@/components/ui/shared";
-import { useState, useEffect } from "react";
+import { Bell, User, ChevronDown, LogOut, Settings } from "lucide-react";
+import { SearchBar } from "@/components/Common";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLocation } from "wouter";
+import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useGetDashboardStats, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export function Header() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const { data: stats } = useGetDashboardStats(undefined, {
+    query: { queryKey: getGetDashboardStatsQueryKey(), refetchInterval: 60000 },
+  });
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useKeyboardShortcuts({
+    onSearchFocus: () => searchInputRef.current?.focus(),
+  });
 
   useEffect(() => {
     if (debouncedSearch) {
@@ -15,32 +33,61 @@ export function Header() {
     }
   }, [debouncedSearch, setLocation]);
 
+  const criticalCount = stats?.criticalAlerts ?? 0;
+
   return (
-    <header className="h-16 flex items-center justify-between px-6 bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-30">
-      <div className="flex-1 max-w-xl relative group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-accent transition-colors" />
-        <Input 
-          placeholder="Search global threats, CVEs, news..." 
-          className="pl-10 bg-secondary/50 border-white/10 focus-visible:ring-accent focus-visible:border-accent rounded-full h-10 w-full"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
+    <header
+      className="h-16 flex items-center justify-between px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
+      style={{ backgroundColor: "var(--dark-navy)" }}
+    >
+      <SearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search global threats, CVEs, news..."
+        inputRef={searchInputRef}
+      />
 
       <div className="flex items-center gap-4 ml-4">
-        <button className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-secondary">
+        <button
+          className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+          aria-label="Notifications"
+        >
           <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-background"></span>
+          {criticalCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white border-2 border-[var(--dark-navy)]">
+              {criticalCount > 99 ? "99+" : criticalCount}
+            </span>
+          )}
         </button>
-        
+
         <div className="h-8 w-px bg-border mx-2" />
-        
-        <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-secondary font-bold text-sm">
-            <User className="h-4 w-4" />
-          </div>
-          <span className="text-sm font-medium hidden sm:inline-block">Analyst</span>
-        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded-lg px-2 py-1.5 hover:bg-white/5">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-secondary font-bold text-sm">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="text-sm font-medium hidden sm:inline-block">
+                Analyst
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setLocation("/settings")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -12,4 +12,8 @@ export interface ActivityItem {
   type: string;
   severity: string;
   timestamp: string;
+  /** Real article/source URL for opening in new tab */
+  sourceUrl?: string | null;
+  /** news or threat - for routing */
+  sourceType?: string;
 }

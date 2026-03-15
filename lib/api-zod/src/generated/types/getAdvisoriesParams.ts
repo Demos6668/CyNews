@@ -5,13 +5,23 @@
  * CYFY News Board API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetAdvisoriesScope } from "./getAdvisoriesScope";
 import type { GetAdvisoriesSeverity } from "./getAdvisoriesSeverity";
 import type { GetAdvisoriesStatus } from "./getAdvisoriesStatus";
+import type { GetAdvisoriesTimeframe } from "./getAdvisoriesTimeframe";
 
 export type GetAdvisoriesParams = {
+  /**
+   * Filter by scope (local=India only, global=non-India)
+   */
+  scope?: GetAdvisoriesScope;
   severity?: GetAdvisoriesSeverity;
   vendor?: string;
   status?: GetAdvisoriesStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetAdvisoriesTimeframe;
   page?: number;
   limit?: number;
 };

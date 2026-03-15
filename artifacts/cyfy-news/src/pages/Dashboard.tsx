@@ -1,68 +1,27 @@
-import { useGetDashboardStats, useGetNews } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useGetDashboardStats, useGetNews, getGetDashboardStatsQueryKey, getGetNewsQueryKey } from "@workspace/api-client-react";
+import type { NewsItem } from "@workspace/api-client-react";
 import { Card, CardContent, Skeleton, Badge } from "@/components/ui/shared";
-import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatRelative } from "@/lib/utils";
-import { NewsCard } from "@/components/shared/ItemCards";
-
-function ThreatGauge({ level }: { level: string }) {
-  const levels = ["low", "medium", "high", "critical"];
-  const idx = levels.indexOf(level);
-  const angle = -90 + (idx / (levels.length - 1)) * 180;
-  const colors = ["#3FB950", "#F0C000", "#FFB74B", "#F85149"];
-  const color = colors[idx] || colors[0];
-
-  return (
-    <Card className="glass-panel w-full max-w-sm">
-      <CardContent className="p-6 flex flex-col items-center">
-        <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4">Threat Level</h3>
-        <div className="relative w-48 h-28 overflow-hidden">
-          <svg viewBox="0 0 200 110" className="w-full h-full">
-            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="hsl(var(--border))" strokeWidth="16" strokeLinecap="round" />
-            {levels.map((_, i) => {
-              const startAngle = -180 + (i / levels.length) * 180;
-              const endAngle = -180 + ((i + 1) / levels.length) * 180;
-              const startRad = (startAngle * Math.PI) / 180;
-              const endRad = (endAngle * Math.PI) / 180;
-              const x1 = 100 + 80 * Math.cos(startRad);
-              const y1 = 100 + 80 * Math.sin(startRad);
-              const x2 = 100 + 80 * Math.cos(endRad);
-              const y2 = 100 + 80 * Math.sin(endRad);
-              return (
-                <path
-                  key={i}
-                  d={`M ${x1} ${y1} A 80 80 0 0 1 ${x2} ${y2}`}
-                  fill="none"
-                  stroke={colors[i]}
-                  strokeWidth="16"
-                  strokeLinecap="round"
-                  opacity={i <= idx ? 1 : 0.15}
-                />
-              );
-            })}
-            <line
-              x1="100"
-              y1="100"
-              x2={100 + 55 * Math.cos((angle * Math.PI) / 180)}
-              y2={100 + 55 * Math.sin((angle * Math.PI) / 180)}
-              stroke={color}
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <circle cx="100" cy="100" r="6" fill={color} />
-          </svg>
-        </div>
-        <div className="text-center mt-2">
-          <span className="text-lg font-bold font-mono uppercase tracking-wider" style={{ color }}>{level}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { NewsCard, NewsDetail } from "@/components/News";
+import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown } from "@/components/Dashboard";
+import { TimeframeSelector, getTimeframeLabel, type TimeframeValue } from "@/components/Common";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats();
-  const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews({ limit: 3 });
+  const { isConnected, isRefreshing, lastUpdate, nextUpdate } = useWebSocket();
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const statsParams = { timeframe };
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
+    query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: 60000 },
+  });
+  const newsParams = { limit: 3, timeframe };
+  const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews(newsParams, {
+    query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: 60000 },
+  });
 
   if (statsLoading) {
     return (
@@ -104,8 +63,9 @@ export default function Dashboard() {
     { name: 'Global', value: stats.globalThreatsToday, color: '#FFB74B' }
   ];
 
+  const timeframeLabel = getTimeframeLabel(timeframe);
   const statCards = [
-    { title: "Total Threats (24h)", value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10" },
+    { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10" },
     { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10" },
     { title: "Critical Alerts", value: stats.criticalAlerts, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
     { title: "Resolved Incidents", value: stats.resolvedIncidents, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
@@ -113,39 +73,53 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-sans tracking-tight">SOC Overview</h1>
           <p className="text-muted-foreground mt-1">Real-time threat intelligence landscape</p>
         </div>
-        <div className="flex items-center gap-3 bg-card px-4 py-2 rounded-full border border-border">
-          <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: threatLevelColor }} />
-          <span className="text-sm font-medium uppercase tracking-wider font-mono">
-            DEFCON: {stats.currentThreatLevel}
-          </span>
+        <div className="flex items-center gap-4 flex-wrap">
+          {isRefreshing && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/20 rounded-full">
+              <Loader2 className="h-4 w-4 text-accent animate-spin" />
+              <span className="text-sm text-accent">Refreshing feeds...</span>
+            </div>
+          )}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${isConnected ? "bg-success/20" : "bg-destructive/20"}`}>
+            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-success animate-pulse" : "bg-destructive"}`} />
+            <span className={`text-sm ${isConnected ? "text-success" : "text-destructive"}`}>
+              {isConnected ? "Live" : "Disconnected"}
+            </span>
+          </div>
+          <RefreshCountdown nextUpdate={nextUpdate} isRefreshing={isRefreshing} />
+          {lastUpdate && (
+            <span className="text-xs text-muted-foreground">Updated: {formatRelative(lastUpdate)}</span>
+          )}
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+          <QuickActions />
+          <div className="flex items-center gap-3 bg-card px-4 py-2 rounded-full border border-border">
+            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: threatLevelColor }} />
+            <span className="text-sm font-medium uppercase tracking-wider font-mono">
+              DEFCON: {stats.currentThreatLevel}
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="flex justify-center mb-2">
-        <ThreatGauge level={stats.currentThreatLevel} />
+        <ThreatMeter level={stats.currentThreatLevel} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statCards.map((stat, i) => (
-          <Card key={i} className="glass-panel overflow-hidden relative group">
-            <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full blur-3xl opacity-20 transition-opacity group-hover:opacity-40 ${stat.bg.replace('/10', '')}`} />
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
-                  <h3 className="text-3xl font-bold font-mono text-white">{stat.value}</h3>
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bg}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatsCard
+            key={i}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            color={stat.color}
+            bg={stat.bg}
+          />
         ))}
       </div>
 
@@ -164,10 +138,16 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {newsLoading ? (
-                 [1,2].map(i => <Skeleton key={i} className="h-48" />)
-              ) : recentNews?.items.map(item => (
-                <NewsCard key={item.id} item={item} />
-              ))}
+                [1, 2].map((i) => <Skeleton key={i} className="h-48" />)
+              ) : (
+                (recentNews?.items ?? []).map((item) => (
+                  <NewsCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => setSelectedNews(item)}
+                  />
+                ))
+              )}
             </div>
           )}
         </div>
@@ -176,7 +156,7 @@ export default function Dashboard() {
           <Card className="glass-panel h-full flex flex-col">
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <h3 className="font-bold">Threat Distribution</h3>
-              <Badge variant="outline" className="font-mono text-[10px]">24H</Badge>
+              <Badge variant="outline" className="font-mono text-[10px]">{timeframe === "all" ? "ALL" : timeframe.toUpperCase()}</Badge>
             </div>
             <CardContent className="p-6 flex-1 flex flex-col items-center justify-center">
               <div className="h-[200px] w-full relative">
@@ -226,8 +206,20 @@ export default function Dashboard() {
         </div>
         <div className="p-0">
           <div className="divide-y divide-border/50">
-            {stats.recentActivity.map((activity) => (
-              <div key={activity.id} className="p-4 hover:bg-white/5 transition-colors flex items-center gap-4">
+            {(stats?.recentActivity ?? []).map((activity) => (
+              <div
+                key={activity.id}
+                role={activity.sourceUrl ? "button" : undefined}
+                tabIndex={activity.sourceUrl ? 0 : undefined}
+                title={activity.sourceUrl ? "Open source" : "No source link"}
+                onClick={() => activity.sourceUrl && window.open(activity.sourceUrl, "_blank")}
+                onKeyDown={(e) => activity.sourceUrl && (e.key === "Enter" || e.key === " ") && window.open(activity.sourceUrl!, "_blank")}
+                className={`p-4 transition-colors flex items-center gap-4 ${
+                  activity.sourceUrl
+                    ? "cursor-pointer hover:bg-white/5"
+                    : "cursor-default opacity-80"
+                }`}
+              >
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                   activity.severity === 'critical' ? 'bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]' : 
                   activity.severity === 'high' ? 'bg-accent shadow-[0_0_8px_hsl(var(--accent))]' : 'bg-primary'
@@ -236,14 +228,25 @@ export default function Dashboard() {
                   <p className="text-sm font-medium text-white truncate">{activity.title}</p>
                   <p className="text-xs text-muted-foreground">{activity.type.toUpperCase()}</p>
                 </div>
-                <div className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                  {formatRelative(activity.timestamp)}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                    {formatRelative(activity.timestamp)}
+                  </span>
+                  {activity.sourceUrl && (
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
       </Card>
+
+      <NewsDetail
+        item={selectedNews}
+        isOpen={!!selectedNews}
+        onClose={() => setSelectedNews(null)}
+      />
     </div>
   );
 }

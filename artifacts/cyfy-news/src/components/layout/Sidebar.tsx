@@ -15,12 +15,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Local News", href: "/news/local", icon: MapPin },
-  { name: "Global News", href: "/news/global", icon: Globe },
-  { name: "Advisories", href: "/advisories", icon: ShieldAlert },
-  { name: "Threat Intel", href: "/threat-intel", icon: Crosshair },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, section: "main" },
+  { name: "Local News", href: "/news/local", icon: MapPin, section: "news" },
+  { name: "Global News", href: "/news/global", icon: Globe, section: "news" },
+  { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
+  { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
+  { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];
 
 export function Sidebar() {
@@ -74,29 +74,41 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
-        {navItems.map((item) => {
+        {navItems.map((item, idx) => {
           const isActive = location === item.href || (location.startsWith(item.href) && item.href !== '/');
-          
+          const showDivider =
+            !collapsed &&
+            idx > 0 &&
+            item.section !== navItems[idx - 1].section;
+
           return (
-            <Link key={item.href} href={item.href} className="block">
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer",
-                  isActive 
-                    ? "bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(0,149,175,0.15)]" 
-                    : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent"
-                )}
-                title={collapsed ? item.name : undefined}
-              >
-                <item.icon size={20} className={cn(
-                  "flex-shrink-0 transition-transform duration-300", 
-                  isActive ? "text-primary scale-110" : "group-hover:scale-110"
-                )} />
-                {!collapsed && (
-                  <span className="font-medium truncate">{item.name}</span>
-                )}
-              </div>
-            </Link>
+            <div key={item.href}>
+              {showDivider && (
+                <div className="my-3 mx-3 border-t border-white/5" />
+              )}
+              <Link href={item.href} className="block">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer",
+                    isActive
+                      ? "bg-primary text-white border border-primary shadow-[0_0_15px_rgba(0,149,175,0.3)]"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-white hover:shadow-[0_0_12px_rgba(0,149,175,0.15)] border border-transparent"
+                  )}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <item.icon
+                    size={20}
+                    className={cn(
+                      "flex-shrink-0 transition-transform duration-300",
+                      isActive ? "text-white scale-110" : "group-hover:scale-110"
+                    )}
+                  />
+                  {!collapsed && (
+                    <span className="font-medium truncate">{item.name}</span>
+                  )}
+                </div>
+              </Link>
+            </div>
           );
         })}
       </nav>

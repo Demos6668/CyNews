@@ -39,6 +39,20 @@ paths:
       operationId: getDashboardStats
       tags: [dashboard]
       summary: Get dashboard statistics
+      parameters:
+        - name: timeframe
+          in: query
+          description: Time range filter (1h, 6h, 24h, 7d, 30d, all)
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d, all]
+            default: 24h
+        - name: scope
+          in: query
+          description: Filter stats by scope (local=India only, global=non-India)
+          schema:
+            type: string
+            enum: [local, global]
       responses:
         "200":
           description: Dashboard stats
@@ -77,6 +91,12 @@ paths:
           schema:
             type: string
             enum: [active, resolved, monitoring]
+        - name: timeframe
+          in: query
+          description: Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d, all]
         - name: from
           in: query
           description: Filter news published on or after this date (ISO 8601)
@@ -106,6 +126,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NewsListResponse"
+    post:
+      operationId: createNews
+      tags: [news]
+      summary: Create a news item (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNewsItem"
+      responses:
+        "201":
+          description: Created news item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsItem"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /news/{id}:
     get:
@@ -131,6 +174,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateNews
+      tags: [news]
+      summary: Update a news item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNewsItem"
+      responses:
+        "200":
+          description: Updated news item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteNews
+      tags: [news]
+      summary: Delete a news item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /advisories:
     get:
@@ -138,6 +228,12 @@ paths:
       tags: [advisories]
       summary: List security advisories
       parameters:
+        - name: scope
+          in: query
+          description: Filter by scope (local=India only, global=non-India)
+          schema:
+            type: string
+            enum: [local, global]
         - name: severity
           in: query
           schema:
@@ -152,6 +248,12 @@ paths:
           schema:
             type: string
             enum: [new, under_review, patched, dismissed]
+        - name: timeframe
+          in: query
+          description: Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d, all]
         - name: page
           in: query
           schema:
@@ -215,11 +317,27 @@ paths:
           in: query
           schema:
             type: string
+        - name: state
+          in: query
+          description: Indian state code filter (e.g. MH, KA)
+          schema:
+            type: string
+        - name: sector
+          in: query
+          description: Indian sector filter
+          schema:
+            type: string
         - name: status
           in: query
           schema:
             type: string
             enum: [active, resolved, monitoring]
+        - name: timeframe
+          in: query
+          description: Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d, all]
         - name: page
           in: query
           schema:
@@ -279,6 +397,16 @@ paths:
           schema:
             type: string
             enum: [critical, high, medium, low, info]
+        - name: state
+          in: query
+          description: Indian state code filter
+          schema:
+            type: string
+        - name: sector
+          in: query
+          description: Indian sector filter
+          schema:
+            type: string
       responses:
         "200":
           description: CSV file
@@ -389,6 +517,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ActivityItem"
+        indiaStats:
+          type: object
+          nullable: true
+          description: India-specific stats when scope=local
+          properties:
+            byState:
+              type: array
+              items:
+                type: object
+                properties:
+                  state:
+                    type: string
+                  count:
+                    type: integer
+            bySector:
+              type: array
+              items:
+                type: object
+                properties:
+                  sector:
+                    type: string
+                  count:
+                    type: integer
 
     ActivityItem:
       type: object
@@ -409,6 +560,120 @@ components:
           type: string
         timestamp:
           type: string
+        sourceUrl:
+          type: string
+          nullable: true
+          description: Real article/source URL for opening in new tab
+        sourceType:
+          type: string
+          description: "news or threat - for routing"
+
+    CreateNewsItem:
+      type: object
+      required:
+        - title
+        - summary
+        - content
+        - type
+        - scope
+        - severity
+        - category
+        - source
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [threat, news, advisory]
+        scope:
+          type: string
+          enum: [local, global]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        category:
+          type: string
+        source:
+          type: string
+        sourceUrl:
+          type: string
+          nullable: true
+        region:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        iocs:
+          type: array
+          items:
+            type: string
+        affectedSystems:
+          type: array
+          items:
+            type: string
+        mitigations:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, resolved, monitoring]
+
+    UpdateNewsItem:
+      type: object
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [threat, news, advisory]
+        scope:
+          type: string
+          enum: [local, global]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        category:
+          type: string
+        source:
+          type: string
+        sourceUrl:
+          type: string
+          nullable: true
+        region:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        iocs:
+          type: array
+          items:
+            type: string
+        affectedSystems:
+          type: array
+          items:
+            type: string
+        mitigations:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, resolved, monitoring]
 
     NewsItem:
       type: object
@@ -482,6 +747,24 @@ components:
           type: string
         bookmarked:
           type: boolean
+        isIndiaRelated:
+          type: boolean
+          nullable: true
+        indiaConfidence:
+          type: integer
+          nullable: true
+        indianState:
+          type: string
+          nullable: true
+        indianStateName:
+          type: string
+          nullable: true
+        indianCity:
+          type: string
+          nullable: true
+        indianSector:
+          type: string
+          nullable: true
 
     NewsListResponse:
       type: object
@@ -559,6 +842,14 @@ components:
           enum: [new, under_review, patched, dismissed]
         publishedAt:
           type: string
+        scope:
+          type: string
+          enum: [local, global]
+          description: India (local) or global
+        isIndiaRelated:
+          type: boolean
+        indiaConfidence:
+          type: integer
 
     AdvisoryListResponse:
       type: object
@@ -734,6 +1025,24 @@ components:
           type: string
         updatedAt:
           type: string
+        isIndiaRelated:
+          type: boolean
+          nullable: true
+        indiaConfidence:
+          type: integer
+          nullable: true
+        indianState:
+          type: string
+          nullable: true
+        indianStateName:
+          type: string
+          nullable: true
+        indianCity:
+          type: string
+          nullable: true
+        indianSector:
+          type: string
+          nullable: true
 
     ThreatIntelListResponse:
       type: object

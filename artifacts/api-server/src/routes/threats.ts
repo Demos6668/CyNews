@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, gte } from "drizzle-orm";
+import { getTimeframeStartDate } from "../lib/timeframe";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -20,6 +21,12 @@ function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
     summary: item.summary,
     description: item.description,
     scope: item.scope,
+    isIndiaRelated: item.isIndiaRelated ?? null,
+    indiaConfidence: item.indiaConfidence ?? null,
+    indianState: item.indianState ?? null,
+    indianStateName: item.indianStateName ?? null,
+    indianCity: item.indianCity ?? null,
+    indianSector: item.indianSector ?? null,
     severity: item.severity,
     category: item.category,
     threatActor: item.threatActor,
@@ -46,11 +53,15 @@ function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
 
 router.get("/threats/export", async (req: Request, res: Response) => {
   try {
+    const rawQuery = req.query as Record<string, string>;
+    const format = rawQuery.format === "json" ? "json" : "csv";
     const query = ExportThreatsQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
     if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
+    if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
+    if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -59,6 +70,14 @@ router.get("/threats/export", async (req: Request, res: Response) => {
       .from(threatIntelTable)
       .where(where)
       .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
+
+    if (format === "json") {
+      const jsonData = items.map((item) => formatThreatIntel(item));
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", "attachment; filename=threats-export.json");
+      res.json(jsonData);
+      return;
+    }
 
     const headers = ["ID", "Title", "Summary", "Severity", "Scope", "Category", "Threat Actor", "Campaign", "Source", "Status", "Confidence", "TTPs", "IOCs", "Malware Families", "Affected Systems", "Mitigations", "Published At"];
     const csvRows = [headers.join(",")];
@@ -141,7 +160,11 @@ router.get("/threats", async (req: Request, res: Response) => {
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
     if (query.severity) conditions.push(eq(threatIntelTable.severity, query.severity));
     if (query.category) conditions.push(eq(threatIntelTable.category, query.category));
+    if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
+    if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
     if (query.status) conditions.push(eq(threatIntelTable.status, query.status));
+    const fromDate = query.timeframe ? getTimeframeStartDate(query.timeframe) : undefined;
+    if (fromDate) conditions.push(gte(threatIntelTable.publishedAt, fromDate));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 

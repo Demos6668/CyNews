@@ -31,7 +31,24 @@
 }
 
 :root {
-  /* Dark mode only app - base background #0D1117 */
+  /* Spec hex values - exact palette */
+  --primary-teal: #0095AF;
+  --primary-teal-dark: #007A91;
+  --primary-teal-light: #00B8D4;
+  --accent-amber: #FFB74B;
+  --accent-amber-dark: #F5A623;
+  --accent-amber-light: #FFCA77;
+  --dark-navy: #1A2332;
+  --dark-navy-light: #243044;
+  --background-dark: #0D1117;
+  --background-card: #161B22;
+  --text-primary: #FFFFFF;
+  --text-secondary: #8B949E;
+  --danger-red: #F85149;
+  --warning-yellow: #F0C000;
+  --success-green: #3FB950;
+
+  /* Dark mode - base background #0D1117 */
   --background: 216 28% 7%;
   --foreground: 0 0% 100%;
 
@@ -77,6 +94,33 @@
   --radius: 0.75rem;
 }
 
+/* Light theme */
+.light {
+  --background: 0 0% 98%;
+  --foreground: 217 31% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 217 31% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 217 31% 15%;
+  --primary: 189 100% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 20% 96%;
+  --secondary-foreground: 217 31% 15%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 217 10% 45%;
+  --accent: 36 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 3 93% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --warning: 48 100% 40%;
+  --warning-foreground: 217 31% 15%;
+  --success: 128 49% 45%;
+  --success-foreground: 0 0% 100%;
+  --border: 214 20% 88%;
+  --input: 214 20% 88%;
+  --ring: 189 100% 34%;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -104,11 +148,52 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-md border border-white/5 shadow-xl;
+    @apply bg-card/80 backdrop-blur-md shadow-xl;
+    background-color: var(--background-card);
+    border: 1px solid rgba(0, 149, 175, 0.2);
+    border-radius: 12px;
+  }
+
+  .card-spec {
+    background-color: var(--background-card);
+    border: 1px solid rgba(0, 149, 175, 0.2);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .card-spec:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(0, 149, 175, 0.2);
+    border-color: rgba(0, 149, 175, 0.4);
+  }
+
+  .severity-critical {
+    border-left: 4px solid var(--danger-red);
+  }
+
+  .severity-high {
+    border-left: 4px solid var(--accent-amber);
+  }
+
+  .severity-medium {
+    border-left: 4px solid var(--warning-yellow);
+  }
+
+  .severity-low {
+    border-left: 4px solid var(--success-green);
+  }
+
+  .severity-info {
+    border-left: 4px solid var(--primary-teal);
   }
   
   .glow-hover {
-    @apply transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,149,175,0.2)] hover:border-primary/40;
+    @apply transition-all duration-300;
+  }
+
+  .glow-hover:hover {
+    box-shadow: 0 0 20px rgba(0, 149, 175, 0.2);
+    border-color: rgba(0, 149, 175, 0.4);
   }
   
   .glow-text {

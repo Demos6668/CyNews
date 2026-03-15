@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/feed-aggregator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/india-detector": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "~5.9.2"
+  }
+}

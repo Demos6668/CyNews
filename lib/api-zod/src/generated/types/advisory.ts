@@ -5,6 +5,7 @@
  * CYFY News Board API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdvisoryScope } from "./advisoryScope";
 import type { AdvisorySeverity } from "./advisorySeverity";
 import type { AdvisoryStatus } from "./advisoryStatus";
 
@@ -23,4 +24,8 @@ export interface Advisory {
   references: string[];
   status: AdvisoryStatus;
   publishedAt: string;
+  /** India (local) or global */
+  scope?: AdvisoryScope;
+  isIndiaRelated?: boolean;
+  indiaConfidence?: number;
 }

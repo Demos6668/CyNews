@@ -30,4 +30,10 @@ export interface NewsItem {
   publishedAt: string;
   updatedAt: string;
   bookmarked: boolean;
+  isIndiaRelated?: boolean | null;
+  indiaConfidence?: number | null;
+  indianState?: string | null;
+  indianStateName?: string | null;
+  indianCity?: string | null;
+  indianSector?: string | null;
 }

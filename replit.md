@@ -80,9 +80,17 @@ artifacts-monorepo/
 - Search (`/search`) - Global search results
 - Settings (`/settings`) - Placeholder settings page
 
+## Data Sources
+
+- **Seed script** (`pnpm --filter @workspace/scripts run seed`): Inserts demo/mock data for local development. Use for quick setup and testing.
+- **Live Feed Aggregator** (`pnpm --filter @workspace/scripts run live-feed`): Fetches real data from RSS feeds (The Hacker News, BleepingComputer, Dark Reading, Krebs, SANS ISC, SecurityWeek) and CISA Known Exploited Vulnerabilities (KEV) API. Run once to populate, or with `--watch` for continuous updates every 15 minutes.
+- **Production**: For real data, run the live-feed aggregator before or alongside the API. Seed data is for demo only.
+
 ## Key Commands
 
 - `pnpm --filter @workspace/api-spec run codegen` - Regenerate API hooks/schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` - Push DB schema changes
-- `pnpm --filter @workspace/scripts run seed` - Seed database with sample data
+- `pnpm --filter @workspace/scripts run seed` - Seed database with sample/demo data
+- `pnpm --filter @workspace/scripts run live-feed` - Fetch real news and advisories from RSS/APIs (one-time)
+- `pnpm --filter @workspace/scripts run live-feed:watch` - Run aggregator every 15 min (continuous)
 - `pnpm run typecheck` - Full typecheck across all packages

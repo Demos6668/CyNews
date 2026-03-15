@@ -19,12 +19,34 @@ export const DashboardStatsCurrentThreatLevel = {
   critical: "critical",
 } as const;
 
+export type DashboardStatsIndiaStatsByStateItem = {
+  state?: string;
+  count?: number;
+};
+
+export type DashboardStatsIndiaStatsBySectorItem = {
+  sector?: string;
+  count?: number;
+};
+
+/**
+ * India-specific stats when scope=local
+ */
+export type DashboardStatsIndiaStats = {
+  byState?: DashboardStatsIndiaStatsByStateItem[];
+  bySector?: DashboardStatsIndiaStatsBySectorItem[];
+} | null;
+
 export interface ActivityItem {
   id: number;
   title: string;
   type: string;
   severity: string;
   timestamp: string;
+  /** Real article/source URL for opening in new tab */
+  sourceUrl?: string | null;
+  /** news or threat - for routing */
+  sourceType?: string;
 }
 
 export interface DashboardStats {
@@ -36,6 +58,118 @@ export interface DashboardStats {
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];
+  /** India-specific stats when scope=local */
+  indiaStats?: DashboardStatsIndiaStats;
+}
+
+export type CreateNewsItemType =
+  (typeof CreateNewsItemType)[keyof typeof CreateNewsItemType];
+
+export const CreateNewsItemType = {
+  threat: "threat",
+  news: "news",
+  advisory: "advisory",
+} as const;
+
+export type CreateNewsItemScope =
+  (typeof CreateNewsItemScope)[keyof typeof CreateNewsItemScope];
+
+export const CreateNewsItemScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type CreateNewsItemSeverity =
+  (typeof CreateNewsItemSeverity)[keyof typeof CreateNewsItemSeverity];
+
+export const CreateNewsItemSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
+} as const;
+
+export type CreateNewsItemStatus =
+  (typeof CreateNewsItemStatus)[keyof typeof CreateNewsItemStatus];
+
+export const CreateNewsItemStatus = {
+  active: "active",
+  resolved: "resolved",
+  monitoring: "monitoring",
+} as const;
+
+export interface CreateNewsItem {
+  title: string;
+  summary: string;
+  content: string;
+  type: CreateNewsItemType;
+  scope: CreateNewsItemScope;
+  severity: CreateNewsItemSeverity;
+  category: string;
+  source: string;
+  sourceUrl?: string | null;
+  region?: string[];
+  tags?: string[];
+  iocs?: string[];
+  affectedSystems?: string[];
+  mitigations?: string[];
+  status?: CreateNewsItemStatus;
+}
+
+export type UpdateNewsItemType =
+  (typeof UpdateNewsItemType)[keyof typeof UpdateNewsItemType];
+
+export const UpdateNewsItemType = {
+  threat: "threat",
+  news: "news",
+  advisory: "advisory",
+} as const;
+
+export type UpdateNewsItemScope =
+  (typeof UpdateNewsItemScope)[keyof typeof UpdateNewsItemScope];
+
+export const UpdateNewsItemScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type UpdateNewsItemSeverity =
+  (typeof UpdateNewsItemSeverity)[keyof typeof UpdateNewsItemSeverity];
+
+export const UpdateNewsItemSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
+} as const;
+
+export type UpdateNewsItemStatus =
+  (typeof UpdateNewsItemStatus)[keyof typeof UpdateNewsItemStatus];
+
+export const UpdateNewsItemStatus = {
+  active: "active",
+  resolved: "resolved",
+  monitoring: "monitoring",
+} as const;
+
+export interface UpdateNewsItem {
+  title?: string;
+  summary?: string;
+  content?: string;
+  type?: UpdateNewsItemType;
+  scope?: UpdateNewsItemScope;
+  severity?: UpdateNewsItemSeverity;
+  category?: string;
+  source?: string;
+  sourceUrl?: string | null;
+  region?: string[];
+  tags?: string[];
+  iocs?: string[];
+  affectedSystems?: string[];
+  mitigations?: string[];
+  status?: UpdateNewsItemStatus;
 }
 
 export type NewsItemType = (typeof NewsItemType)[keyof typeof NewsItemType];
@@ -93,6 +227,12 @@ export interface NewsItem {
   publishedAt: string;
   updatedAt: string;
   bookmarked: boolean;
+  isIndiaRelated?: boolean | null;
+  indiaConfidence?: number | null;
+  indianState?: string | null;
+  indianStateName?: string | null;
+  indianCity?: string | null;
+  indianSector?: string | null;
 }
 
 export interface NewsListResponse {
@@ -124,6 +264,16 @@ export const AdvisoryStatus = {
   dismissed: "dismissed",
 } as const;
 
+/**
+ * India (local) or global
+ */
+export type AdvisoryScope = (typeof AdvisoryScope)[keyof typeof AdvisoryScope];
+
+export const AdvisoryScope = {
+  local: "local",
+  global: "global",
+} as const;
+
 export interface Advisory {
   id: number;
   cveId: string;
@@ -139,6 +289,10 @@ export interface Advisory {
   references: string[];
   status: AdvisoryStatus;
   publishedAt: string;
+  /** India (local) or global */
+  scope?: AdvisoryScope;
+  isIndiaRelated?: boolean;
+  indiaConfidence?: number;
 }
 
 export interface AdvisoryListResponse {
@@ -234,6 +388,12 @@ export interface ThreatIntelItem {
   lastSeen?: string | null;
   publishedAt: string;
   updatedAt: string;
+  isIndiaRelated?: boolean | null;
+  indiaConfidence?: number | null;
+  indianState?: string | null;
+  indianStateName?: string | null;
+  indianCity?: string | null;
+  indianSector?: string | null;
 }
 
 export interface ThreatIntelListResponse {
@@ -248,12 +408,47 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type GetDashboardStatsParams = {
+  /**
+   * Time range filter (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetDashboardStatsTimeframe;
+  /**
+   * Filter stats by scope (local=India only, global=non-India)
+   */
+  scope?: GetDashboardStatsScope;
+};
+
+export type GetDashboardStatsTimeframe =
+  (typeof GetDashboardStatsTimeframe)[keyof typeof GetDashboardStatsTimeframe];
+
+export const GetDashboardStatsTimeframe = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "all",
+} as const;
+
+export type GetDashboardStatsScope =
+  (typeof GetDashboardStatsScope)[keyof typeof GetDashboardStatsScope];
+
+export const GetDashboardStatsScope = {
+  local: "local",
+  global: "global",
+} as const;
+
 export type GetNewsParams = {
   scope?: GetNewsScope;
   severity?: GetNewsSeverity;
   category?: string;
   type?: GetNewsType;
   status?: GetNewsStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetNewsTimeframe;
   /**
    * Filter news published on or after this date (ISO 8601)
    */
@@ -300,13 +495,41 @@ export const GetNewsStatus = {
   monitoring: "monitoring",
 } as const;
 
+export type GetNewsTimeframe =
+  (typeof GetNewsTimeframe)[keyof typeof GetNewsTimeframe];
+
+export const GetNewsTimeframe = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "all",
+} as const;
+
 export type GetAdvisoriesParams = {
+  /**
+   * Filter by scope (local=India only, global=non-India)
+   */
+  scope?: GetAdvisoriesScope;
   severity?: GetAdvisoriesSeverity;
   vendor?: string;
   status?: GetAdvisoriesStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetAdvisoriesTimeframe;
   page?: number;
   limit?: number;
 };
+
+export type GetAdvisoriesScope =
+  (typeof GetAdvisoriesScope)[keyof typeof GetAdvisoriesScope];
+
+export const GetAdvisoriesScope = {
+  local: "local",
+  global: "global",
+} as const;
 
 export type GetAdvisoriesSeverity =
   (typeof GetAdvisoriesSeverity)[keyof typeof GetAdvisoriesSeverity];
@@ -329,11 +552,35 @@ export const GetAdvisoriesStatus = {
   dismissed: "dismissed",
 } as const;
 
+export type GetAdvisoriesTimeframe =
+  (typeof GetAdvisoriesTimeframe)[keyof typeof GetAdvisoriesTimeframe];
+
+export const GetAdvisoriesTimeframe = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "all",
+} as const;
+
 export type GetThreatsParams = {
   scope?: GetThreatsScope;
   severity?: GetThreatsSeverity;
   category?: string;
+  /**
+   * Indian state code filter (e.g. MH, KA)
+   */
+  state?: string;
+  /**
+   * Indian sector filter
+   */
+  sector?: string;
   status?: GetThreatsStatus;
+  /**
+   * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
+   */
+  timeframe?: GetThreatsTimeframe;
   page?: number;
   limit?: number;
 };
@@ -366,9 +613,29 @@ export const GetThreatsStatus = {
   monitoring: "monitoring",
 } as const;
 
+export type GetThreatsTimeframe =
+  (typeof GetThreatsTimeframe)[keyof typeof GetThreatsTimeframe];
+
+export const GetThreatsTimeframe = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "all",
+} as const;
+
 export type ExportThreatsParams = {
   scope?: ExportThreatsScope;
   severity?: ExportThreatsSeverity;
+  /**
+   * Indian state code filter
+   */
+  state?: string;
+  /**
+   * Indian sector filter
+   */
+  sector?: string;
 };
 
 export type ExportThreatsScope =
