@@ -91,7 +91,7 @@ const RSS_SOURCES: RssSource[] = [
   { name: "CrowdStrike", url: "https://www.crowdstrike.com/blog/feed/", category: "THREAT", priority: 1 },
   { name: "SentinelOne", url: "https://www.sentinelone.com/blog/feed/", category: "THREAT", priority: 1 },
   { name: "Recorded Future", url: "https://www.recordedfuture.com/feed", category: "THREAT", priority: 1 },
-  { name: "Proofpoint", url: "https://www.proofpoint.com/us/blog/rss.xml", category: "THREAT", priority: 1 },
+  { name: "Proofpoint", url: "https://www.proofpoint.com/us/threat-insight-blog.xml", category: "THREAT", priority: 1 },
   { name: "Kaspersky SecureList", url: "https://securelist.com/feed/", category: "THREAT", priority: 1 },
   { name: "ESET WeLiveSecurity", url: "https://www.welivesecurity.com/feed/", category: "THREAT", priority: 2 },
   { name: "Check Point Research", url: "https://research.checkpoint.com/feed/", category: "THREAT", priority: 1 },
@@ -112,10 +112,11 @@ const RSS_SOURCES: RssSource[] = [
   { name: "Huntress", url: "https://www.huntress.com/blog/rss.xml", category: "THREAT", priority: 2 },
   { name: "Binary Defense", url: "https://www.binarydefense.com/feed/", category: "THREAT", priority: 2 },
   { name: "Red Canary", url: "https://redcanary.com/feed/", category: "THREAT", priority: 2 },
-  { name: "Dragos (ICS/OT)", url: "https://www.dragos.com/feed/", category: "THREAT", priority: 1 },
+  // Dragos: feed returns 404 as of 2025 - removed until restored
+  // { name: "Dragos (ICS/OT)", url: "https://www.dragos.com/feed/", category: "THREAT", priority: 1 },
   { name: "Claroty (ICS/OT)", url: "https://claroty.com/blog/rss.xml", category: "THREAT", priority: 2 },
   { name: "Nozomi Networks (ICS/OT)", url: "https://www.nozominetworks.com/blog/feed/", category: "THREAT", priority: 2 },
-  { name: "Volexity", url: "https://www.volexity.com/blog/feed/", category: "THREAT", priority: 1 },
+  { name: "Volexity", url: "https://www.volexity.com/feed/", category: "THREAT", priority: 1 },
   { name: "Secureworks", url: "https://www.secureworks.com/rss?feed=blog", category: "THREAT", priority: 2 },
   { name: "BlackBerry Cylance", url: "https://blogs.blackberry.com/en/feed", category: "THREAT", priority: 2 },
   { name: "Cofense", url: "https://cofense.com/feed/", category: "THREAT", priority: 2 },
@@ -143,7 +144,8 @@ const RSS_SOURCES: RssSource[] = [
   { name: "FBI Cyber", url: "https://www.fbi.gov/investigate/cyber/news/rss.xml", category: "ADVISORY", priority: 1, defaultScope: "global" },
   { name: "FBI Press Releases", url: "https://www.fbi.gov/news/press-releases/rss.xml", category: "NEWS", priority: 2, defaultScope: "global" },
   { name: "FBI Internet Crime", url: "https://www.ic3.gov/Media/News/rss.xml", category: "ADVISORY", priority: 1, defaultScope: "global" },
-  { name: "NSA Cybersecurity", url: "https://www.nsa.gov/Press-Room/Cybersecurity-Advisories-Guidance/rss.xml", category: "ADVISORY", priority: 1, defaultScope: "global" },
+  // NSA: returns 403 (blocked) - removed until accessible
+  // { name: "NSA Cybersecurity", url: "https://www.nsa.gov/Press-Room/Cybersecurity-Advisories-Guidance/rss.xml", category: "ADVISORY", priority: 1, defaultScope: "global" },
   { name: "NCSC UK", url: "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml", category: "ADVISORY", priority: 1, defaultScope: "global" },
   { name: "NCSC UK News", url: "https://www.ncsc.gov.uk/api/1/services/v1/news-rss-feed.xml", category: "NEWS", priority: 2, defaultScope: "global" },
   { name: "CERT-EU", url: "https://cert.europa.eu/publications/security-advisories/rss", category: "ADVISORY", priority: 1, defaultScope: "global" },
@@ -159,7 +161,8 @@ const RSS_SOURCES: RssSource[] = [
   // ===== INDIA-SPECIFIC SOURCES (LOCAL) =====
   { name: "CERT-In", url: "https://www.cert-in.org.in/s2cMainServlet?pageid=RSSPUBVUL", category: "ADVISORY", priority: 1, forceLocal: true },
   { name: "CERT-In Advisories", url: "https://www.cert-in.org.in/s2cMainServlet?pageid=RSSPUBADV", category: "ADVISORY", priority: 1, forceLocal: true },
-  { name: "NCIIPC", url: "https://nciipc.gov.in/rss.xml", category: "ADVISORY", priority: 1, forceLocal: true },
+  // NCIIPC: rss.xml returns 404 - removed until feed available
+  // { name: "NCIIPC", url: "https://nciipc.gov.in/rss.xml", category: "ADVISORY", priority: 1, forceLocal: true },
   { name: "MeitY Alerts", url: "https://www.meity.gov.in/rss-feeds", category: "NEWS", priority: 2, forceLocal: true },
   { name: "DSCI", url: "https://www.dsci.in/feeds/rss.xml", category: "NEWS", priority: 2, forceLocal: true },
   { name: "RBI Notifications", url: "https://www.rbi.org.in/scripts/BS_RSS_ALL.aspx", category: "ADVISORY", priority: 2, forceLocal: true },
