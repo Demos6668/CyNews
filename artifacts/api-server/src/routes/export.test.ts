@@ -16,6 +16,9 @@ const mockAdvisory = {
   references: ["https://nvd.nist.gov/vuln/detail/CVE-2024-1234"],
   status: "new" as const,
   publishedAt: new Date("2024-01-15"),
+  scope: "global" as const,
+  isIndiaRelated: false,
+  indiaConfidence: 0,
 };
 
 let mockSelectResult: typeof mockAdvisory[] = [];
@@ -122,6 +125,18 @@ describe("Export routes", () => {
         .expect("Content-Type", /text\/html/);
 
       expect(res.headers["content-disposition"]).toMatch(/attachment/);
+      expect(res.text).toContain("<!DOCTYPE html>");
+      expect(res.text).toContain("CVE-2024-1234");
+    });
+
+    it("accepts scope with timeframe for bulk export", async () => {
+      mockSelectResult = [mockAdvisory as never];
+      const res = await request(app)
+        .post("/api/export/advisories/bulk")
+        .send({ timeframe: "24h", scope: "local" })
+        .expect(200)
+        .expect("Content-Type", /text\/html/);
+
       expect(res.text).toContain("<!DOCTYPE html>");
       expect(res.text).toContain("CVE-2024-1234");
     });

@@ -85,7 +85,7 @@ export default function Advisories() {
     const res = await fetch("/api/export/advisories/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ timeframe }),
+      body: JSON.stringify({ timeframe, scope }),
     });
     if (!res.ok) return;
     const blob = await res.blob();

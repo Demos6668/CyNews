@@ -26,6 +26,9 @@ export interface AdvisoryForExport {
   references: string[];
   status: string;
   publishedAt: string;
+  scope?: "local" | "global";
+  isIndiaRelated?: boolean;
+  indiaConfidence?: number;
 }
 
 function escapeHtml(str: string): string {
@@ -177,6 +180,7 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
   <div class="meta">
     <span>Published: ${publishedDate}</span>
     <span>Source: ${vendor}</span>
+    <span>Scope: ${(advisory.scope ?? "global") === "local" ? "India (Local)" : "Global"}</span>
     <span class="status-badge ${advisory.patchAvailable ? "status-patched" : "status-no-patch"}">
       ${advisory.patchAvailable ? "Patch Available" : "No Patch"}
     </span>
@@ -250,7 +254,7 @@ export function generateBulkAdvisoryHTML(
       <span>${(advisory.severity ?? "info").toUpperCase()} - ${cveId}</span>
     </div>
     <h2>${title}</h2>
-    <div class="meta">Published: ${publishedDate} | Vendor: ${vendor}</div>
+    <div class="meta">Published: ${publishedDate} | Vendor: ${vendor} | Scope: ${(advisory.scope ?? "global") === "local" ? "India (Local)" : "Global"}</div>
     <div class="section">
       <p>${description}</p>
     </div>

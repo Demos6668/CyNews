@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
-import { eq, gte, inArray, desc } from "drizzle-orm";
+import { eq, gte, inArray, desc, and } from "drizzle-orm";
 import { getTimeframeStartDate, type TimeframeValue } from "../lib/timeframe";
 import { generateAdvisoryHTML, generateBulkAdvisoryHTML } from "../services/exportService";
 
@@ -23,6 +23,9 @@ function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
     references: (row.references as string[]) ?? [],
     status: row.status,
     publishedAt: row.publishedAt.toISOString(),
+    scope: row.scope,
+    isIndiaRelated: row.isIndiaRelated,
+    indiaConfidence: row.indiaConfidence,
   };
 }
 
@@ -61,7 +64,7 @@ router.get("/export/advisory/:id", async (req: Request, res: Response) => {
 
 router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
   try {
-    const body = req.body as { ids?: number[]; timeframe?: string };
+    const body = req.body as { ids?: number[]; timeframe?: string; scope?: "local" | "global" };
     let items: typeof advisoriesTable.$inferSelect[];
 
     if (body.ids && Array.isArray(body.ids)) {
@@ -81,20 +84,18 @@ router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
         ? (body.timeframe as TimeframeValue)
         : "24h";
       const fromDate = getTimeframeStartDate(tf);
-      if (fromDate) {
-        items = await db
-          .select()
-          .from(advisoriesTable)
-          .where(gte(advisoriesTable.publishedAt, fromDate))
-          .orderBy(desc(advisoriesTable.publishedAt))
-          .limit(MAX_BULK_IDS);
-      } else {
-        items = await db
-          .select()
-          .from(advisoriesTable)
-          .orderBy(desc(advisoriesTable.publishedAt))
-          .limit(MAX_BULK_IDS);
-      }
+      const scopeFilter = body.scope === "local" || body.scope === "global" ? body.scope : undefined;
+      const conditions = [];
+      if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
+      if (scopeFilter) conditions.push(eq(advisoriesTable.scope, scopeFilter));
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+      items = await db
+        .select()
+        .from(advisoriesTable)
+        .where(where)
+        .orderBy(desc(advisoriesTable.publishedAt))
+        .limit(MAX_BULK_IDS);
     } else {
       res.status(400).json({ error: "Provide ids or timeframe in request body" });
       return;

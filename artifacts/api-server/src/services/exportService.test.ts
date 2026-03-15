@@ -98,6 +98,18 @@ describe("exportService", () => {
       expect(html).toContain("&quot;");
       expect(html).not.toContain('onload="alert');
     });
+
+    it("includes scope in meta when local", () => {
+      const local: AdvisoryForExport = { ...sampleAdvisory, scope: "local" };
+      const html = generateAdvisoryHTML(local);
+      expect(html).toContain("Scope: India (Local)");
+    });
+
+    it("includes scope as Global when global or undefined", () => {
+      const global: AdvisoryForExport = { ...sampleAdvisory, scope: "global" };
+      const html = generateAdvisoryHTML(global);
+      expect(html).toContain("Scope: Global");
+    });
   });
 
   describe("generateBulkAdvisoryHTML", () => {
@@ -128,6 +140,14 @@ describe("exportService", () => {
       expect(html).toContain("<!DOCTYPE html>");
       expect(html).toContain("Empty Report");
       expect(html).toContain("0 advisories");
+    });
+
+    it("includes scope in advisory sections", () => {
+      const local: AdvisoryForExport = { ...sampleAdvisory, scope: "local" };
+      const global: AdvisoryForExport = { ...sampleAdvisory, id: 2, scope: "global" };
+      const html = generateBulkAdvisoryHTML([local, global]);
+      expect(html).toContain("Scope: India (Local)");
+      expect(html).toContain("Scope: Global");
     });
   });
 });
