@@ -19,7 +19,9 @@ interface SearchResultItem {
 router.get("/search", async (req: Request, res: Response) => {
   try {
     const query = SearchQueryParams.parse(req.query);
-    const searchTerm = `%${query.q}%`;
+    // Sanitize LIKE wildcards to prevent pattern injection
+    const sanitized = query.q.replace(/[%_\\]/g, "\\$&");
+    const searchTerm = `%${sanitized}%`;
     const limit = query.limit ?? 20;
     const results: SearchResultItem[] = [];
 

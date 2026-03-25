@@ -1,13 +1,68 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import morgan from "morgan";
 import router from "./routes";
+import { globalErrorHandler } from "./middlewares/errorHandler";
 
 const app: Express = express();
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP handled by frontend
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS - restrict to known origins in production
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map(s => s.trim())
+  : undefined;
+
+app.use(cors(allowedOrigins ? {
+  origin: allowedOrigins,
+  credentials: true,
+} : undefined));
+
+// Request logging
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("short"));
+}
+
+// Body parsing with size limits
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+// Rate limiting - general API
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});
+app.use("/api", apiLimiter);
+
+// Stricter rate limit for write operations
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many write requests, please try again later" },
+});
+app.use("/api/news", (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST" || req.method === "PUT" || req.method === "DELETE") {
+    writeLimiter(req, res, next);
+  } else {
+    next();
+  }
+});
+app.use("/api/export", writeLimiter);
 
 app.use("/api", router);
+
+// Global error handler (must be after routes)
+app.use(globalErrorHandler);
 
 export default app;
