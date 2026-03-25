@@ -199,4 +199,23 @@
   .glow-text {
     text-shadow: 0 0 10px rgba(0, 149, 175, 0.5);
   }
+
+  .email-preview {
+    padding: 20px;
+    min-height: 100%;
+  }
+
+  .email-preview * {
+    max-width: 100%;
+  }
+
+  .email-preview a {
+    color: var(--primary-teal);
+  }
+
+  .email-preview pre {
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
 }

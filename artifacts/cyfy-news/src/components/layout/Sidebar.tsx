@@ -4,6 +4,7 @@ import {
   LayoutDashboard, 
   Globe, 
   MapPin, 
+  Shield,
   ShieldAlert, 
   Crosshair, 
   Settings,
@@ -18,14 +19,19 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, section: "main" },
   { name: "Local News", href: "/news/local", icon: MapPin, section: "news" },
   { name: "Global News", href: "/news/global", icon: Globe, section: "news" },
+  { name: "CERT-In", href: "/cert-in", icon: Shield, section: "intel" },
   { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
   { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
   { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const [location] = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -64,7 +70,7 @@ export function Sidebar() {
             if (window.innerWidth < 1024) {
               setMobileOpen(false);
             } else {
-              setCollapsed(!collapsed);
+              onCollapsedChange?.(!collapsed);
             }
           }}
           className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors ml-auto"
@@ -112,19 +118,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-      
-      {!collapsed && (
-        <div className="p-4 border-t border-white/5">
-          <div className="bg-background/50 rounded-xl p-4 border border-white/5 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-xs font-mono text-muted-foreground">SOC ACTIVE</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 relative z-10">System operational</p>
-          </div>
-        </div>
-      )}
     </>
   );
 
@@ -156,7 +149,7 @@ export function Sidebar() {
 
       <motion.aside 
         animate={{ width: collapsed ? 80 : 260 }}
-        className="hidden lg:flex h-screen sticky top-0 bg-secondary border-r border-border flex-col z-40 shadow-2xl"
+        className="hidden lg:flex fixed top-0 left-0 h-screen bg-secondary border-r border-border flex-col z-40 shadow-2xl"
       >
         {sidebarContent}
       </motion.aside>

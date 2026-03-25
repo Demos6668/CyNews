@@ -29,6 +29,31 @@ export interface AdvisoryForExport {
   scope?: "local" | "global";
   isIndiaRelated?: boolean;
   indiaConfidence?: number;
+  // CERT-In specific
+  sourceUrl?: string;
+  source?: string;
+  summary?: string;
+  content?: string;
+  category?: string;
+  certInId?: string;
+  certInType?: string;
+  cveIds?: string[];
+  recommendations?: string[];
+}
+
+function stripHtmlForExport(html: string): string {
+  if (!html || typeof html !== "string") return "";
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>|<\/div>|<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
 }
 
 function escapeHtml(str: string): string {
@@ -47,11 +72,14 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
 
   const title = escapeHtml(advisory.title);
   const description = escapeHtml(advisory.description);
-  const cveId = escapeHtml(advisory.cveId);
+  const cveId = escapeHtml(advisory.certInId ?? advisory.cveId);
   const vendor = escapeHtml(advisory.vendor);
 
   const affectedProducts = (advisory.affectedProducts ?? []).map((p) => escapeHtml(p));
   const workarounds = (advisory.workarounds ?? []).map((w) => escapeHtml(w));
+  const recommendations = (advisory.recommendations ?? []).map((r) => escapeHtml(r));
+  const cveIds = advisory.cveIds ?? [];
+  const isCertIn = !!(advisory.certInId ?? advisory.content);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -175,7 +203,7 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
   </div>
 
   <h1>${title}</h1>
-  <div class="cve-id">${cveId}</div>
+  <div class="cve-id">${cveId}${advisory.category ? ` | ${escapeHtml(advisory.category)}` : ""}</div>
 
   <div class="meta">
     <span>Published: ${publishedDate}</span>
@@ -191,6 +219,29 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
     <p>${description}</p>
   </div>
 
+  ${isCertIn && advisory.summary ? `
+  <div class="section">
+    <h2>CERT-In Summary</h2>
+    <p>${escapeHtml(stripHtmlForExport(advisory.summary))}</p>
+  </div>
+  ` : ""}
+
+  ${isCertIn && advisory.content ? `
+  <div class="section">
+    <h2>Full Content</h2>
+    <p style="white-space: pre-wrap;">${escapeHtml(stripHtmlForExport(advisory.content))}</p>
+  </div>
+  ` : ""}
+
+  ${cveIds.length > 0 ? `
+  <div class="section">
+    <h2>Related CVEs</h2>
+    <ul class="affected-list">
+      ${cveIds.map((cve) => `<li><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">${escapeHtml(cve)}</a></li>`).join("")}
+    </ul>
+  </div>
+  ` : ""}
+
   ${affectedProducts.length > 0 ? `
   <div class="section">
     <h2>Affected Products</h2>
@@ -200,12 +251,13 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
   </div>
   ` : ""}
 
-  ${workarounds.length > 0 ? `
+  ${(workarounds.length > 0 || recommendations.length > 0) ? `
   <div class="section">
     <h2>Mitigation &amp; Recommendations</h2>
     <div class="mitigation">
       <ul style="padding-left: 20px;">
         ${workarounds.map((m) => `<li style="margin-bottom: 8px;">${m}</li>`).join("")}
+        ${recommendations.map((r) => `<li style="margin-bottom: 8px;">${r}</li>`).join("")}
       </ul>
     </div>
   </div>
@@ -214,8 +266,9 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
   <div class="section">
     <h2>References</h2>
     <div class="references">
-      <p><a href="https://nvd.nist.gov/vuln/detail/${cveId}" target="_blank" rel="noopener">NVD Entry</a></p>
+      ${cveIds.length > 0 ? cveIds.slice(0, 3).map((cve) => `<p><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">NVD: ${escapeHtml(cve)}</a></p>`).join("") : `<p><a href="https://nvd.nist.gov/vuln/detail/${advisory.cveId}" target="_blank" rel="noopener">NVD Entry</a></p>`}
       ${advisory.patchUrl ? `<p><a href="${escapeHtml(advisory.patchUrl)}" target="_blank" rel="noopener">Patch/Update</a></p>` : ""}
+      ${advisory.sourceUrl ? `<p><a href="${escapeHtml(advisory.sourceUrl)}" target="_blank" rel="noopener">View on CERT-In</a></p>` : ""}
       ${(advisory.references ?? []).slice(0, 5).map((ref) => `<p><a href="${escapeHtml(ref)}" target="_blank" rel="noopener">${escapeHtml(ref)}</a></p>`).join("")}
     </div>
   </div>
@@ -234,7 +287,7 @@ export function generateBulkAdvisoryHTML(
 ): string {
   const generatedAt = new Date().toLocaleString();
   const tocItems = advisories.map(
-    (a, i) => `<li><a href="#advisory-${i}">${escapeHtml(a.cveId)} - ${escapeHtml(a.title)}</a></li>`
+    (a, i) => `<li><a href="#advisory-${i}">${escapeHtml(a.certInId ?? a.cveId)} - ${escapeHtml(a.title)}</a></li>`
   );
 
   const advisorySections = advisories.map((advisory, index) => {
@@ -242,25 +295,39 @@ export function generateBulkAdvisoryHTML(
     const publishedDate = new Date(advisory.publishedAt).toLocaleDateString();
     const title = escapeHtml(advisory.title);
     const description = escapeHtml(advisory.description);
-    const cveId = escapeHtml(advisory.cveId);
+    const displayId = escapeHtml(advisory.certInId ?? advisory.cveId);
     const vendor = escapeHtml(advisory.vendor);
     const affectedProducts = (advisory.affectedProducts ?? []).map((p) => escapeHtml(p));
     const workarounds = (advisory.workarounds ?? []).map((w) => escapeHtml(w));
+    const recommendations = (advisory.recommendations ?? []).map((r) => escapeHtml(r));
+    const cveIds = advisory.cveIds ?? [];
+    const isCertIn = !!(advisory.certInId ?? advisory.content);
+
+    const certInSummary = isCertIn && advisory.summary ? `<div class="section"><h3>CERT-In Summary</h3><p>${escapeHtml(stripHtmlForExport(advisory.summary))}</p></div>` : "";
+    const certInContent = isCertIn && advisory.content ? `<div class="section"><h3>Full Content</h3><p style="white-space: pre-wrap;">${escapeHtml(stripHtmlForExport(advisory.content))}</p></div>` : "";
+    const certInCves = cveIds.length > 0 ? `<div class="section"><h3>Related CVEs</h3><ul>${cveIds.map((cve) => `<li><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">${escapeHtml(cve)}</a></li>`).join("")}</ul></div>` : "";
+    const refLinks = cveIds.length > 0
+      ? cveIds.slice(0, 3).map((cve) => `<a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">NVD: ${escapeHtml(cve)}</a>`).join(" | ")
+      : `<a href="https://nvd.nist.gov/vuln/detail/${advisory.cveId}" target="_blank" rel="noopener">View NVD Entry</a>`;
+    const certInLink = advisory.sourceUrl ? ` | <a href="${escapeHtml(advisory.sourceUrl)}" target="_blank" rel="noopener">View on CERT-In</a>` : "";
 
     return `
   <div id="advisory-${index}" class="advisory-section">
     <div class="severity-banner" style="background: ${severityColor};">
       <span class="cvss">${advisory.cvssScore?.toFixed(1) ?? "N/A"}</span>
-      <span>${(advisory.severity ?? "info").toUpperCase()} - ${cveId}</span>
+      <span>${(advisory.severity ?? "info").toUpperCase()} - ${displayId}${advisory.category ? ` (${escapeHtml(advisory.category)})` : ""}</span>
     </div>
     <h2>${title}</h2>
     <div class="meta">Published: ${publishedDate} | Vendor: ${vendor} | Scope: ${(advisory.scope ?? "global") === "local" ? "India (Local)" : "Global"}</div>
     <div class="section">
       <p>${description}</p>
     </div>
+    ${certInSummary}
+    ${certInContent}
+    ${certInCves}
     ${affectedProducts.length > 0 ? `<div class="section"><h3>Affected Products</h3><ul>${affectedProducts.map((p) => `<li>${p}</li>`).join("")}</ul></div>` : ""}
-    ${workarounds.length > 0 ? `<div class="section"><h3>Workarounds</h3><ul>${workarounds.map((w) => `<li>${w}</li>`).join("")}</ul></div>` : ""}
-    <p><a href="https://nvd.nist.gov/vuln/detail/${cveId}" target="_blank" rel="noopener">View NVD Entry</a></p>
+    ${(workarounds.length > 0 || recommendations.length > 0) ? `<div class="section"><h3>Workarounds &amp; Recommendations</h3><ul>${workarounds.map((w) => `<li>${w}</li>`).join("")}${recommendations.map((r) => `<li>${r}</li>`).join("")}</ul></div>` : ""}
+    <p>${refLinks}${certInLink}</p>
     <hr class="section-divider" />
   </div>`;
   });

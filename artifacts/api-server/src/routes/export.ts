@@ -1,11 +1,74 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, advisoriesTable } from "@workspace/db";
+import { db, advisoriesTable, threatIntelTable } from "@workspace/db";
 import { eq, gte, inArray, desc, and } from "drizzle-orm";
 import { getTimeframeStartDate, type TimeframeValue } from "../lib/timeframe";
 import { generateAdvisoryHTML, generateBulkAdvisoryHTML } from "../services/exportService";
+import {
+  emailTemplateService,
+  type AdvisoryWithCustomizations,
+} from "../services/emailTemplateService";
+import type { AdvisoryForExport } from "../services/exportService";
 
 const router: IRouter = Router();
 const MAX_BULK_IDS = 50;
+
+function convertHtmlToPlainText(html: string): string {
+  if (!html || typeof html !== "string") return "";
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n\s*\n\s*\n/g, "\n\n")
+    .trim();
+}
+
+type ExportItem =
+  | { type: "advisory"; row: typeof advisoriesTable.$inferSelect }
+  | { type: "threat"; row: typeof threatIntelTable.$inferSelect };
+
+async function findExportItemById(
+  idParam: string | number
+): Promise<ExportItem | null> {
+  const numId = Number(idParam);
+  if (Number.isInteger(numId) && numId > 0) {
+    const [adv] = await db
+      .select()
+      .from(advisoriesTable)
+      .where(eq(advisoriesTable.id, numId));
+    if (adv) return { type: "advisory", row: adv };
+
+    const [threat] = await db
+      .select()
+      .from(threatIntelTable)
+      .where(eq(threatIntelTable.id, numId));
+    if (threat) return { type: "threat", row: threat };
+  }
+  const [adv] = await db
+    .select()
+    .from(advisoriesTable)
+    .where(eq(advisoriesTable.certInId, String(idParam)))
+    .limit(1);
+  if (adv) return { type: "advisory", row: adv };
+  return null;
+}
+
+async function findAdvisoryByIdOrCertInId(
+  idParam: string | number
+): Promise<typeof advisoriesTable.$inferSelect | null> {
+  const item = await findExportItemById(idParam);
+  if (item?.type === "advisory") return item.row;
+  return null;
+}
 
 function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
   return {
@@ -26,6 +89,45 @@ function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
     scope: row.scope,
     isIndiaRelated: row.isIndiaRelated ?? undefined,
     indiaConfidence: row.indiaConfidence ?? undefined,
+    sourceUrl: row.sourceUrl ?? undefined,
+    source: row.source ?? undefined,
+    summary: row.summary ?? undefined,
+    content: row.content ?? undefined,
+    category: row.category ?? undefined,
+    certInId: row.certInId ?? undefined,
+    certInType: row.certInType ?? undefined,
+    cveIds: (row.cveIds as string[]) ?? [],
+    recommendations: (row.recommendations as string[]) ?? [],
+  };
+}
+
+function toThreatForExport(row: typeof threatIntelTable.$inferSelect): AdvisoryWithCustomizations {
+  return {
+    id: row.id,
+    cveId: "",
+    title: row.title,
+    description: row.description,
+    cvssScore: 0,
+    severity: row.severity,
+    affectedProducts: (row.affectedSystems as string[]) ?? [],
+    vendor: "",
+    patchAvailable: false,
+    patchUrl: null,
+    workarounds: [],
+    references: (row.references as string[]) ?? [],
+    status: row.status,
+    publishedAt: row.publishedAt.toISOString(),
+    scope: row.scope,
+    isIndiaRelated: row.isIndiaRelated ?? false,
+    sourceUrl: row.sourceUrl ?? undefined,
+    source: row.source,
+    summary: row.summary,
+    content: row.description,
+    category: row.category,
+    recommendations: (row.mitigations as string[]) ?? [],
+    iocs: (row.iocs as string[]) ?? [],
+    isCertIn: false,
+    isThreat: true,
   };
 }
 
@@ -51,9 +153,10 @@ router.get("/export/advisory/:id", async (req: Request, res: Response) => {
     const html = generateAdvisoryHTML(advisory);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    const filename = (item.certInId ?? item.cveId).replace(/[^a-zA-Z0-9-]/g, "_");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${item.cveId.replace(/[^a-zA-Z0-9-]/g, "_")}-advisory.html"`
+      `attachment; filename="${filename}-advisory.html"`
     );
     res.send(html);
   } catch (error) {
@@ -64,7 +167,7 @@ router.get("/export/advisory/:id", async (req: Request, res: Response) => {
 
 router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
   try {
-    const body = req.body as { ids?: number[]; timeframe?: string; scope?: "local" | "global" };
+    const body = req.body as { ids?: number[]; timeframe?: string; scope?: "local" | "global"; vendor?: string };
     let items: typeof advisoriesTable.$inferSelect[];
 
     if (body.ids && Array.isArray(body.ids)) {
@@ -79,15 +182,20 @@ router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
         .where(inArray(advisoriesTable.id, ids))
         .orderBy(desc(advisoriesTable.publishedAt));
     } else if (body.timeframe && typeof body.timeframe === "string") {
-      const validTimeframes: TimeframeValue[] = ["1h", "6h", "24h", "7d", "30d", "all"];
-      const tf = validTimeframes.includes(body.timeframe as TimeframeValue)
-        ? (body.timeframe as TimeframeValue)
+      const validTimeframes: (TimeframeValue | "90d")[] = ["1h", "6h", "24h", "7d", "30d", "90d", "all"];
+      const tf = validTimeframes.includes(body.timeframe as TimeframeValue | "90d")
+        ? body.timeframe
         : "24h";
-      const fromDate = getTimeframeStartDate(tf);
+      const fromDate =
+        tf === "90d"
+          ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+          : getTimeframeStartDate(tf as TimeframeValue);
       const scopeFilter = body.scope === "local" || body.scope === "global" ? body.scope : undefined;
+      const vendorFilter = body.vendor && typeof body.vendor === "string" ? body.vendor.trim() : undefined;
       const conditions = [];
       if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
       if (scopeFilter) conditions.push(eq(advisoriesTable.scope, scopeFilter));
+      if (vendorFilter) conditions.push(eq(advisoriesTable.vendor, vendorFilter));
       const where = conditions.length > 0 ? and(...conditions) : undefined;
 
       items = await db
@@ -118,6 +226,221 @@ router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Bulk export error:", error);
     res.status(500).json({ error: "Failed to export advisories" });
+  }
+});
+
+router.get("/export/templates", (req: Request, res: Response) => {
+  const type = (req.query.type as string) || "all";
+  const templates = emailTemplateService.getTemplates(type);
+  res.json(templates);
+});
+
+router.get("/export/templates/:id", (req: Request, res: Response) => {
+  const template = emailTemplateService.getTemplate(req.params.id);
+  if (!template) {
+    res.status(404).json({ error: "Template not found" });
+    return;
+  }
+  res.json(template);
+});
+
+router.post("/export/preview", async (req: Request, res: Response) => {
+  try {
+    const { advisoryId, templateId, customizations } = req.body as {
+      advisoryId: number | string;
+      templateId?: string;
+      customizations?: Record<string, unknown>;
+    };
+    if (!advisoryId) {
+      res.status(400).json({ error: "advisoryId required" });
+      return;
+    }
+
+    const exportItem = await findExportItemById(advisoryId);
+    if (!exportItem) {
+      res.status(404).json({ error: "Advisory not found" });
+      return;
+    }
+
+    const advisory: AdvisoryWithCustomizations =
+      exportItem.type === "advisory"
+        ? { ...toAdvisoryForExport(exportItem.row), ...customizations }
+        : { ...toThreatForExport(exportItem.row), ...customizations };
+
+    const templateType =
+      exportItem.type === "threat"
+        ? "threat"
+        : (exportItem.row as typeof advisoriesTable.$inferSelect).isCertIn
+          ? "cert-in"
+          : "general";
+
+    const template = templateId
+      ? emailTemplateService.getTemplate(templateId)
+      : emailTemplateService.getDefaultTemplate(templateType);
+
+    if (!template) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+
+    const result = emailTemplateService.processTemplate(template, advisory);
+    const plainText = convertHtmlToPlainText(result.body);
+
+    const row = exportItem.row;
+    res.json({
+      subject: result.subject,
+      body: result.body,
+      plainText,
+      templateUsed: template.id,
+      item: {
+        id: row.id,
+        certInId: exportItem.type === "advisory" ? (row as typeof advisoriesTable.$inferSelect).certInId : null,
+        title: row.title,
+        type: exportItem.type === "threat" ? "threat" : exportItem.type === "advisory" && (row as typeof advisoriesTable.$inferSelect).isCertIn ? "cert-in" : "advisory",
+      },
+    });
+  } catch (error) {
+    console.error("Preview error:", error);
+    res.status(500).json({ error: "Failed to generate preview" });
+  }
+});
+
+router.post("/export/email", async (req: Request, res: Response) => {
+  try {
+    const { advisoryId, templateId, customizations, format } = req.body as {
+      advisoryId: number | string;
+      templateId?: string;
+      customizations?: Record<string, unknown>;
+      format?: "html" | "text" | "mailto" | "outlook";
+    };
+    if (!advisoryId) {
+      res.status(400).json({ error: "advisoryId required" });
+      return;
+    }
+
+    const exportItem = await findExportItemById(advisoryId);
+    if (!exportItem) {
+      res.status(404).json({ error: "Advisory not found" });
+      return;
+    }
+
+    const advisory: AdvisoryWithCustomizations =
+      exportItem.type === "advisory"
+        ? { ...toAdvisoryForExport(exportItem.row), ...customizations }
+        : { ...toThreatForExport(exportItem.row), ...customizations };
+
+    const templateType =
+      exportItem.type === "threat"
+        ? "threat"
+        : (exportItem.row as typeof advisoriesTable.$inferSelect).isCertIn
+          ? "cert-in"
+          : "general";
+
+    const template = templateId
+      ? emailTemplateService.getTemplate(templateId)
+      : emailTemplateService.getDefaultTemplate(templateType);
+
+    if (!template) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+
+    const result = emailTemplateService.processTemplate(template, advisory);
+
+    switch (format) {
+      case "mailto": {
+        const mailtoSubject = encodeURIComponent(result.subject);
+        const mailtoBody = encodeURIComponent(
+          convertHtmlToPlainText(result.body)
+        );
+        res.json({
+          mailtoLink: `mailto:?subject=${mailtoSubject}&body=${mailtoBody}`,
+        });
+        break;
+      }
+      case "text":
+        res.json({
+          subject: result.subject,
+          body: convertHtmlToPlainText(result.body),
+        });
+        break;
+      case "outlook":
+      case "html":
+      default:
+        res.json({
+          subject: result.subject,
+          body: result.body,
+        });
+        break;
+    }
+  } catch (error) {
+    console.error("Export email error:", error);
+    res.status(500).json({ error: "Failed to export" });
+  }
+});
+
+router.post("/export/email/batch", async (req: Request, res: Response) => {
+  try {
+    const { advisoryIds, templateId, format } = req.body as {
+      advisoryIds: number[];
+      templateId?: string;
+      format?: "html" | "text";
+    };
+
+    if (!advisoryIds || !Array.isArray(advisoryIds)) {
+      res.status(400).json({ error: "advisoryIds array required" });
+      return;
+    }
+
+    const ids = advisoryIds
+      .slice(0, MAX_BULK_IDS)
+      .filter((id) => Number.isInteger(id) && id > 0);
+    if (ids.length === 0) {
+      res.status(400).json({ error: "No valid advisory IDs provided" });
+      return;
+    }
+
+    const items = await db
+      .select()
+      .from(advisoriesTable)
+      .where(inArray(advisoriesTable.id, ids))
+      .orderBy(desc(advisoriesTable.publishedAt));
+
+    const results: Array<{
+      id: number;
+      certInId: string | null;
+      title: string;
+      subject: string;
+      body: string;
+    }> = [];
+
+    for (const item of items) {
+      const advisory = toAdvisoryForExport(item) as AdvisoryForExport;
+      const template = templateId
+        ? emailTemplateService.getTemplate(templateId)
+        : emailTemplateService.getDefaultTemplate(
+            item.isCertIn ? "cert-in" : "general"
+          );
+
+      if (template) {
+        const result = emailTemplateService.processTemplate(template, advisory);
+        results.push({
+          id: item.id,
+          certInId: item.certInId,
+          title: item.title,
+          subject: result.subject,
+          body:
+            format === "text"
+              ? convertHtmlToPlainText(result.body)
+              : result.body,
+        });
+      }
+    }
+
+    res.json({ exports: results });
+  } catch (error) {
+    console.error("Batch export error:", error);
+    res.status(500).json({ error: "Failed to batch export" });
   }
 });
 

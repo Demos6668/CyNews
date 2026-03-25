@@ -8,6 +8,7 @@ import type { Workspace } from "@/components/Workspace/WorkspaceSidebar";
 import { ReactNode } from "react";
 
 export function AppLayout({ children }: { children: ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -74,28 +75,32 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-[url('/images/soc-bg.png')] bg-cover bg-center mix-blend-overlay opacity-30" />
       </div>
 
-      <Sidebar />
-      <WorkspaceSidebar
-        workspaces={workspaces}
-        activeWorkspace={activeWorkspace}
-        onSelect={setActiveWorkspace}
-        onCreateNew={() => setShowCreateModal(true)}
-        onDelete={handleDeleteWorkspace}
-      />
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 sm:pb-4 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
-            {activeWorkspace?.isDefault ? (
-              children
-            ) : activeWorkspace ? (
-              <WorkspaceFeed workspace={activeWorkspace} />
-            ) : (
-              children
-            )}
-          </div>
-        </main>
-        <Footer />
+      <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
+      <div
+        className={`flex flex-1 min-w-0 transition-[margin] duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-[260px]"}`}
+      >
+        <WorkspaceSidebar
+          workspaces={workspaces}
+          activeWorkspace={activeWorkspace}
+          onSelect={setActiveWorkspace}
+          onCreateNew={() => setShowCreateModal(true)}
+          onDelete={handleDeleteWorkspace}
+        />
+        <div className="flex-1 flex flex-col min-w-0 relative z-10">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 sm:pb-4 custom-scrollbar">
+            <div className="max-w-7xl mx-auto">
+              {activeWorkspace?.isDefault ? (
+                children
+              ) : activeWorkspace ? (
+                <WorkspaceFeed workspace={activeWorkspace} />
+              ) : (
+                children
+              )}
+            </div>
+          </main>
+          <Footer />
+        </div>
       </div>
       <BottomNav />
       <CreateWorkspaceModal

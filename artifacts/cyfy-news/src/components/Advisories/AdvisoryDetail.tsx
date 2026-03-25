@@ -9,8 +9,13 @@ import {
   Shield,
   FileText,
   Download,
+  AlertCircle,
+  CheckCircle,
+  Link,
+  Mail,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";
+import { EmailExportModal } from "@/components/Export";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { Advisory } from "@workspace/api-client-react";
@@ -83,12 +88,15 @@ interface AdvisoryDetailProps {
 }
 
 export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
+  const [emailExportOpen, setEmailExportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
     workarounds: true,
     products: true,
     refs: false,
+    summary: false,
+    content: true,
   });
 
   if (!item) return null;
@@ -109,6 +117,7 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
             : "var(--primary-teal)";
 
   const cvssColor = getCvssColor(item.cvssScore);
+  const isCertIn = item.isCertIn ?? false;
 
   return (
     <div
@@ -121,26 +130,43 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div
-        className={cn(
-          "absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-card border-l border-border/50 shadow-2xl overflow-y-auto custom-scrollbar transition-transform duration-500 ease-out",
-          isOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
         <div
-          className="h-2 w-full"
-          style={{ backgroundColor: severityBg }}
+          className={cn(
+            "absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-card border-l border-border/50 shadow-2xl overflow-y-auto custom-scrollbar transition-transform duration-500 ease-out",
+            isOpen ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+        <div
+          className={cn(
+            "h-2 w-full",
+            isCertIn ? "bg-gradient-to-r from-orange-500 to-orange-600" : ""
+          )}
+          style={!isCertIn ? { backgroundColor: severityBg } : undefined}
         />
 
-        <div className="p-8">
+        <div className={cn("p-8", isCertIn && "border-b border-orange-500/20")}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex gap-2 flex-wrap">
+              {isCertIn && (
+                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                  CERT-In Official
+                </Badge>
+              )}
               <SeverityBadge severity={item.severity} />
               <Badge variant="outline" className="uppercase text-[10px]">
                 {item.status.replace("_", " ")}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setEmailExportOpen(true)}
+              >
+                <Mail className="h-4 w-4" />
+                Export as Email
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -166,6 +192,17 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
             </div>
           </div>
 
+          {(item.certInId ?? item.cveId) && (
+            <div className="text-sm font-mono text-muted-foreground mb-2">
+              {item.certInId ?? item.cveId}
+              {isCertIn && (item.category ?? item.certInType) && (
+                <span className="ml-3 px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded">
+                  {item.category ?? item.certInType}
+                </span>
+              )}
+            </div>
+          )}
+
           <h2 className="text-3xl font-bold mb-4 font-sans leading-tight">
             {item.title}
           </h2>
@@ -183,14 +220,35 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </div>
             </div>
             <div className="flex-1">
-              <a
-                href={`https://nvd.nist.gov/vuln/detail/${item.cveId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-mono text-primary hover:underline mb-1 block"
-              >
-                {item.cveId}
-              </a>
+              {item.cveIds && item.cveIds.length > 0 ? (
+                <div className="space-y-1">
+                  {item.cveIds.slice(0, 3).map((cve) => (
+                    <a
+                      key={cve}
+                      href={`https://nvd.nist.gov/vuln/detail/${cve}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-mono text-primary hover:underline block"
+                    >
+                      {cve}
+                    </a>
+                  ))}
+                  {item.cveIds.length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{item.cveIds.length - 3} more
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <a
+                  href={`https://nvd.nist.gov/vuln/detail/${item.cveId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-mono text-primary hover:underline mb-1 block"
+                >
+                  {item.cveId}
+                </a>
+              )}
               <div className="text-sm font-medium">
                 Vendor: <span className="text-white">{item.vendor}</span>
               </div>
@@ -234,6 +292,36 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
           </div>
 
           <div className="space-y-3">
+            {isCertIn && item.summary && item.summary !== item.description && (
+              <AccordionSection
+                title="Summary"
+                sectionKey="summary"
+                expanded={expandedSections.summary}
+                onToggle={() => toggleSection("summary")}
+                icon={FileText}
+                color="text-orange-400"
+              >
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {stripHtml(item.summary)}
+                </p>
+              </AccordionSection>
+            )}
+
+            {isCertIn && item.content && (
+              <AccordionSection
+                title="Full Content"
+                sectionKey="content"
+                expanded={expandedSections.content}
+                onToggle={() => toggleSection("content")}
+                icon={FileText}
+                color="text-orange-400"
+              >
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {stripHtml(item.content)}
+                </p>
+              </AccordionSection>
+            )}
+
             <AccordionSection
               title={`Affected Products (${item.affectedProducts.length})`}
               sectionKey="products"
@@ -254,6 +342,23 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </div>
             </AccordionSection>
 
+            {(item.recommendations && item.recommendations.length > 0) && (
+              <AccordionSection
+                title={`Recommendations (${item.recommendations.length})`}
+                sectionKey="recommendations"
+                expanded={expandedSections.recommendations}
+                onToggle={() => toggleSection("recommendations")}
+                icon={CheckCircle}
+                color="text-green-400"
+              >
+                <ul className="list-disc list-inside space-y-2 text-muted-foreground text-sm">
+                  {item.recommendations.map((r: string, i: number) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              </AccordionSection>
+            )}
+
             {item.workarounds.length > 0 && (
               <AccordionSection
                 title={`Mitigation / Workarounds (${item.workarounds.length})`}
@@ -271,7 +376,7 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </AccordionSection>
             )}
 
-            {item.references.length > 0 && (
+            {(item.references?.length ?? 0) > 0 && (
               <AccordionSection
                 title={`References (${item.references.length})`}
                 sectionKey="refs"
@@ -297,8 +402,28 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </AccordionSection>
             )}
           </div>
+
+          {isCertIn && item.sourceUrl && (
+            <div className="mt-8 pt-6 border-t border-border">
+              <a
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors border border-orange-500/30"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View on CERT-In
+              </a>
+            </div>
+          )}
         </div>
       </div>
+
+      <EmailExportModal
+        advisory={item}
+        isOpen={emailExportOpen}
+        onClose={() => setEmailExportOpen(false)}
+      />
     </div>
   );
 }

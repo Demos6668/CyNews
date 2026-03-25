@@ -20,11 +20,13 @@ import type {
   Advisory,
   AdvisoryListResponse,
   BookmarkResponse,
+  CertInAdvisoryListResponse,
   CreateNewsItem,
   DashboardStats,
   ErrorResponse,
   ExportThreatsParams,
   GetAdvisoriesParams,
+  GetCertInAdvisoriesParams,
   GetDashboardStatsParams,
   GetNewsParams,
   GetThreatsParams,
@@ -648,6 +650,109 @@ export const useDeleteNews = <
 > => {
   return useMutation(getDeleteNewsMutationOptions(options));
 };
+
+/**
+ * @summary List CERT-In advisories
+ */
+export const getGetCertInAdvisoriesUrl = (
+  params?: GetCertInAdvisoriesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/advisories/cert-in?${stringifiedParams}`
+    : `/api/advisories/cert-in`;
+};
+
+export const getCertInAdvisories = async (
+  params?: GetCertInAdvisoriesParams,
+  options?: RequestInit,
+): Promise<CertInAdvisoryListResponse> => {
+  return customFetch<CertInAdvisoryListResponse>(
+    getGetCertInAdvisoriesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetCertInAdvisoriesQueryKey = (
+  params?: GetCertInAdvisoriesParams,
+) => {
+  return [`/api/advisories/cert-in`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCertInAdvisoriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCertInAdvisories>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCertInAdvisoriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCertInAdvisories>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCertInAdvisoriesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCertInAdvisories>>
+  > = ({ signal }) =>
+    getCertInAdvisories(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCertInAdvisories>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCertInAdvisoriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCertInAdvisories>>
+>;
+export type GetCertInAdvisoriesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List CERT-In advisories
+ */
+
+export function useGetCertInAdvisories<
+  TData = Awaited<ReturnType<typeof getCertInAdvisories>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCertInAdvisoriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCertInAdvisories>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCertInAdvisoriesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List security advisories

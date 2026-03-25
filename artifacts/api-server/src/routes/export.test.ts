@@ -19,6 +19,9 @@ const mockAdvisory = {
   scope: "global" as const,
   isIndiaRelated: false,
   indiaConfidence: 0,
+  isCertIn: true,
+  certInId: "CIAD-2024-001",
+  source: "CERT-In",
 };
 
 let mockSelectResult: typeof mockAdvisory[] = [];
@@ -29,7 +32,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const withLimit = () =>
     Object.assign(p(), { limit: () => p(), offset: () => p() });
   const withOrderBy = () =>
-    Object.assign(p(), { orderBy: () => withLimit() });
+    Object.assign(p(), { orderBy: () => withLimit(), limit: () => p() });
   const withWhere = () =>
     Object.assign(p(), {
       orderBy: () => withLimit(),
@@ -83,7 +86,7 @@ describe("Export routes", () => {
         .expect(200)
         .expect("Content-Type", /text\/html/);
 
-      expect(res.headers["content-disposition"]).toMatch(/attachment.*CVE-2024-1234/);
+      expect(res.headers["content-disposition"]).toMatch(/attachment.*CIAD-2024-001/);
       expect(res.text).toContain("<!DOCTYPE html>");
       expect(res.text).toContain("CVE-2024-1234");
       expect(res.text).toContain("Test Advisory");
@@ -139,6 +142,107 @@ describe("Export routes", () => {
 
       expect(res.text).toContain("<!DOCTYPE html>");
       expect(res.text).toContain("CVE-2024-1234");
+    });
+  });
+
+  describe("GET /api/export/templates", () => {
+    it("returns template list for type cert-in", async () => {
+      const res = await request(app)
+        .get("/api/export/templates?type=cert-in")
+        .expect(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body[0]).toHaveProperty("id");
+      expect(res.body[0]).toHaveProperty("name");
+      expect(res.body[0]).toHaveProperty("description");
+    });
+
+    it("returns template list for type all", async () => {
+      const res = await request(app)
+        .get("/api/export/templates")
+        .expect(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("GET /api/export/templates/:id", () => {
+    it("returns full template by id", async () => {
+      const res = await request(app)
+        .get("/api/export/templates/cert-in-professional")
+        .expect(200);
+      expect(res.body).toHaveProperty("id", "cert-in-professional");
+      expect(res.body).toHaveProperty("name", "CERT-In Professional");
+      expect(res.body).toHaveProperty("description");
+    });
+
+    it("returns 404 for unknown template", async () => {
+      await request(app)
+        .get("/api/export/templates/nonexistent")
+        .expect(404);
+    });
+  });
+
+  describe("POST /api/export/preview", () => {
+    it("returns 400 when advisoryId missing", async () => {
+      await request(app)
+        .post("/api/export/preview")
+        .send({})
+        .expect(400);
+    });
+
+    it("returns 404 when advisory not found", async () => {
+      mockSelectResult = [];
+      await request(app)
+        .post("/api/export/preview")
+        .send({ advisoryId: 999 })
+        .expect(404);
+    });
+
+    it("returns subject and body when advisory exists", async () => {
+      mockSelectResult = [mockAdvisory as never];
+      const res = await request(app)
+        .post("/api/export/preview")
+        .send({ advisoryId: 1 })
+        .expect(200);
+      expect(res.body).toHaveProperty("subject");
+      expect(res.body).toHaveProperty("body");
+      expect(res.body).toHaveProperty("plainText");
+      expect(res.body.subject).toContain("Test Advisory");
+      expect(res.body.body).toContain("CVE-2024-1234");
+    });
+  });
+
+  describe("POST /api/export/email", () => {
+    it("returns mailto link for format mailto", async () => {
+      mockSelectResult = [mockAdvisory as never];
+      const res = await request(app)
+        .post("/api/export/email")
+        .send({ advisoryId: 1, format: "mailto" })
+        .expect(200);
+      expect(res.body).toHaveProperty("mailtoLink");
+      expect(res.body.mailtoLink).toMatch(/^mailto:/);
+    });
+  });
+
+  describe("POST /api/export/email/batch", () => {
+    it("returns 400 when advisoryIds missing", async () => {
+      await request(app)
+        .post("/api/export/email/batch")
+        .send({})
+        .expect(400);
+    });
+
+    it("returns exports array when advisories found", async () => {
+      mockSelectResult = [mockAdvisory as never];
+      const res = await request(app)
+        .post("/api/export/email/batch")
+        .send({ advisoryIds: [1] })
+        .expect(200);
+      expect(res.body).toHaveProperty("exports");
+      expect(Array.isArray(res.body.exports)).toBe(true);
+      expect(res.body.exports[0]).toHaveProperty("subject");
+      expect(res.body.exports[0]).toHaveProperty("body");
     });
   });
 });

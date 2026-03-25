@@ -7,6 +7,7 @@ import { Loader } from "@/components/Common";
 import Dashboard from "@/pages/Dashboard";
 import NewsPage from "@/pages/NewsPage";
 import Advisories from "@/pages/Advisories";
+import CertInAdvisories from "@/pages/CertInAdvisories";
 import ThreatIntel from "@/pages/ThreatIntel";
 import NotFound from "@/pages/not-found";
 
@@ -33,6 +34,7 @@ function Router() {
         <Route path="/news/global">
           {() => <NewsPage scope="global" />}
         </Route>
+        <Route path="/cert-in" component={CertInAdvisories} />
         <Route path="/advisories" component={Advisories} />
         <Route path="/threat-intel" component={ThreatIntel} />
         <Route path="/search">

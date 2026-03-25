@@ -8,6 +8,7 @@ export interface IndiaDetectionResult {
   confidence: number;
   matches: Array<{ type: string; value: string; weight: number }>;
   scope: "local" | "global";
+  reason?: string;
 }
 
 export interface StateDetection {
@@ -679,28 +680,127 @@ const PATTERNS = {
 
 const INDIA_THRESHOLD = 20;
 
+// False positive exclusions - check first
+const EXCLUSION_PATTERNS: RegExp[] = [
+  /\bindiana\b/i,
+  /\bindianapolis\b/i,
+  /\bwest indies\b/i,
+  /\bamerican indian\b/i,
+  /\bnative indian\b/i,
+  /\bindian ocean(?!\s+attack|\s+cyber|\s+hack)/i,
+  /\bindian reservation\b/i,
+  /\bindian territory\b/i,
+  /\bindian tribe\b/i,
+  /\bindian casino\b/i,
+  /\bindian gaming\b/i,
+  /\bcleveland indian/i,
+  /\bmumbai indians?\b/i,
+];
+
+// US context (Indiana-specific) - not India
+const US_CONTEXT_PATTERNS: RegExp[] = [
+  /\bU\.?S\.?\s+state\b/i,
+  /\bamerican\s+(?:state|city|county)\b/i,
+  /\bmidwest(?:ern)?\b/i,
+  /\bhoosier\b/i,
+  /\bfort\s+wayne\b/i,
+  /\bbloomington,?\s*(?:in|indiana)\b/i,
+  /\bevansville\b/i,
+  /\bsouth\s+bend\b/i,
+  /\bcarmel,?\s*(?:in|indiana)\b/i,
+  /\bfishers,?\s*(?:in|indiana)\b/i,
+  /\bnoblesville\b/i,
+  /\bindiana\s+university\b/i,
+  /\bpurdue\b/i,
+  /\bnotre\s+dame\b/i,
+  /\bindy\s+500\b/i,
+  /\bcolts\b/i,
+  /\bpacers\b/i,
+];
+
+// Strong India indicators - override exclusions when present
+const STRONG_INDICATOR_PATTERNS: RegExp[] = [
+  /\bcert-?in\b/i,
+  /\bnciipc\b/i,
+  /\bmeity\b/i,
+  /\birdai\b/i,
+  /\bsebi\b/i,
+  /\brbi\b/i,
+  /\bnpci\b/i,
+  /\buidai\b/i,
+  /\baadhaar\b/i,
+  /\bdigilocker\b/i,
+  /\bumang\s+app\b/i,
+  /\bcowin\b/i,
+  /\bgovt?\s+of\s+india\b/i,
+  /\bgovernment\s+of\s+india\b/i,
+  /\bindian\s+government\b/i,
+  /\bcentral\s+government\b.*india/i,
+  /\bstate\s+government\b.*india/i,
+  /\.gov\.in\b/,
+  /\.nic\.in\b/,
+  /\.org\.in\b/,
+  /\.co\.in\b/,
+  /\.ac\.in\b/,
+  /\b(?:rs\.?|inr|₹)\s*\d/i,
+  /\d+\s*(?:lakh|crore)s?\b/i,
+  /\blakhs?\b/i,
+  /\bcrores?\b/i,
+  /\baadhaar\s*(?:number|card|id)/i,
+  /\bpan\s*(?:card|number)/i,
+  /\bgstin?\b/i,
+  /\bupi\s+(?:payment|transaction|id|fraud)/i,
+  /\bbhim\s+app\b/i,
+  /\brupay\s+card\b/i,
+  /\bimps\b/i,
+  /\bneft\b/i,
+  /\brtgs\b/i,
+];
+
+// Context required for bare "india"/"indian"
+const CONTEXT_REQUIRED_KEYWORDS = [
+  "based",
+  "located",
+  "headquartered",
+  "operating",
+  "targeting",
+  "affecting",
+  "impacting",
+  "users",
+  "customers",
+  "citizens",
+  "companies",
+  "organizations",
+  "firms",
+  "breach",
+  "attack",
+  "hack",
+  "cyber",
+  "data",
+  "leak",
+  "exposed",
+  "compromised",
+];
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function hasStrongIndiaIndicator(text: string): boolean {
+  return STRONG_INDICATOR_PATTERNS.some((p) => p.test(text));
+}
+
 export class IndiaDetector {
-  private readonly allKeywords: string[];
-  private readonly keywordSet: Set<string>;
+  private readonly otherKeywords: string[];
 
   constructor() {
-    this.allKeywords = [
-      "india",
-      "indian",
+    this.otherKeywords = [
       "bharat",
       "hindustan",
-      ...INDIAN_STATES,
-      ...INDIAN_CITIES,
       ...INDIAN_AGENCIES,
-      ...INDIAN_COMPANIES,
       ...INDIAN_FINTECH,
       ...INDIAN_CYBER_TERMS,
     ];
-    this.keywordSet = new Set(this.allKeywords.map((k) => k.toLowerCase()));
   }
 
   isIndiaRelated(text: string, metadata?: { country?: string; source?: string }): IndiaDetectionResult {
@@ -710,7 +810,69 @@ export class IndiaDetector {
     const matches: Array<{ type: string; value: string; weight: number }> = [];
     let confidence = 0;
 
-    for (const keyword of this.allKeywords) {
+    // Step 1: Check exclusion patterns first
+    for (const pattern of EXCLUSION_PATTERNS) {
+      if (pattern.test(lowerText) && !hasStrongIndiaIndicator(lowerText)) {
+        return {
+          isIndia: false,
+          confidence: 0,
+          matches: [{ type: "exclusion", value: pattern.toString(), weight: 0 }],
+          scope: "global",
+          reason: "Excluded due to false positive pattern",
+        };
+      }
+    }
+
+    // Step 2: Check US context patterns
+    for (const pattern of US_CONTEXT_PATTERNS) {
+      if (pattern.test(lowerText) && !hasStrongIndiaIndicator(lowerText)) {
+        return {
+          isIndia: false,
+          confidence: 0,
+          matches: [{ type: "us_context", value: pattern.toString(), weight: 0 }],
+          scope: "global",
+          reason: "US context detected",
+        };
+      }
+    }
+
+    // Step 3: Strong indicators (override exclusions)
+    for (const pattern of STRONG_INDICATOR_PATTERNS) {
+      if (pattern.test(text)) {
+        matches.push({ type: "strong_indicator", value: pattern.toString(), weight: 40 });
+        confidence += 40;
+      }
+    }
+
+    // Step 4a: Indian states (weight 30)
+    for (const state of INDIAN_STATES) {
+      const stateRegex = new RegExp(`\\b${escapeRegex(state)}\\b`, "i");
+      if (stateRegex.test(lowerText)) {
+        matches.push({ type: "state", value: state, weight: 30 });
+        confidence += 30;
+      }
+    }
+
+    // Step 4b: Indian cities (weight 25)
+    for (const city of INDIAN_CITIES) {
+      const cityRegex = new RegExp(`\\b${escapeRegex(city)}\\b`, "i");
+      if (cityRegex.test(lowerText)) {
+        matches.push({ type: "city", value: city, weight: 25 });
+        confidence += 25;
+      }
+    }
+
+    // Step 4c: Indian companies (weight 25)
+    for (const company of INDIAN_COMPANIES) {
+      const companyRegex = new RegExp(`\\b${escapeRegex(company)}\\b`, "i");
+      if (companyRegex.test(lowerText)) {
+        matches.push({ type: "company", value: company, weight: 25 });
+        confidence += 25;
+      }
+    }
+
+    // Step 4d: Other keywords (agencies, fintech, cyber terms, etc.)
+    for (const keyword of this.otherKeywords) {
       const lowerKeyword = keyword.toLowerCase();
       if (lowerKeyword.length <= 3) {
         const regex = new RegExp(`\\b${escapeRegex(lowerKeyword)}\\b`, "i");
@@ -724,6 +886,27 @@ export class IndiaDetector {
           confidence += 15;
         }
       }
+    }
+
+    // Step 5: "india" only with context
+    if (/\bindia\b/i.test(lowerText) && matches.length === 0) {
+      const hasContext = CONTEXT_REQUIRED_KEYWORDS.some((keyword) => {
+        const ctxRegex = new RegExp(
+          `(${escapeRegex(keyword)}[\\s\\w]{0,30}\\bindia\\b|\\bindia\\b[\\s\\w]{0,30}${escapeRegex(keyword)})`,
+          "i"
+        );
+        return ctxRegex.test(lowerText);
+      });
+      if (hasContext) {
+        matches.push({ type: "keyword", value: "india (with context)", weight: 20 });
+        confidence += 20;
+      }
+    }
+
+    // Step 6: "indian" with cyber/tech context
+    if (/\bindian\s+(?:cyber|hacker|breach|attack|user|customer|company|firm|organization|bank|government)/i.test(lowerText)) {
+      matches.push({ type: "keyword", value: "indian (cyber context)", weight: 25 });
+      confidence += 25;
     }
 
     if (PATTERNS.aadhaar.test(text)) {

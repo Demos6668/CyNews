@@ -36,6 +36,7 @@ export const GetDashboardStatsResponse = zod.object({
   globalThreatsToday: zod.number(),
   activeAdvisories: zod.number(),
   criticalAlerts: zod.number(),
+  highAlerts: zod.number(),
   resolvedIncidents: zod.number(),
   currentThreatLevel: zod.enum(["low", "medium", "high", "critical"]),
   recentActivity: zod.array(
@@ -265,8 +266,83 @@ export const DeleteNewsParams = zod.object({
 });
 
 /**
+ * @summary List CERT-In advisories
+ */
+export const getCertInAdvisoriesQueryTimeframeDefault = `30d`;
+export const getCertInAdvisoriesQueryPageDefault = 1;
+export const getCertInAdvisoriesQueryLimitDefault = 20;
+
+export const GetCertInAdvisoriesQueryParams = zod.object({
+  timeframe: zod
+    .enum(["1h", "6h", "24h", "7d", "30d", "90d", "all"])
+    .default(getCertInAdvisoriesQueryTimeframeDefault),
+  severity: zod.coerce
+    .string()
+    .optional()
+    .describe("Comma-separated severities"),
+  category: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter by certInType (vulnerability, advisory)"),
+  page: zod.coerce.number().default(getCertInAdvisoriesQueryPageDefault),
+  limit: zod.coerce.number().default(getCertInAdvisoriesQueryLimitDefault),
+});
+
+export const GetCertInAdvisoriesResponse = zod.object({
+  data: zod.array(
+    zod.object({
+      id: zod.number(),
+      cveId: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      cvssScore: zod.number(),
+      severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+      affectedProducts: zod.array(zod.string()),
+      vendor: zod.string(),
+      patchAvailable: zod.boolean(),
+      patchUrl: zod.string().nullish(),
+      workarounds: zod.array(zod.string()),
+      references: zod.array(zod.string()),
+      status: zod.enum(["new", "under_review", "patched", "dismissed"]),
+      publishedAt: zod.string(),
+      scope: zod
+        .enum(["local", "global"])
+        .optional()
+        .describe("India (local) or global"),
+      isIndiaRelated: zod.boolean().optional(),
+      indiaConfidence: zod.number().optional(),
+      sourceUrl: zod.string().nullish(),
+      source: zod.string().nullish(),
+      summary: zod.string().nullish(),
+      content: zod.string().nullish(),
+      category: zod.string().nullish(),
+      isCertIn: zod.boolean().optional(),
+      certInId: zod.string().nullish(),
+      certInType: zod.string().nullish(),
+      cveIds: zod.array(zod.string()).optional(),
+      recommendations: zod.array(zod.string()).optional(),
+    }),
+  ),
+  pagination: zod.object({
+    page: zod.number(),
+    limit: zod.number(),
+    total: zod.number(),
+    totalPages: zod.number(),
+    totalCritical: zod
+      .number()
+      .optional()
+      .describe("Count of advisories with severity critical (in timeframe)"),
+    totalHigh: zod
+      .number()
+      .optional()
+      .describe("Count of advisories with severity high (in timeframe)"),
+  }),
+});
+
+/**
  * @summary List security advisories
  */
+export const getAdvisoriesQueryExcludeCertInDefault = false;
 export const getAdvisoriesQueryPageDefault = 1;
 export const getAdvisoriesQueryLimitDefault = 20;
 
@@ -287,6 +363,10 @@ export const GetAdvisoriesQueryParams = zod.object({
     .string()
     .optional()
     .describe("Comma-separated statuses (e.g. new,under_review)"),
+  excludeCertIn: zod.coerce
+    .boolean()
+    .default(getAdvisoriesQueryExcludeCertInDefault)
+    .describe("Exclude CERT-In advisories from results"),
   timeframe: zod
     .enum(["1h", "6h", "24h", "7d", "30d", "all"])
     .optional()
@@ -318,6 +398,16 @@ export const GetAdvisoriesResponse = zod.object({
         .describe("India (local) or global"),
       isIndiaRelated: zod.boolean().optional(),
       indiaConfidence: zod.number().optional(),
+      sourceUrl: zod.string().nullish(),
+      source: zod.string().nullish(),
+      summary: zod.string().nullish(),
+      content: zod.string().nullish(),
+      category: zod.string().nullish(),
+      isCertIn: zod.boolean().optional(),
+      certInId: zod.string().nullish(),
+      certInType: zod.string().nullish(),
+      cveIds: zod.array(zod.string()).optional(),
+      recommendations: zod.array(zod.string()).optional(),
     }),
   ),
   total: zod.number(),
@@ -354,6 +444,16 @@ export const GetAdvisoryByIdResponse = zod.object({
     .describe("India (local) or global"),
   isIndiaRelated: zod.boolean().optional(),
   indiaConfidence: zod.number().optional(),
+  sourceUrl: zod.string().nullish(),
+  source: zod.string().nullish(),
+  summary: zod.string().nullish(),
+  content: zod.string().nullish(),
+  category: zod.string().nullish(),
+  isCertIn: zod.boolean().optional(),
+  certInId: zod.string().nullish(),
+  certInType: zod.string().nullish(),
+  cveIds: zod.array(zod.string()).optional(),
+  recommendations: zod.array(zod.string()).optional(),
 });
 
 /**

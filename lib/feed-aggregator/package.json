@@ -9,6 +9,7 @@
   "dependencies": {
     "@workspace/db": "workspace:*",
     "@workspace/india-detector": "workspace:*",
+    "cheerio": "^1.0.0",
     "drizzle-orm": "catalog:",
     "rss-parser": "^3.13.0"
   },

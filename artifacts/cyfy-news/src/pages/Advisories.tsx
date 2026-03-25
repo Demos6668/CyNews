@@ -4,9 +4,16 @@ import { Skeleton, Button } from "@/components/ui/shared";
 import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { ShieldAlert, AlertTriangle, Download } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Download, ChevronDown, Mail, FileDown } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
 import { EmptyState } from "@/components/Common";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
@@ -24,6 +31,7 @@ export default function Advisories() {
   const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkEmailExportOpen, setBulkEmailExportOpen] = useState(false);
   const [severities, setSeverities] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
@@ -85,6 +93,7 @@ export default function Advisories() {
     timeframe,
     page,
     limit,
+    excludeCertIn: true,
   });
 
   const activeFilterCount = severities.length + statuses.length + vendors.length;
@@ -164,16 +173,36 @@ export default function Advisories() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <TabSwitch value={scope} onChange={setScope} showIndiaLabel />
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={handleExportSelected}
-            disabled={selectedIds.size === 0}
-          >
-            <Download className="h-4 w-4" />
-            Export Selected ({selectedIds.size})
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={selectedIds.size === 0}
+              >
+                <Download className="h-4 w-4" />
+                Export Selected ({selectedIds.size})
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleExportSelected}
+                disabled={selectedIds.size === 0}
+              >
+                <FileDown className="h-4 w-4 mr-2" />
+                Export as HTML
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setBulkEmailExportOpen(true)}
+                disabled={selectedIds.size === 0}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Export as Email
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="secondary" size="sm" className="gap-2" onClick={handleExportAll}>
             <Download className="h-4 w-4" />
             Export All ({timeframe})
@@ -250,6 +279,13 @@ export default function Advisories() {
         item={selectedItem}
         isOpen={!!selectedItem}
         onClose={() => setSelectedItem(null)}
+      />
+
+      <BulkEmailExportModal
+        advisoryIds={Array.from(selectedIds)}
+        isCertIn={false}
+        isOpen={bulkEmailExportOpen}
+        onClose={() => setBulkEmailExportOpen(false)}
       />
     </div>
   );

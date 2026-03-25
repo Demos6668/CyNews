@@ -28,4 +28,14 @@ export interface Advisory {
   scope?: AdvisoryScope;
   isIndiaRelated?: boolean;
   indiaConfidence?: number;
+  sourceUrl?: string | null;
+  source?: string | null;
+  summary?: string | null;
+  content?: string | null;
+  category?: string | null;
+  isCertIn?: boolean;
+  certInId?: string | null;
+  certInType?: string | null;
+  cveIds?: string[];
+  recommendations?: string[];
 }

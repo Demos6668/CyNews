@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Globe,
   MapPin,
+  Shield,
   ShieldAlert,
   Crosshair,
 } from "lucide-react";
@@ -12,6 +13,7 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Local", href: "/news/local", icon: MapPin },
   { name: "Global", href: "/news/global", icon: Globe },
+  { name: "CERT-In", href: "/cert-in", icon: Shield },
   { name: "Advisories", href: "/advisories", icon: ShieldAlert },
   { name: "Threats", href: "/threat-intel", icon: Crosshair },
 ];

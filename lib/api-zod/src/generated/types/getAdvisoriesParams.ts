@@ -26,6 +26,10 @@ export type GetAdvisoriesParams = {
    */
   status?: string;
   /**
+   * Exclude CERT-In advisories from results
+   */
+  excludeCertIn?: boolean;
+  /**
    * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
    */
   timeframe?: GetAdvisoriesTimeframe;

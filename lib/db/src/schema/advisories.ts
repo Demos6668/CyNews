@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, jsonb, doublePrecision, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, jsonb, doublePrecision, integer, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,6 +20,17 @@ export const advisoriesTable = pgTable("advisories", {
   scope: text("scope").notNull().$type<"local" | "global">().default("global"),
   isIndiaRelated: boolean("is_india_related").default(false),
   indiaConfidence: integer("india_confidence").default(0),
+  // CERT-In specific fields
+  sourceUrl: text("source_url"),
+  source: varchar("source", { length: 100 }),
+  summary: text("summary"),
+  content: text("content"),
+  category: varchar("category", { length: 100 }),
+  isCertIn: boolean("is_cert_in").default(false),
+  certInId: varchar("cert_in_id", { length: 50 }),
+  certInType: varchar("cert_in_type", { length: 50 }),
+  cveIds: jsonb("cve_ids").$type<string[]>().default([]),
+  recommendations: jsonb("recommendations").$type<string[]>().default([]),
 });
 
 export const insertAdvisorySchema = createInsertSchema(advisoriesTable).omit({ id: true });

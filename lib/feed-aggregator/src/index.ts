@@ -5,13 +5,18 @@
 
 import Parser from "rss-parser";
 import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
+import { cyberRelevanceDetector } from "./cyberRelevanceDetector";
 import { indiaDetector } from "@workspace/india-detector";
+
+export { cyberRelevanceDetector } from "./cyberRelevanceDetector";
+import { fetchCertInAdvisories } from "./certInFetcher";
 
 export interface FeedUpdateResult {
   rssNews: number;
   rssThreats: number;
   advisories: number;
+  certIn: number;
   urlhaus: number;
   threatFox: number;
   ransomwareLive: number;
@@ -47,6 +52,7 @@ const FBI_SOURCES = new Set(["FBI", "FBI Cyber", "FBI Press Releases"]);
 const IC3_SOURCES = new Set(["FBI Internet Crime"]);
 const CISA_SOURCES = new Set(["CISA Alerts", "CISA ICS Advisories", "US-CERT"]);
 const NIST_SOURCES = new Set(["NIST", "NVD"]);
+const CERT_IN_SOURCES = new Set(["CERT-In", "CERT-In Advisories"]);
 
 type RssSource = {
   name: string;
@@ -339,6 +345,7 @@ async function fetchRssFeeds(
   const sorted = [...RSS_SOURCES].sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2));
 
   for (const source of sorted) {
+    if (CERT_IN_SOURCES.has(source.name)) continue;
     try {
       const feed = await parser.parseURL(source.url);
       let addedNews = 0;
@@ -355,6 +362,10 @@ async function fetchRssFeeds(
         const content = item.content ?? summary;
         const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
         const fullText = `${title} ${summary} ${content}`;
+
+        const relevance = cyberRelevanceDetector.isRelevant(fullText, { source: source.name });
+        if (!relevance.isRelevant) continue;
+
         let indiaDetails = indiaDetector.getIndiaDetails(fullText, { source: source.name });
         let scope: "local" | "global";
         if (source.forceLocal) {
@@ -433,6 +444,77 @@ async function fetchRssFeeds(
 }
 
 const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
+
+async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
+  try {
+    const advisories = await fetchCertInAdvisories();
+    let added = 0;
+    for (const a of advisories) {
+      const existing = await db
+        .select({ id: advisoriesTable.id, content: advisoriesTable.content })
+        .from(advisoriesTable)
+        .where(or(eq(advisoriesTable.certInId, a.advisoryId), eq(advisoriesTable.sourceUrl, a.sourceUrl)))
+        .limit(1);
+      const cveId = a.cveIds?.[0] ?? a.advisoryId;
+      const description = a.summary || (a.content ?? "").slice(0, 500) || a.title;
+      const cvssScore = a.cvssScore ?? 7.0;
+
+      if (existing.length > 0) {
+        const ex = existing[0];
+        if (a.content && a.content !== ex.content) {
+          await db
+            .update(advisoriesTable)
+            .set({
+              content: a.content,
+              affectedProducts: a.affectedProducts ?? [],
+              recommendations: a.recommendations ?? [],
+              references: a.references ?? [],
+              cvssScore,
+            })
+            .where(eq(advisoriesTable.id, ex.id));
+          added++;
+        }
+        continue;
+      }
+
+      await db.insert(advisoriesTable).values({
+        cveId,
+        title: a.title,
+        description,
+        cvssScore,
+        severity: a.severity,
+        affectedProducts: a.affectedProducts ?? [],
+        vendor: "CERT-In",
+        patchAvailable: false,
+        patchUrl: a.sourceUrl,
+        workarounds: a.recommendations ?? [],
+        references: a.references?.length ? a.references : [a.sourceUrl],
+        status: "new",
+        publishedAt: a.publishedAt,
+        scope: "local",
+        isIndiaRelated: true,
+        indiaConfidence: 100,
+        sourceUrl: a.sourceUrl,
+        source: a.source,
+        summary: a.summary,
+        content: a.content,
+        category: a.category,
+        isCertIn: true,
+        certInId: a.advisoryId,
+        certInType: a.type,
+        cveIds: a.cveIds ?? [],
+        recommendations: a.recommendations ?? [],
+      });
+      added++;
+    }
+    result.certIn = added;
+    if (added > 0) console.log(`[CERT-In] ${added} advisories`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    result.errors.push({ source: "CERT-In", error: msg });
+    console.error("[CERT-In] failed:", msg);
+  }
+}
 
 async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
   try {
@@ -766,10 +848,11 @@ async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void> {
 }
 
 export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpdateResult> {
-  const result: FeedUpdateResult = { rssNews: 0, rssThreats: 0, advisories: 0, urlhaus: 0, threatFox: 0, ransomwareLive: 0, nvd: 0, feodo: 0, errors: [] };
+  const result: FeedUpdateResult = { rssNews: 0, rssThreats: 0, advisories: 0, certIn: 0, urlhaus: 0, threatFox: 0, ransomwareLive: 0, nvd: 0, feodo: 0, errors: [] };
   onBroadcast?.("REFRESH_STARTED", { timestamp: new Date().toISOString() });
   console.log("[Feed] Fetching all sources...");
 
+  await fetchCertIn(result);
   await fetchRssFeeds(onBroadcast, result);
   await fetchCisaKev(result);
   await fetchNVD(result);
@@ -778,7 +861,7 @@ export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpda
   await fetchFeodoTracker(result);
   await fetchRansomwareLive(result);
 
-  const total = result.rssNews + result.rssThreats + result.advisories + result.urlhaus + result.threatFox + result.ransomwareLive + result.nvd + result.feodo;
+  const total = result.rssNews + result.rssThreats + result.advisories + result.certIn + result.urlhaus + result.threatFox + result.ransomwareLive + result.nvd + result.feodo;
   const { errors: _err, ...rest } = result;
   onBroadcast?.("REFRESH_COMPLETE", {
     timestamp: new Date().toISOString(),

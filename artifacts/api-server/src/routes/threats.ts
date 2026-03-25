@@ -62,7 +62,7 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     if (query.severity) {
       const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
       if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
-      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))));
+      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))) as SQL);
     }
     const categoryParam = (query as { category?: string }).category ?? rawQuery.category;
     if (categoryParam) {
@@ -73,12 +73,12 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
     if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
     const items = await db
       .select()
       .from(threatIntelTable)
-      .where(where)
+      .where(where as SQL)
       .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
 
     if (format === "json") {
@@ -171,7 +171,7 @@ router.get("/threats", async (req: Request, res: Response) => {
     if (query.severity) {
       const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
       if (severities.length === 1) conditions.push(eq(threatIntelTable.severity, severities[0]));
-      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))));
+      else if (severities.length > 1) conditions.push(or(...severities.map((s) => eq(threatIntelTable.severity, s))) as SQL);
     }
     if (query.category) {
       const categories = query.category.split(",").map((c: string) => c.trim()).filter(Boolean);
@@ -184,12 +184,12 @@ router.get("/threats", async (req: Request, res: Response) => {
     const fromDate = query.timeframe ? getTimeframeStartDate(query.timeframe) : undefined;
     if (fromDate) conditions.push(gte(threatIntelTable.publishedAt, fromDate));
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
     const [totalResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(threatIntelTable)
-      .where(where);
+      .where(where as SQL);
 
     const total = totalResult?.count ?? 0;
     const page = query.page ?? 1;
@@ -199,7 +199,7 @@ router.get("/threats", async (req: Request, res: Response) => {
     const items = await db
       .select()
       .from(threatIntelTable)
-      .where(where)
+      .where(where as SQL)
       .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
       .limit(limit)
       .offset(offset);

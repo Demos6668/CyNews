@@ -107,7 +107,11 @@ export default function Dashboard() {
       </div>
 
       <div className="flex justify-center mb-2">
-        <ThreatMeter level={stats.currentThreatLevel} />
+        <ThreatMeter
+          level={stats.currentThreatLevel}
+          criticalAlerts={stats.criticalAlerts}
+          highAlerts={stats.highAlerts}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

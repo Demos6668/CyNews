@@ -55,6 +55,7 @@ export interface DashboardStats {
   globalThreatsToday: number;
   activeAdvisories: number;
   criticalAlerts: number;
+  highAlerts: number;
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];
@@ -293,6 +294,32 @@ export interface Advisory {
   scope?: AdvisoryScope;
   isIndiaRelated?: boolean;
   indiaConfidence?: number;
+  sourceUrl?: string | null;
+  source?: string | null;
+  summary?: string | null;
+  content?: string | null;
+  category?: string | null;
+  isCertIn?: boolean;
+  certInId?: string | null;
+  certInType?: string | null;
+  cveIds?: string[];
+  recommendations?: string[];
+}
+
+export type CertInAdvisoryListResponsePagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  /** Count of advisories with severity critical (in timeframe) */
+  totalCritical?: number;
+  /** Count of advisories with severity high (in timeframe) */
+  totalHigh?: number;
+};
+
+export interface CertInAdvisoryListResponse {
+  data: Advisory[];
+  pagination: CertInAdvisoryListResponsePagination;
 }
 
 export interface AdvisoryListResponse {
@@ -502,6 +529,33 @@ export const GetNewsTimeframe = {
   all: "all",
 } as const;
 
+export type GetCertInAdvisoriesParams = {
+  timeframe?: GetCertInAdvisoriesTimeframe;
+  /**
+   * Comma-separated severities
+   */
+  severity?: string;
+  /**
+   * Filter by certInType (vulnerability, advisory)
+   */
+  category?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type GetCertInAdvisoriesTimeframe =
+  (typeof GetCertInAdvisoriesTimeframe)[keyof typeof GetCertInAdvisoriesTimeframe];
+
+export const GetCertInAdvisoriesTimeframe = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  "90d": "90d",
+  all: "all",
+} as const;
+
 export type GetAdvisoriesParams = {
   /**
    * Filter by scope (local=India only, global=non-India)
@@ -519,6 +573,10 @@ export type GetAdvisoriesParams = {
    * Comma-separated statuses (e.g. new,under_review)
    */
   status?: string;
+  /**
+   * Exclude CERT-In advisories from results
+   */
+  excludeCertIn?: boolean;
   /**
    * Time range shorthand (1h, 6h, 24h, 7d, 30d, all)
    */

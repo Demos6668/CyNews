@@ -15,6 +15,7 @@ export interface DashboardStats {
   globalThreatsToday: number;
   activeAdvisories: number;
   criticalAlerts: number;
+  highAlerts: number;
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];

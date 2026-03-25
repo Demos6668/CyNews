@@ -6,10 +6,12 @@ const COLORS = ["#3FB950", "#F0C000", "#FFB74B", "#F85149"]; // green, yellow, a
 
 interface ThreatMeterProps {
   level: string;
+  criticalAlerts?: number;
+  highAlerts?: number;
   className?: string;
 }
 
-export function ThreatMeter({ level, className }: ThreatMeterProps) {
+export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, className }: ThreatMeterProps) {
   const idx = LEVELS.indexOf(level as (typeof LEVELS)[number]);
   const effectiveIdx = idx >= 0 ? idx : 0;
   const angle = -90 + (effectiveIdx / (LEVELS.length - 1)) * 180;
@@ -87,6 +89,13 @@ export function ThreatMeter({ level, className }: ThreatMeterProps) {
             {level}
           </span>
         </div>
+        {(criticalAlerts > 0 || highAlerts > 0) && (
+          <div className="flex gap-4 mt-4 pt-4 border-t border-white/5 text-xs text-muted-foreground">
+            <span><span className="font-semibold text-destructive">{criticalAlerts}</span> Critical</span>
+            <span><span className="font-semibold text-accent">{highAlerts}</span> High</span>
+            <span><span className="font-semibold">{criticalAlerts + highAlerts}</span> Total</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
