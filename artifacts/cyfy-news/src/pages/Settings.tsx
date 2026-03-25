@@ -1,10 +1,25 @@
+import { useState } from "react";
 import { Card, CardContent, Button, Input } from "@/components/ui/shared";
-import { User, Bell, Shield, Key, Sun, Moon } from "lucide-react";
+import { User, Bell, Shield, Key, Sun, Moon, Monitor, RefreshCw, Clock, Rss, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 
+type SettingsTab = "profile" | "notifications" | "preferences" | "api";
+
 export default function Settings() {
   const { theme, setTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [desktopNotifications, setDesktopNotifications] = useState(false);
+  const [criticalOnly, setCriticalOnly] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState("60");
+
+  const tabs = [
+    { id: "profile" as const, label: "Profile", icon: User },
+    { id: "notifications" as const, label: "Notifications", icon: Bell },
+    { id: "preferences" as const, label: "Preferences", icon: Shield },
+    { id: "api" as const, label: "API Keys", icon: Key },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
@@ -15,78 +30,209 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <div className="space-y-2">
-          <Button variant="secondary" className="w-full justify-start text-left bg-white/5">
-            <User className="mr-2 h-4 w-4" /> Profile
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-left">
-            <Bell className="mr-2 h-4 w-4" /> Notifications
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-left">
-            <Shield className="mr-2 h-4 w-4" /> Preferences
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-left">
-            <Key className="mr-2 h-4 w-4" /> API Keys
-          </Button>
+          {tabs.map((tab) => (
+            <Button
+              key={tab.id}
+              variant={activeTab === tab.id ? "secondary" : "ghost"}
+              className={`w-full justify-start text-left ${activeTab === tab.id ? "bg-white/5" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
+            </Button>
+          ))}
         </div>
 
         <div className="md:col-span-3 space-y-6">
-          <Card className="bg-card/50">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-xl font-semibold">Appearance</h2>
-            </div>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {theme === "dark" ? (
-                    <Moon className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <Sun className="h-5 w-5 text-muted-foreground" />
-                  )}
+          {activeTab === "profile" && (
+            <>
+              <Card className="bg-card/50">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-xl font-semibold">Analyst Profile</h2>
+                </div>
+                <CardContent className="p-6 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Display Name</label>
+                    <Input defaultValue="Lead Analyst 01" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Email Address</label>
+                    <Input defaultValue="analyst@cyfy.soc" disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Department</label>
+                    <Input defaultValue="Global Threat Intelligence" />
+                  </div>
+                  <Button className="mt-4">Save Changes</Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-destructive/30 bg-destructive/5">
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-destructive mb-2">Danger Zone</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Actions here are permanent and cannot be undone.</p>
+                  <Button variant="destructive" onClick={() => {
+                    localStorage.clear();
+                    window.location.reload();
+                  }}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear Local Cache
+                  </Button>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {activeTab === "notifications" && (
+            <Card className="bg-card/50">
+              <div className="p-6 border-b border-border">
+                <h2 className="text-xl font-semibold">Notification Preferences</h2>
+              </div>
+              <CardContent className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Theme</p>
+                    <p className="font-medium">Desktop Notifications</p>
                     <p className="text-sm text-muted-foreground">
-                      Switch between dark and light mode
+                      Receive browser notifications for new threats
                     </p>
                   </div>
+                  <Switch
+                    checked={desktopNotifications}
+                    onCheckedChange={(checked) => {
+                      if (checked && "Notification" in window) {
+                        Notification.requestPermission().then((perm) => {
+                          setDesktopNotifications(perm === "granted");
+                        });
+                      } else {
+                        setDesktopNotifications(checked);
+                      }
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={theme === "light"}
-                  onCheckedChange={(checked) =>
-                    setTheme(checked ? "light" : "dark")
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Critical Alerts Only</p>
+                    <p className="text-sm text-muted-foreground">
+                      Only notify for critical and high severity items
+                    </p>
+                  </div>
+                  <Switch checked={criticalOnly} onCheckedChange={setCriticalOnly} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="bg-card/50">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-xl font-semibold">Analyst Profile</h2>
-            </div>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Display Name</label>
-                <Input defaultValue="Lead Analyst 01" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Email Address</label>
-                <Input defaultValue="analyst@cyfy.soc" disabled />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Department</label>
-                <Input defaultValue="Global Threat Intelligence" />
-              </div>
-              <Button className="mt-4">Save Changes</Button>
-            </CardContent>
-          </Card>
+          {activeTab === "preferences" && (
+            <>
+              <Card className="bg-card/50">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-xl font-semibold">Appearance</h2>
+                </div>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {theme === "dark" ? (
+                        <Moon className="h-5 w-5 text-muted-foreground" />
+                      ) : theme === "light" ? (
+                        <Sun className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <Monitor className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium">Theme</p>
+                        <p className="text-sm text-muted-foreground">
+                          Choose your preferred color scheme
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {(["dark", "light", "system"] as const).map((t) => (
+                        <Button
+                          key={t}
+                          size="sm"
+                          variant={theme === t ? "default" : "outline"}
+                          onClick={() => setTheme(t)}
+                          className="capitalize"
+                        >
+                          {t}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="border-destructive/30 bg-destructive/5">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-destructive mb-2">Danger Zone</h3>
-              <p className="text-sm text-muted-foreground mb-4">Actions here are permanent and cannot be undone.</p>
-              <Button variant="destructive">Clear Local Cache</Button>
-            </div>
-          </Card>
+              <Card className="bg-card/50">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Rss className="h-5 w-5" /> Feed Settings
+                  </h2>
+                </div>
+                <CardContent className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Auto-Refresh Dashboard</p>
+                        <p className="text-sm text-muted-foreground">
+                          Automatically refresh data on the dashboard
+                        </p>
+                      </div>
+                    </div>
+                    <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Refresh Interval</p>
+                        <p className="text-sm text-muted-foreground">
+                          How often to poll for new data (seconds)
+                        </p>
+                      </div>
+                    </div>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={300}
+                      value={refreshInterval}
+                      onChange={(e) => setRefreshInterval(e.target.value)}
+                      className="w-24 text-center"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {activeTab === "api" && (
+            <Card className="bg-card/50">
+              <div className="p-6 border-b border-border">
+                <h2 className="text-xl font-semibold">API Configuration</h2>
+              </div>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">URLhaus Auth Key</label>
+                  <Input type="password" placeholder="Enter your URLhaus API key" />
+                  <p className="text-xs text-muted-foreground">Free at https://auth.abuse.ch/</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">ThreatFox Auth Key</label>
+                  <Input type="password" placeholder="Enter your ThreatFox API key" />
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>RSS Feed Endpoint:</strong>{" "}
+                    <code className="bg-background px-2 py-0.5 rounded text-xs">/api/news/rss</code>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    <strong>WebSocket:</strong>{" "}
+                    <code className="bg-background px-2 py-0.5 rounded text-xs">ws://localhost:8080/ws</code>
+                  </p>
+                </div>
+                <Button className="mt-4">Save API Keys</Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

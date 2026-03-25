@@ -11,3 +11,4 @@ export { FilterSection } from "./FilterSection";
 export type { FilterSectionProps, FilterSectionVariant } from "./FilterSection";
 export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
+export { ErrorBoundary } from "./ErrorBoundary";
