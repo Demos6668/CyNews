@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { validate } from "../middlewares/validate";
 import { asyncHandler } from "../middlewares/errorHandler";
+import { apiCache, CACHE_TTL } from "../lib/cache";
 
 import {
   GetNewsQueryParams,
@@ -122,6 +123,10 @@ router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response)
 }));
 
 router.get("/news", asyncHandler(async (req: Request, res: Response) => {
+    const cacheKey = `news:${JSON.stringify(req.query)}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const rawQuery = { ...req.query } as Record<string, unknown>;
     if (typeof rawQuery.from === "string") rawQuery.from = new Date(rawQuery.from);
     if (typeof rawQuery.to === "string") rawQuery.to = new Date(rawQuery.to);
@@ -177,6 +182,7 @@ router.get("/news", asyncHandler(async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.LIST);
     res.json(data);
 }));
 

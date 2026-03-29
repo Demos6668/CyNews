@@ -75,6 +75,12 @@ app.use("/api/news", (req: Request, res: Response, next: NextFunction) => {
 });
 app.use("/api/export", writeLimiter);
 
+// Prevent browsers from caching API responses (server-side TTL cache handles freshness)
+app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 // Authentication: protect write operations and sensitive endpoints
 app.use("/api/scheduler", apiKeyAuth);
 app.use("/api", writeAuth);
@@ -84,11 +90,20 @@ app.use("/api", router);
 // Serve frontend static files in production
 const frontendDist = resolve(import.meta.dirname, "../../cyfy-news/dist/public");
 if (process.env.NODE_ENV === "production" && existsSync(frontendDist)) {
-  app.use(express.static(frontendDist, { maxAge: "1d" }));
+  app.use(express.static(frontendDist, {
+    maxAge: "1d",
+    setHeaders: (res, path) => {
+      // Never cache index.html so SPA updates propagate immediately
+      if (path.endsWith("index.html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }));
   app.get("*", (_req: Request, res: Response, next: NextFunction) => {
     if (_req.path.startsWith("/api") || _req.path.startsWith("/ws")) {
       return next();
     }
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(join(frontendDist, "index.html"));
   });
 }

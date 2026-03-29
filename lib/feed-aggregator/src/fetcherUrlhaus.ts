@@ -6,13 +6,14 @@ import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult } from "./feedUtils";
 
 export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
   const authKey = process.env.URLHAUS_AUTH_KEY;
   if (!authKey) return;
   try {
-    const res = await fetch("https://urlhaus-api.abuse.ch/v1/urls/recent/limit/50/", {
+    const res = await fetchWithTimeout("https://urlhaus-api.abuse.ch/v1/urls/recent/limit/50/", {
       headers: { "Auth-Key": authKey },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

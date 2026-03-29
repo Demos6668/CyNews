@@ -6,13 +6,14 @@ import { db, advisoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult } from "./feedUtils";
 
 const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
 
 export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
   try {
-    const res = await fetch(CISA_KEV_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
+    const res = await fetchWithTimeout(CISA_KEV_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string }> };
     const vulns = data.vulnerabilities ?? [];

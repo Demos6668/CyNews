@@ -5,6 +5,7 @@
 import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult } from "./feedUtils";
 
 const FEODO_URL = "https://feodotracker.abuse.ch/downloads/ipblocklist.json";
@@ -19,7 +20,7 @@ type FeodoEntry = {
 
 export async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void> {
   try {
-    const res = await fetch(FEODO_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
+    const res = await fetchWithTimeout(FEODO_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as FeodoEntry[];
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;

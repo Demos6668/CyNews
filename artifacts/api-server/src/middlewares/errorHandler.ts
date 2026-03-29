@@ -2,6 +2,40 @@ import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 
 /**
+ * Custom error classes for standardized API error responses.
+ */
+export class AppError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message = "Not found") {
+    super(404, message);
+    this.name = "NotFoundError";
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message = "Validation error", public readonly details?: unknown) {
+    super(400, message);
+    this.name = "ValidationError";
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message = "Unauthorized") {
+    super(401, message);
+    this.name = "UnauthorizedError";
+  }
+}
+
+/**
  * Centralized async route handler that catches errors and sends proper responses.
  * Wraps route handlers to avoid repetitive try/catch blocks.
  */
@@ -28,6 +62,16 @@ export function globalErrorHandler(
       error: "Validation error",
       details: (err as unknown as { errors?: unknown }).errors,
     });
+    return;
+  }
+
+  // Custom application errors
+  if (err instanceof AppError) {
+    const body: { error: string; details?: unknown } = { error: err.message };
+    if (err instanceof ValidationError && err.details) {
+      body.details = err.details;
+    }
+    res.status(err.statusCode).json(body);
     return;
   }
 

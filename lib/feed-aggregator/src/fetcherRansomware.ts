@@ -6,6 +6,7 @@ import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult, detectScopeFromCountry } from "./feedUtils";
 
 export type RansomwareVictim = {
@@ -21,7 +22,7 @@ export type RansomwareVictim = {
 
 export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<void> {
   try {
-    const res = await fetch("https://api.ransomware.live/recentvictims", {
+    const res = await fetchWithTimeout("https://api.ransomware.live/recentvictims", {
       headers: { "User-Agent": "CYFY-News-Board/1.0" },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

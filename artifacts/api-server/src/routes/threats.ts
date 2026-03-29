@@ -3,6 +3,7 @@ import { db, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler } from "../middlewares/errorHandler";
+import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -146,6 +147,10 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
+    const cacheKey = `threats:${JSON.stringify(req.query)}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const query = GetThreatsQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
@@ -194,6 +199,7 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.LIST);
     res.json(data);
 }));
 

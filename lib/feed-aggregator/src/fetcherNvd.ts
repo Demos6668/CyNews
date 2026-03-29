@@ -6,6 +6,7 @@ import { db, advisoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult, cvssToSeverity } from "./feedUtils";
 
 export const NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
@@ -15,7 +16,7 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const pubStart = weekAgo.toISOString();
     const pubEnd = new Date().toISOString();
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${NVD_URL}?resultsPerPage=50&pubStartDate=${encodeURIComponent(pubStart)}&pubEndDate=${encodeURIComponent(pubEnd)}`,
       { headers: { "User-Agent": "CYFY-News-Board/1.0" } }
     );

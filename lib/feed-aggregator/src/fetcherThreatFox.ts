@@ -6,13 +6,14 @@ import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import { type FeedUpdateResult } from "./feedUtils";
 
 export async function fetchThreatFox(result: FeedUpdateResult): Promise<void> {
   const authKey = process.env.THREATFOX_AUTH_KEY;
   if (!authKey) return;
   try {
-    const res = await fetch("https://threatfox-api.abuse.ch/api/v1/", {
+    const res = await fetchWithTimeout("https://threatfox-api.abuse.ch/api/v1/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Auth-Key": authKey },
       body: JSON.stringify({ query: "get_iocs", days: 1 }),

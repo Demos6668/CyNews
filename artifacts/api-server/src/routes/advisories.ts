@@ -3,6 +3,7 @@ import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler } from "../middlewares/errorHandler";
+import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -49,6 +50,10 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
 }
 
 router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Response) => {
+    const cacheKey = `certin:${JSON.stringify(req.query)}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const rawQuery = { ...req.query };
     if (rawQuery.timeframe === "90d") rawQuery.timeframe = "all";
     const query = GetCertInAdvisoriesQueryParams.parse(rawQuery);
@@ -98,10 +103,15 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit), totalCritical, totalHigh },
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.LIST);
     res.json(data);
 }));
 
 router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
+    const cacheKey = `advisories:${JSON.stringify(req.query)}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const query = GetAdvisoriesQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
@@ -158,6 +168,7 @@ router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.LIST);
     res.json(data);
 }));
 

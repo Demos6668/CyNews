@@ -6,6 +6,7 @@
 import Parser from "rss-parser";
 import { load } from "cheerio";
 import { logger } from "./logger";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 
 const CERT_IN_BASE = "https://www.cert-in.org.in";
 
@@ -110,7 +111,7 @@ function parseListPageDate(text: string): Date | undefined {
 
 async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory>> {
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; CYFY-SOC/1.0; Security Research)",
         Accept: "text/html,application/xhtml+xml",
@@ -216,7 +217,7 @@ async function scrapeAdvisoriesPage(): Promise<CertInAdvisory[]> {
 
   for (const pageUrl of VLNLIST_PAGES) {
     try {
-      const res = await fetch(pageUrl, fetchOpts);
+      const res = await fetchWithTimeout(pageUrl, fetchOpts);
       if (!res.ok) continue;
       const html = await res.text();
       const $ = load(html);
