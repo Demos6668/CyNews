@@ -36,6 +36,7 @@ export function SeverityBadge({
         getSeverityBadgeClasses(severity),
         className
       )}
+      aria-label={`Severity: ${severity}`}
     >
       {children ?? String(severity).toUpperCase()}
     </span>

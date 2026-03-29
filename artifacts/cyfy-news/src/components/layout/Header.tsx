@@ -39,6 +39,8 @@ export function Header() {
     <header
       className="h-16 flex items-center justify-between px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
       style={{ backgroundColor: "var(--dark-navy)" }}
+      role="navigation"
+      aria-label="Header navigation"
     >
       <SearchBar
         value={searchQuery}

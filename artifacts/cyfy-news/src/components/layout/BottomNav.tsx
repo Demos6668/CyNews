@@ -23,6 +23,7 @@ export function BottomNav() {
 
   return (
     <nav
+      aria-label="Bottom navigation"
       className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--dark-navy)] border-t border-border safe-area-pb"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}
     >
@@ -33,7 +34,7 @@ export function BottomNav() {
             (item.href !== "/" && location.startsWith(item.href));
 
           return (
-            <Link key={item.href} href={item.href} className="flex-1">
+            <Link key={item.href} href={item.href} className="flex-1" aria-current={isActive ? "page" : undefined}>
               <div
                 className={cn(
                   "flex flex-col items-center justify-center h-full gap-1 transition-colors",

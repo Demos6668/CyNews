@@ -18,11 +18,12 @@ export function SearchBar({
   inputRef,
 }: SearchBarProps) {
   return (
-    <div className={cn("relative group flex-1 max-w-xl", className)}>
+    <div className={cn("relative group flex-1 max-w-xl", className)} role="search">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-accent transition-colors" />
       <Input
         ref={inputRef}
         placeholder={placeholder}
+        aria-label="Search"
         className="pl-10 bg-secondary/50 border-white/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:border-accent rounded-full h-10 w-full"
         value={value}
         onChange={(e) => onChange(e.target.value)}

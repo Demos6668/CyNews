@@ -79,7 +79,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
+      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2" aria-label="Main navigation">
         {navItems.map((item, idx) => {
           const isActive = location === item.href || (location.startsWith(item.href) && item.href !== '/');
           const showDivider =
@@ -92,7 +92,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
               {showDivider && (
                 <div className="my-3 mx-3 border-t border-white/5" />
               )}
-              <Link href={item.href} className="block">
+              <Link href={item.href} className="block" aria-current={isActive ? "page" : undefined}>
                 <div
                   className={cn(
                     "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer",

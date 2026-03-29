@@ -45,6 +45,7 @@ export function Pagination({
 
   return (
     <div
+      aria-label="Pagination"
       className={cn(
         "flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-card/50 rounded-xl border border-white/5",
         className
@@ -90,6 +91,8 @@ export function Pagination({
                 variant={currentPage === page ? "default" : "ghost"}
                 size="sm"
                 onClick={() => onPageChange(page)}
+                aria-label={`Go to page ${page}`}
+                aria-current={currentPage === page ? "page" : undefined}
                 className="min-w-[36px] h-9"
               >
                 {page}
