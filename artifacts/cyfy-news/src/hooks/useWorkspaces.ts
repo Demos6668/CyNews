@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  listWorkspaces as apiListWorkspaces,
+  createWorkspace as apiCreateWorkspace,
+  deleteWorkspace as apiDeleteWorkspace,
+} from "@workspace/api-client-react";
 import type { Workspace } from "@/components/Workspace/WorkspaceSidebar";
 
 export function useWorkspaces() {
@@ -12,10 +17,12 @@ export function useWorkspaces() {
   }, []);
 
   const fetchWorkspaces = useCallback(async (): Promise<Workspace[]> => {
-    const res = await fetch("/api/workspaces");
-    if (!res.ok) return [];
-    const data: unknown = await res.json();
-    return Array.isArray(data) ? data : [];
+    try {
+      const data = await apiListWorkspaces();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
   }, []);
 
   useEffect(() => {
@@ -29,8 +36,7 @@ export function useWorkspaces() {
   }, [fetchWorkspaces, selectDefault]);
 
   const deleteWorkspace = useCallback(async (ws: Workspace) => {
-    const res = await fetch(`/api/workspaces/${ws.id}`, { method: "DELETE" });
-    if (!res.ok) return;
+    await apiDeleteWorkspace(ws.id);
     const updated = await fetchWorkspaces();
     setWorkspaces(updated);
     if (activeWorkspace?.id === ws.id) {
@@ -44,23 +50,17 @@ export function useWorkspaces() {
     description?: string;
     products?: Array<{ id: number; name: string; vendor?: string; version?: string; category: string }>;
   }) => {
-    const res = await fetch("/api/workspaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: data.name,
-        domain: data.domain,
-        description: data.description,
-        products: data.products?.map((p) => ({
-          name: p.name,
-          vendor: p.vendor,
-          version: p.version,
-          category: p.category,
-        })),
-      }),
+    const created = await apiCreateWorkspace({
+      name: data.name,
+      domain: data.domain,
+      description: data.description,
+      products: data.products?.map((p) => ({
+        name: p.name,
+        vendor: p.vendor,
+        version: p.version,
+        category: p.category,
+      })),
     });
-    if (!res.ok) throw new Error("Failed to create workspace");
-    const created: Workspace = await res.json();
     const updated = await fetchWorkspaces();
     setWorkspaces(updated.length > 0 ? updated : [...workspaces, created]);
     setActiveWorkspace(created);

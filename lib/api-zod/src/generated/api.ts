@@ -664,3 +664,222 @@ export const GetBookmarkedNewsResponse = zod.object({
   limit: zod.number(),
   totalPages: zod.number(),
 });
+
+/**
+ * @summary List all workspaces
+ */
+export const ListWorkspacesResponseItem = zod.object({
+  id: zod.string().uuid(),
+  name: zod.string(),
+  domain: zod.string(),
+  description: zod.string().nullish(),
+  isDefault: zod.boolean(),
+  createdAt: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+export const ListWorkspacesResponse = zod.array(ListWorkspacesResponseItem);
+
+/**
+ * @summary Create a new workspace
+ */
+export const CreateWorkspaceBody = zod.object({
+  name: zod.string(),
+  domain: zod.string(),
+  description: zod.string().optional(),
+  products: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        vendor: zod.string().optional(),
+        version: zod.string().optional(),
+        category: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Get workspace by ID with products
+ */
+export const GetWorkspaceParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const GetWorkspaceResponse = zod
+  .object({
+    id: zod.string().uuid(),
+    name: zod.string(),
+    domain: zod.string(),
+    description: zod.string().nullish(),
+    isDefault: zod.boolean(),
+    createdAt: zod.string().nullish(),
+    updatedAt: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      products: zod
+        .array(
+          zod.object({
+            id: zod.string().uuid(),
+            productName: zod.string(),
+            vendor: zod.string().nullish(),
+            version: zod.string().nullish(),
+            category: zod.string().nullish(),
+            enabled: zod.boolean(),
+          }),
+        )
+        .optional(),
+    }),
+  );
+
+/**
+ * @summary Update a workspace
+ */
+export const UpdateWorkspaceParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const UpdateWorkspaceBody = zod.object({
+  name: zod.string().optional(),
+  domain: zod.string().optional(),
+  description: zod.string().optional(),
+});
+
+export const UpdateWorkspaceResponse = zod.object({
+  id: zod.string().uuid(),
+  name: zod.string(),
+  domain: zod.string(),
+  description: zod.string().nullish(),
+  isDefault: zod.boolean(),
+  createdAt: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a workspace
+ */
+export const DeleteWorkspaceParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const DeleteWorkspaceResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Add a product to workspace
+ */
+export const AddProductParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const AddProductBody = zod.object({
+  name: zod.string(),
+  vendor: zod.string().optional(),
+  version: zod.string().optional(),
+  category: zod.string().optional(),
+});
+
+/**
+ * @summary Remove a product from workspace
+ */
+export const RemoveProductParams = zod.object({
+  id: zod.coerce.string().uuid(),
+  productId: zod.coerce.string().uuid(),
+});
+
+export const RemoveProductResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Get threat feed for a workspace
+ */
+export const GetWorkspaceFeedParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const getWorkspaceFeedQueryPageDefault = 1;
+export const getWorkspaceFeedQueryLimitDefault = 20;
+
+export const GetWorkspaceFeedQueryParams = zod.object({
+  page: zod.coerce.number().default(getWorkspaceFeedQueryPageDefault),
+  limit: zod.coerce.number().default(getWorkspaceFeedQueryLimitDefault),
+});
+
+export const GetWorkspaceFeedResponse = zod.object({
+  items: zod.array(
+    zod
+      .object({
+        id: zod.number(),
+        title: zod.string(),
+        summary: zod.string(),
+        description: zod.string(),
+        scope: zod.enum(["local", "global"]),
+        severity: zod.enum(["critical", "high", "medium", "low", "info"]),
+        category: zod.string(),
+        threatActor: zod.string().nullish(),
+        threatActorAliases: zod.array(zod.string()).optional(),
+        targetSectors: zod.array(zod.string()),
+        targetRegions: zod.array(zod.string()),
+        ttps: zod.array(zod.string()),
+        iocs: zod.array(zod.string()),
+        malwareFamilies: zod.array(zod.string()),
+        affectedSystems: zod.array(zod.string()),
+        mitigations: zod.array(zod.string()),
+        source: zod.string(),
+        sourceUrl: zod.string().nullish(),
+        references: zod.array(zod.string()).optional(),
+        campaignName: zod.string().nullish(),
+        status: zod.enum(["active", "resolved", "monitoring"]),
+        confidenceLevel: zod.enum(["confirmed", "high", "medium", "low"]),
+        firstSeen: zod.string().nullish(),
+        lastSeen: zod.string().nullish(),
+        publishedAt: zod.string(),
+        updatedAt: zod.string(),
+        isIndiaRelated: zod.boolean().nullish(),
+        indiaConfidence: zod.number().nullish(),
+        indianState: zod.string().nullish(),
+        indianStateName: zod.string().nullish(),
+        indianCity: zod.string().nullish(),
+        indianSector: zod.string().nullish(),
+      })
+      .and(
+        zod.object({
+          matchId: zod.string().uuid().optional(),
+          matchedProduct: zod.string().optional(),
+          relevanceScore: zod.number().optional(),
+          reviewed: zod.boolean().optional(),
+        }),
+      ),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
+});
+
+/**
+ * @summary Trigger threat matching for workspace
+ */
+export const MatchWorkspaceThreatsParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const MatchWorkspaceThreatsResponse = zod.object({
+  matchedCount: zod.number(),
+});
+
+/**
+ * @summary Update a threat match (review/dismiss)
+ */
+export const UpdateMatchParams = zod.object({
+  id: zod.coerce.string().uuid(),
+  matchId: zod.coerce.string().uuid(),
+});
+
+export const UpdateMatchBody = zod.object({
+  reviewed: zod.boolean().optional(),
+  dismissed: zod.boolean().optional(),
+});
+
+export const UpdateMatchResponse = zod.object({}).passthrough();

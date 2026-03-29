@@ -77,6 +77,7 @@ scheduler.start();
 // Graceful shutdown
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Shutting down gracefully");
+  scheduler.stop();
   clearInterval(heartbeatTimer);
 
   wss.clients.forEach((ws: any) => {

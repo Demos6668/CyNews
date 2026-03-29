@@ -435,6 +435,67 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  domain: string;
+  description?: string | null;
+  isDefault: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface Product {
+  id: string;
+  productName: string;
+  vendor?: string | null;
+  version?: string | null;
+  category?: string | null;
+  enabled: boolean;
+}
+
+export type WorkspaceDetail = Workspace & {
+  products?: Product[];
+};
+
+export interface CreateProduct {
+  name: string;
+  vendor?: string;
+  version?: string;
+  category?: string;
+}
+
+export interface CreateWorkspace {
+  name: string;
+  domain: string;
+  description?: string;
+  products?: CreateProduct[];
+}
+
+export interface UpdateWorkspace {
+  name?: string;
+  domain?: string;
+  description?: string;
+}
+
+export type WorkspaceFeedResponseItemsItem = ThreatIntelItem & {
+  matchId?: string;
+  matchedProduct?: string;
+  relevanceScore?: number;
+  reviewed?: boolean;
+};
+
+export interface WorkspaceFeedResponse {
+  items: WorkspaceFeedResponseItemsItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type GetDashboardStatsParams = {
   /**
    * Time range filter (1h, 6h, 24h, 7d, 30d, all)
@@ -702,3 +763,19 @@ export const SearchType = {
   news: "news",
   advisory: "advisory",
 } as const;
+
+export type GetWorkspaceFeedParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type MatchWorkspaceThreats200 = {
+  matchedCount: number;
+};
+
+export type UpdateMatchBody = {
+  reviewed?: boolean;
+  dismissed?: boolean;
+};
+
+export type UpdateMatch200 = { [key: string]: unknown };

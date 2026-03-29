@@ -19,6 +19,8 @@ tags:
     description: Threat intelligence
   - name: search
     description: Global search
+  - name: workspaces
+    description: Workspace management
 
 paths:
   /healthz:
@@ -529,6 +531,278 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NewsListResponse"
+
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      tags: [workspaces]
+      summary: List all workspaces
+      responses:
+        "200":
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+    post:
+      operationId: createWorkspace
+      tags: [workspaces]
+      summary: Create a new workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspace"
+      responses:
+        "201":
+          description: Created workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workspaces/{id}:
+    get:
+      operationId: getWorkspace
+      tags: [workspaces]
+      summary: Get workspace by ID with products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Workspace detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateWorkspace
+      tags: [workspaces]
+      summary: Update a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkspace"
+      responses:
+        "200":
+          description: Updated workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteWorkspace
+      tags: [workspaces]
+      summary: Delete a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Cannot delete master workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workspaces/{id}/products:
+    post:
+      operationId: addProduct
+      tags: [workspaces]
+      summary: Add a product to workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProduct"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workspaces/{id}/products/{productId}:
+    delete:
+      operationId: removeProduct
+      tags: [workspaces]
+      summary: Remove a product from workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /workspaces/{id}/feed:
+    get:
+      operationId: getWorkspaceFeed
+      tags: [workspaces]
+      summary: Get threat feed for a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Workspace threat feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceFeedResponse"
+
+  /workspaces/{id}/match:
+    post:
+      operationId: matchWorkspaceThreats
+      tags: [workspaces]
+      summary: Trigger threat matching for workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Matching result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - matchedCount
+                properties:
+                  matchedCount:
+                    type: integer
+
+  /workspaces/{id}/matches/{matchId}:
+    put:
+      operationId: updateMatch
+      tags: [workspaces]
+      summary: Update a threat match (review/dismiss)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewed:
+                  type: boolean
+                dismissed:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated match
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -1194,3 +1468,144 @@ components:
       properties:
         error:
           type: string
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+
+    Workspace:
+      type: object
+      required:
+        - id
+        - name
+        - domain
+        - isDefault
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        domain:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+
+    WorkspaceDetail:
+      allOf:
+        - $ref: "#/components/schemas/Workspace"
+        - type: object
+          properties:
+            products:
+              type: array
+              items:
+                $ref: "#/components/schemas/Product"
+
+    CreateWorkspace:
+      type: object
+      required:
+        - name
+        - domain
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        description:
+          type: string
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateProduct"
+
+    UpdateWorkspace:
+      type: object
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        description:
+          type: string
+
+    Product:
+      type: object
+      required:
+        - id
+        - productName
+        - enabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        vendor:
+          type: string
+          nullable: true
+        version:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+
+    CreateProduct:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        vendor:
+          type: string
+        version:
+          type: string
+        category:
+          type: string
+
+    WorkspaceFeedResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/ThreatIntelItem"
+              - type: object
+                properties:
+                  matchId:
+                    type: string
+                    format: uuid
+                  matchedProduct:
+                    type: string
+                  relevanceScore:
+                    type: number
+                  reviewed:
+                    type: boolean
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer

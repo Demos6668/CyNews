@@ -4,10 +4,11 @@ import { existsSync } from "fs";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import morgan from "morgan";
+import pinoHttp from "pino-http";
 import router from "./routes";
 import { globalErrorHandler } from "./middlewares/errorHandler";
 import { writeAuth, apiKeyAuth } from "./middlewares/auth";
+import { logger } from "./lib/logger";
 
 const app: Express = express();
 
@@ -38,9 +39,9 @@ app.use(cors(allowedOrigins ? {
   credentials: true,
 } : undefined));
 
-// Request logging
+// Structured request logging
 if (process.env.NODE_ENV !== "test") {
-  app.use(morgan("short"));
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === "/api/healthz" } }));
 }
 
 // Body parsing with size limits

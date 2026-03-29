@@ -78,16 +78,24 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
     };
   }
 
+  let cronTask: cron.ScheduledTask | null = null;
+
   function start(): void {
     logger.info("Scheduler starting - updates every 15 minutes");
     runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed"));
-    cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
+    cronTask = cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
     logger.info("Scheduler started");
+  }
+
+  function stop(): void {
+    cronTask?.stop();
+    cronTask = null;
+    logger.info("Scheduler stopped");
   }
 
   function triggerRefresh(): Promise<void> {
     return runFeedUpdateTask();
   }
 
-  return { start, getStatus, getNextUpdateTime, triggerRefresh };
+  return { start, stop, getStatus, getNextUpdateTime, triggerRefresh };
 }
