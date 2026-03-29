@@ -589,6 +589,103 @@ export const ExportThreatsQueryParams = zod.object({
 });
 
 /**
+ * @summary Export a single advisory as HTML
+ */
+export const ExportAdvisoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Export multiple advisories as a single HTML report
+ */
+export const ExportAdvisoriesBulkBody = zod.object({
+  ids: zod.array(zod.number()).optional(),
+  timeframe: zod.string().optional(),
+  scope: zod.enum(["local", "global"]).optional(),
+  vendor: zod.string().optional(),
+});
+
+/**
+ * @summary Get available email templates
+ */
+export const GetEmailTemplatesQueryParams = zod.object({
+  type: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter by template type (general, cert-in, threat, all)"),
+});
+
+export const GetEmailTemplatesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  type: zod.string(),
+  subject: zod.string(),
+  body: zod.string(),
+});
+export const GetEmailTemplatesResponse = zod.array(
+  GetEmailTemplatesResponseItem,
+);
+
+/**
+ * @summary Preview an email export
+ */
+export const PreviewEmailBody = zod.object({
+  advisoryId: zod.union([zod.number(), zod.string()]),
+  templateId: zod.string().optional(),
+  customizations: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const PreviewEmailResponse = zod.object({
+  subject: zod.string(),
+  body: zod.string(),
+  plainText: zod.string(),
+  templateUsed: zod.string(),
+  item: zod.object({
+    id: zod.number(),
+    certInId: zod.string().nullish(),
+    title: zod.string(),
+    type: zod.string(),
+  }),
+});
+
+/**
+ * @summary Export an advisory/threat as email
+ */
+export const ExportEmailBody = zod.object({
+  advisoryId: zod.union([zod.number(), zod.string()]),
+  templateId: zod.string().optional(),
+  customizations: zod.record(zod.string(), zod.unknown()).optional(),
+  format: zod.enum(["html", "text", "mailto", "outlook"]).optional(),
+});
+
+export const ExportEmailResponse = zod.object({
+  subject: zod.string().optional(),
+  body: zod.string().optional(),
+  mailtoLink: zod.string().optional(),
+});
+
+/**
+ * @summary Batch export advisories as emails
+ */
+export const ExportEmailBatchBody = zod.object({
+  advisoryIds: zod.array(zod.number()),
+  templateId: zod.string().optional(),
+  format: zod.enum(["html", "text"]).optional(),
+});
+
+export const ExportEmailBatchResponse = zod.object({
+  exports: zod.array(
+    zod.object({
+      id: zod.number(),
+      certInId: zod.string().nullish(),
+      title: zod.string(),
+      subject: zod.string(),
+      body: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary Search across news, threats, and advisories
  */
 export const searchQueryLimitDefault = 20;

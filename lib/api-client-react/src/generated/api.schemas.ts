@@ -431,6 +431,82 @@ export interface ThreatIntelListResponse {
   totalPages: number;
 }
 
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  type: string;
+  subject: string;
+  body: string;
+}
+
+export type ExportPreviewRequestCustomizations = { [key: string]: unknown };
+
+export interface ExportPreviewRequest {
+  advisoryId: number | string;
+  templateId?: string;
+  customizations?: ExportPreviewRequestCustomizations;
+}
+
+export type ExportEmailRequestCustomizations = { [key: string]: unknown };
+
+export type ExportEmailRequestFormat =
+  (typeof ExportEmailRequestFormat)[keyof typeof ExportEmailRequestFormat];
+
+export const ExportEmailRequestFormat = {
+  html: "html",
+  text: "text",
+  mailto: "mailto",
+  outlook: "outlook",
+} as const;
+
+export interface ExportEmailRequest {
+  advisoryId: number | string;
+  templateId?: string;
+  customizations?: ExportEmailRequestCustomizations;
+  format?: ExportEmailRequestFormat;
+}
+
+export type ExportEmailBatchRequestFormat =
+  (typeof ExportEmailBatchRequestFormat)[keyof typeof ExportEmailBatchRequestFormat];
+
+export const ExportEmailBatchRequestFormat = {
+  html: "html",
+  text: "text",
+} as const;
+
+export interface ExportEmailBatchRequest {
+  advisoryIds: number[];
+  templateId?: string;
+  format?: ExportEmailBatchRequestFormat;
+}
+
+export type EmailPreviewItem = {
+  id: number;
+  certInId?: string | null;
+  title: string;
+  type: string;
+};
+
+export interface EmailPreview {
+  subject: string;
+  body: string;
+  plainText: string;
+  templateUsed: string;
+  item: EmailPreviewItem;
+}
+
+export type BatchExportResultExportsItem = {
+  id: number;
+  certInId?: string | null;
+  title: string;
+  subject: string;
+  body: string;
+};
+
+export interface BatchExportResult {
+  exports: BatchExportResultExportsItem[];
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -749,6 +825,34 @@ export const ExportThreatsScope = {
   local: "local",
   global: "global",
 } as const;
+
+export type ExportAdvisoriesBulkBodyScope =
+  (typeof ExportAdvisoriesBulkBodyScope)[keyof typeof ExportAdvisoriesBulkBodyScope];
+
+export const ExportAdvisoriesBulkBodyScope = {
+  local: "local",
+  global: "global",
+} as const;
+
+export type ExportAdvisoriesBulkBody = {
+  ids?: number[];
+  timeframe?: string;
+  scope?: ExportAdvisoriesBulkBodyScope;
+  vendor?: string;
+};
+
+export type GetEmailTemplatesParams = {
+  /**
+   * Filter by template type (general, cert-in, threat, all)
+   */
+  type?: string;
+};
+
+export type ExportEmail200 = {
+  subject?: string;
+  body?: string;
+  mailtoLink?: string;
+};
 
 export type SearchParams = {
   q: string;

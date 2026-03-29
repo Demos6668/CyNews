@@ -19,17 +19,26 @@ import type {
 import type {
   Advisory,
   AdvisoryListResponse,
+  BatchExportResult,
   BookmarkResponse,
   CertInAdvisoryListResponse,
   CreateNewsItem,
   CreateProduct,
   CreateWorkspace,
   DashboardStats,
+  EmailPreview,
+  EmailTemplate,
   ErrorResponse,
+  ExportAdvisoriesBulkBody,
+  ExportEmail200,
+  ExportEmailBatchRequest,
+  ExportEmailRequest,
+  ExportPreviewRequest,
   ExportThreatsParams,
   GetAdvisoriesParams,
   GetCertInAdvisoriesParams,
   GetDashboardStatsParams,
+  GetEmailTemplatesParams,
   GetNewsParams,
   GetThreatsParams,
   GetWorkspaceFeedParams,
@@ -1221,6 +1230,535 @@ export function useExportThreats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Export a single advisory as HTML
+ */
+export const getExportAdvisoryUrl = (id: number) => {
+  return `/api/export/advisory/${id}`;
+};
+
+export const exportAdvisory = async (
+  id: number,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportAdvisoryUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportAdvisoryQueryKey = (id: number) => {
+  return [`/api/export/advisory/${id}`] as const;
+};
+
+export const getExportAdvisoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportAdvisory>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAdvisory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getExportAdvisoryQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAdvisory>>> = ({
+    signal,
+  }) => exportAdvisory(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportAdvisory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportAdvisoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportAdvisory>>
+>;
+export type ExportAdvisoryQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Export a single advisory as HTML
+ */
+
+export function useExportAdvisory<
+  TData = Awaited<ReturnType<typeof exportAdvisory>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAdvisory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportAdvisoryQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Export multiple advisories as a single HTML report
+ */
+export const getExportAdvisoriesBulkUrl = () => {
+  return `/api/export/advisories/bulk`;
+};
+
+export const exportAdvisoriesBulk = async (
+  exportAdvisoriesBulkBody: ExportAdvisoriesBulkBody,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportAdvisoriesBulkUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(exportAdvisoriesBulkBody),
+  });
+};
+
+export const getExportAdvisoriesBulkMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportAdvisoriesBulk>>,
+    TError,
+    { data: BodyType<ExportAdvisoriesBulkBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportAdvisoriesBulk>>,
+  TError,
+  { data: BodyType<ExportAdvisoriesBulkBody> },
+  TContext
+> => {
+  const mutationKey = ["exportAdvisoriesBulk"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportAdvisoriesBulk>>,
+    { data: BodyType<ExportAdvisoriesBulkBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return exportAdvisoriesBulk(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportAdvisoriesBulkMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportAdvisoriesBulk>>
+>;
+export type ExportAdvisoriesBulkMutationBody =
+  BodyType<ExportAdvisoriesBulkBody>;
+export type ExportAdvisoriesBulkMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Export multiple advisories as a single HTML report
+ */
+export const useExportAdvisoriesBulk = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportAdvisoriesBulk>>,
+    TError,
+    { data: BodyType<ExportAdvisoriesBulkBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportAdvisoriesBulk>>,
+  TError,
+  { data: BodyType<ExportAdvisoriesBulkBody> },
+  TContext
+> => {
+  return useMutation(getExportAdvisoriesBulkMutationOptions(options));
+};
+
+/**
+ * @summary Get available email templates
+ */
+export const getGetEmailTemplatesUrl = (params?: GetEmailTemplatesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/export/templates?${stringifiedParams}`
+    : `/api/export/templates`;
+};
+
+export const getEmailTemplates = async (
+  params?: GetEmailTemplatesParams,
+  options?: RequestInit,
+): Promise<EmailTemplate[]> => {
+  return customFetch<EmailTemplate[]>(getGetEmailTemplatesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEmailTemplatesQueryKey = (
+  params?: GetEmailTemplatesParams,
+) => {
+  return [`/api/export/templates`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetEmailTemplatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailTemplates>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetEmailTemplatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailTemplates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetEmailTemplatesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getEmailTemplates>>
+  > = ({ signal }) => getEmailTemplates(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailTemplates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEmailTemplatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailTemplates>>
+>;
+export type GetEmailTemplatesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get available email templates
+ */
+
+export function useGetEmailTemplates<
+  TData = Awaited<ReturnType<typeof getEmailTemplates>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetEmailTemplatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailTemplates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEmailTemplatesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Preview an email export
+ */
+export const getPreviewEmailUrl = () => {
+  return `/api/export/preview`;
+};
+
+export const previewEmail = async (
+  exportPreviewRequest: ExportPreviewRequest,
+  options?: RequestInit,
+): Promise<EmailPreview> => {
+  return customFetch<EmailPreview>(getPreviewEmailUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(exportPreviewRequest),
+  });
+};
+
+export const getPreviewEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewEmail>>,
+    TError,
+    { data: BodyType<ExportPreviewRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewEmail>>,
+  TError,
+  { data: BodyType<ExportPreviewRequest> },
+  TContext
+> => {
+  const mutationKey = ["previewEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewEmail>>,
+    { data: BodyType<ExportPreviewRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return previewEmail(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewEmail>>
+>;
+export type PreviewEmailMutationBody = BodyType<ExportPreviewRequest>;
+export type PreviewEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Preview an email export
+ */
+export const usePreviewEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewEmail>>,
+    TError,
+    { data: BodyType<ExportPreviewRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof previewEmail>>,
+  TError,
+  { data: BodyType<ExportPreviewRequest> },
+  TContext
+> => {
+  return useMutation(getPreviewEmailMutationOptions(options));
+};
+
+/**
+ * @summary Export an advisory/threat as email
+ */
+export const getExportEmailUrl = () => {
+  return `/api/export/email`;
+};
+
+export const exportEmail = async (
+  exportEmailRequest: ExportEmailRequest,
+  options?: RequestInit,
+): Promise<ExportEmail200> => {
+  return customFetch<ExportEmail200>(getExportEmailUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(exportEmailRequest),
+  });
+};
+
+export const getExportEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportEmail>>,
+    TError,
+    { data: BodyType<ExportEmailRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportEmail>>,
+  TError,
+  { data: BodyType<ExportEmailRequest> },
+  TContext
+> => {
+  const mutationKey = ["exportEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportEmail>>,
+    { data: BodyType<ExportEmailRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return exportEmail(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportEmail>>
+>;
+export type ExportEmailMutationBody = BodyType<ExportEmailRequest>;
+export type ExportEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Export an advisory/threat as email
+ */
+export const useExportEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportEmail>>,
+    TError,
+    { data: BodyType<ExportEmailRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportEmail>>,
+  TError,
+  { data: BodyType<ExportEmailRequest> },
+  TContext
+> => {
+  return useMutation(getExportEmailMutationOptions(options));
+};
+
+/**
+ * @summary Batch export advisories as emails
+ */
+export const getExportEmailBatchUrl = () => {
+  return `/api/export/email/batch`;
+};
+
+export const exportEmailBatch = async (
+  exportEmailBatchRequest: ExportEmailBatchRequest,
+  options?: RequestInit,
+): Promise<BatchExportResult> => {
+  return customFetch<BatchExportResult>(getExportEmailBatchUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(exportEmailBatchRequest),
+  });
+};
+
+export const getExportEmailBatchMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportEmailBatch>>,
+    TError,
+    { data: BodyType<ExportEmailBatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportEmailBatch>>,
+  TError,
+  { data: BodyType<ExportEmailBatchRequest> },
+  TContext
+> => {
+  const mutationKey = ["exportEmailBatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportEmailBatch>>,
+    { data: BodyType<ExportEmailBatchRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return exportEmailBatch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportEmailBatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportEmailBatch>>
+>;
+export type ExportEmailBatchMutationBody = BodyType<ExportEmailBatchRequest>;
+export type ExportEmailBatchMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Batch export advisories as emails
+ */
+export const useExportEmailBatch = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportEmailBatch>>,
+    TError,
+    { data: BodyType<ExportEmailBatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportEmailBatch>>,
+  TError,
+  { data: BodyType<ExportEmailBatchRequest> },
+  TContext
+> => {
+  return useMutation(getExportEmailBatchMutationOptions(options));
+};
 
 /**
  * @summary Search across news, threats, and advisories
