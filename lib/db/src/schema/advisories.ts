@@ -17,6 +17,7 @@ export const advisoriesTable = pgTable("advisories", {
   references: jsonb("references").$type<string[]>().notNull().default([]),
   status: text("status").notNull().$type<"new" | "under_review" | "patched" | "dismissed">().default("new"),
   publishedAt: timestamp("published_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
   scope: text("scope").notNull().$type<"local" | "global">().default("global"),
   isIndiaRelated: boolean("is_india_related").default(false),
   indiaConfidence: integer("india_confidence").default(0),

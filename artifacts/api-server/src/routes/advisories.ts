@@ -33,6 +33,7 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
     references: (item.references as string[]) ?? [],
     status: item.status,
     publishedAt: item.publishedAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
     scope: item.scope ?? "global",
     isIndiaRelated: item.isIndiaRelated ?? false,
     indiaConfidence: item.indiaConfidence ?? 0,
