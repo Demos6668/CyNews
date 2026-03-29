@@ -3,8 +3,11 @@ import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspac
 import { sql, ilike, or } from "drizzle-orm";
 
 import { SearchQueryParams, SearchResponse } from "@workspace/api-zod";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, ValidationError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
+
+const MIN_SEARCH_LENGTH = 2;
+const MAX_SEARCH_LENGTH = 200;
 
 const router: IRouter = Router();
 
@@ -24,6 +27,9 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     if (cached) { res.json(cached); return; }
 
     const query = SearchQueryParams.parse(req.query);
+    if (query.q.length < MIN_SEARCH_LENGTH || query.q.length > MAX_SEARCH_LENGTH) {
+      throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
+    }
     // Sanitize LIKE wildcards to prevent pattern injection
     const sanitized = query.q.replace(/[%_\\]/g, "\\$&");
     const searchTerm = `%${sanitized}%`;

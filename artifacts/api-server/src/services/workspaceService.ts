@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 import type { ThreatIntel } from "@workspace/db";
+import { AppError, NotFoundError } from "../middlewares/errorHandler";
 
 /** Escape LIKE wildcard characters to prevent injection */
 function escapeLike(value: string): string {
@@ -76,7 +77,7 @@ export async function createWorkspace(data: WorkspaceInput) {
     })
     .returning();
 
-  if (!workspace) throw new Error("Failed to create workspace");
+  if (!workspace) throw new AppError(500, "Failed to create workspace");
 
   await db.insert(workspaceSettingsTable).values({
     workspaceId: workspace.id,
@@ -109,7 +110,7 @@ export async function addProduct(
     })
     .returning();
 
-  if (!row) throw new Error("Failed to add product");
+  if (!row) throw new AppError(500, "Failed to add product");
   await matchThreatsToWorkspace(workspaceId);
   return { id: row.id };
 }
@@ -221,7 +222,7 @@ export async function getWorkspaceFeed(
     .where(eq(workspacesTable.id, workspaceId))
     .limit(1);
 
-  if (!workspace) throw new Error("Workspace not found");
+  if (!workspace) throw new NotFoundError("Workspace not found");
 
   if (workspace.isDefault) {
     const items = await db

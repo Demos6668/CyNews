@@ -1,5 +1,6 @@
 import http from "http";
 import { WebSocketServer } from "ws";
+import { timingSafeEqual } from "crypto";
 import { config } from "dotenv";
 import { resolve } from "path";
 
@@ -51,7 +52,7 @@ wss.on("connection", (ws: any, req: import("http").IncomingMessage) => {
   if (apiKey) {
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
     const providedKey = url.searchParams.get("api_key") ?? req.headers["x-api-key"];
-    if (providedKey !== apiKey) {
+    if (!providedKey || typeof providedKey !== "string" || providedKey.length !== apiKey.length || !timingSafeEqual(Buffer.from(providedKey), Buffer.from(apiKey))) {
       ws.close(4001, "Unauthorized");
       return;
     }

@@ -76,11 +76,13 @@ router.get("/threats/export", asyncHandler(async (req: Request, res: Response) =
 
     const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
+    const MAX_EXPORT_ROWS = 10_000;
     const items = await db
       .select()
       .from(threatIntelTable)
       .where(where as SQL)
-      .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
+      .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
+      .limit(MAX_EXPORT_ROWS);
 
     if (format === "json") {
       const jsonData = items.map((item) => formatThreatIntel(item));

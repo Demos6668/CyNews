@@ -1,4 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
+import { timingSafeEqual } from "crypto";
+
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 /**
  * API key authentication middleware.
@@ -18,7 +24,7 @@ export function apiKeyAuth(req: Request, res: Response, next: NextFunction): voi
     req.headers["x-api-key"] as string | undefined ??
     (req.query["api_key"] as string | undefined);
 
-  if (!providedKey || providedKey !== apiKey) {
+  if (!providedKey || !timingSafeCompare(providedKey, apiKey)) {
     res.status(401).json({ error: "Unauthorized: invalid or missing API key" });
     return;
   }

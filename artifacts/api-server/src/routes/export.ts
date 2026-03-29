@@ -246,20 +246,19 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
     res.send(html);
 }));
 
-router.get("/export/templates", (req: Request, res: Response) => {
+router.get("/export/templates", asyncHandler(async (req: Request, res: Response) => {
   const type = (req.query.type as string) || "all";
   const templates = emailTemplateService.getTemplates(type);
   res.json(templates);
-});
+}));
 
-router.get("/export/templates/:id", (req: Request, res: Response) => {
+router.get("/export/templates/:id", asyncHandler(async (req: Request, res: Response) => {
   const template = emailTemplateService.getTemplate(req.params.id);
   if (!template) {
-    res.status(404).json({ error: "Template not found" });
-    return;
+    throw new NotFoundError("Template not found");
   }
   res.json(template);
-});
+}));
 
 router.post("/export/preview", validate({ body: ExportPreviewBody }), asyncHandler(async (req: Request, res: Response) => {
     const { advisoryId, templateId, customizations } = req.body;
