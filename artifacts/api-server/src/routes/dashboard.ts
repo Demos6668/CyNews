@@ -24,81 +24,43 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
     const fromDate = getTimeframeStartDate(timeframe);
     const dateFilter = fromDate ?? new Date(0);
 
-    const newsBase = gte(newsItemsTable.publishedAt, dateFilter);
-    const threatBase = gte(threatIntelTable.publishedAt, dateFilter);
-    const newsWithScope = scope ? and(newsBase, eq(newsItemsTable.scope, scope)) : newsBase;
-    const threatWithScope = scope ? and(threatBase, eq(threatIntelTable.scope, scope)) : threatBase;
+    // Consolidated count queries using COUNT FILTER — 3 queries instead of 14
+    const scopeFilter = scope ? sql`AND scope = ${scope}` : sql``;
 
-    const count = sql<number>`count(*)::int`;
-
-    // Batch all count queries in parallel
-    const [
-      [newsTotal], [threatsTotal],
-      [localNews], [localThreats],
-      [globalNews], [globalThreats],
-      [activeAdv],
-      [criticalNews], [criticalThreats],
-      [highNews], [highThreats],
-      [resolvedNews], [resolvedThreats],
-      recentNewsItems, recentThreats,
-    ] = await Promise.all([
-      // Total counts
-      db.select({ count }).from(newsItemsTable).where(newsWithScope),
-      db.select({ count }).from(threatIntelTable).where(threatWithScope),
-      // Local counts
-      scope
-        ? [{ count: scope === "local" ? -1 : 0 }] // placeholder, computed below
-        : db.select({ count }).from(newsItemsTable).where(and(newsBase, eq(newsItemsTable.scope, "local"))),
-      scope
-        ? [{ count: 0 }]
-        : db.select({ count }).from(threatIntelTable).where(and(threatBase, eq(threatIntelTable.scope, "local"))),
-      // Global counts
-      scope
-        ? [{ count: scope === "global" ? -1 : 0 }]
-        : db.select({ count }).from(newsItemsTable).where(and(newsBase, eq(newsItemsTable.scope, "global"))),
-      scope
-        ? [{ count: 0 }]
-        : db.select({ count }).from(threatIntelTable).where(and(threatBase, eq(threatIntelTable.scope, "global"))),
-      // Active advisories
-      db.select({ count }).from(advisoriesTable).where(
+    const [newsStats, threatStats, [activeAdv], recentNewsItems, recentThreats] = await Promise.all([
+      db.execute<{
+        total: number; local_count: number; global_count: number;
+        critical_active: number; high_active: number; resolved: number;
+      }>(sql`
+        SELECT
+          count(*)::int AS total,
+          count(*) FILTER (WHERE scope = 'local')::int AS local_count,
+          count(*) FILTER (WHERE scope = 'global')::int AS global_count,
+          count(*) FILTER (WHERE severity = 'critical' AND status = 'active')::int AS critical_active,
+          count(*) FILTER (WHERE severity = 'high' AND status = 'active')::int AS high_active,
+          count(*) FILTER (WHERE status = 'resolved')::int AS resolved
+        FROM news_items
+        WHERE published_at >= ${dateFilter} ${scopeFilter}
+      `),
+      db.execute<{
+        total: number; local_count: number; global_count: number;
+        critical_active: number; high_active: number; resolved: number;
+      }>(sql`
+        SELECT
+          count(*)::int AS total,
+          count(*) FILTER (WHERE scope = 'local')::int AS local_count,
+          count(*) FILTER (WHERE scope = 'global')::int AS global_count,
+          count(*) FILTER (WHERE severity = 'critical' AND status = 'active')::int AS critical_active,
+          count(*) FILTER (WHERE severity = 'high' AND status = 'active')::int AS high_active,
+          count(*) FILTER (WHERE status = 'resolved')::int AS resolved
+        FROM threat_intel
+        WHERE published_at >= ${dateFilter} ${scopeFilter}
+      `),
+      db.select({ count: sql<number>`count(*)::int` }).from(advisoriesTable).where(
         scope
-          ? and(sql`${advisoriesTable.status} IN ('new', 'under_review')`, gte(advisoriesTable.publishedAt, dateFilter), eq(advisoriesTable.scope, scope))
+          ? and(sql`${advisoriesTable.status} IN ('new', 'under_review')`, gte(advisoriesTable.publishedAt, dateFilter), eq(advisoriesTable.scope, scope as "local" | "global"))
           : and(sql`${advisoriesTable.status} IN ('new', 'under_review')`, gte(advisoriesTable.publishedAt, dateFilter))
       ),
-      // Critical counts
-      db.select({ count }).from(newsItemsTable).where(
-        scope
-          ? and(newsBase, eq(newsItemsTable.scope, scope), eq(newsItemsTable.severity, "critical"), eq(newsItemsTable.status, "active"))
-          : and(newsBase, eq(newsItemsTable.severity, "critical"), eq(newsItemsTable.status, "active"))
-      ),
-      db.select({ count }).from(threatIntelTable).where(
-        scope
-          ? and(threatBase, eq(threatIntelTable.scope, scope), eq(threatIntelTable.severity, "critical"), eq(threatIntelTable.status, "active"))
-          : and(threatBase, eq(threatIntelTable.severity, "critical"), eq(threatIntelTable.status, "active"))
-      ),
-      // High counts
-      db.select({ count }).from(newsItemsTable).where(
-        scope
-          ? and(newsBase, eq(newsItemsTable.scope, scope), eq(newsItemsTable.severity, "high"), eq(newsItemsTable.status, "active"))
-          : and(newsBase, eq(newsItemsTable.severity, "high"), eq(newsItemsTable.status, "active"))
-      ),
-      db.select({ count }).from(threatIntelTable).where(
-        scope
-          ? and(threatBase, eq(threatIntelTable.scope, scope), eq(threatIntelTable.severity, "high"), eq(threatIntelTable.status, "active"))
-          : and(threatBase, eq(threatIntelTable.severity, "high"), eq(threatIntelTable.status, "active"))
-      ),
-      // Resolved counts
-      db.select({ count }).from(newsItemsTable).where(
-        scope
-          ? and(newsBase, eq(newsItemsTable.scope, scope), eq(newsItemsTable.status, "resolved"))
-          : and(newsBase, eq(newsItemsTable.status, "resolved"))
-      ),
-      db.select({ count }).from(threatIntelTable).where(
-        scope
-          ? and(threatBase, eq(threatIntelTable.scope, scope), eq(threatIntelTable.status, "resolved"))
-          : and(threatBase, eq(threatIntelTable.status, "resolved"))
-      ),
-      // Recent items
       db.select({
         id: newsItemsTable.id,
         title: newsItemsTable.title,
@@ -106,17 +68,24 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
         severity: newsItemsTable.severity,
         publishedAt: newsItemsTable.publishedAt,
         sourceUrl: newsItemsTable.sourceUrl,
-      }).from(newsItemsTable).where(newsWithScope).orderBy(sql`${newsItemsTable.publishedAt} DESC`).limit(5),
+      }).from(newsItemsTable).where(
+        scope ? and(gte(newsItemsTable.publishedAt, dateFilter), eq(newsItemsTable.scope, scope as "local" | "global")) : gte(newsItemsTable.publishedAt, dateFilter)
+      ).orderBy(sql`${newsItemsTable.publishedAt} DESC`).limit(5),
       db.select({
         id: threatIntelTable.id,
         title: threatIntelTable.title,
         severity: threatIntelTable.severity,
         publishedAt: threatIntelTable.publishedAt,
         sourceUrl: threatIntelTable.sourceUrl,
-      }).from(threatIntelTable).where(threatWithScope).orderBy(sql`${threatIntelTable.publishedAt} DESC`).limit(5),
+      }).from(threatIntelTable).where(
+        scope ? and(gte(threatIntelTable.publishedAt, dateFilter), eq(threatIntelTable.scope, scope as "local" | "global")) : gte(threatIntelTable.publishedAt, dateFilter)
+      ).orderBy(sql`${threatIntelTable.publishedAt} DESC`).limit(5),
     ]);
 
-    const totalThreatsToday = (newsTotal?.count ?? 0) + (threatsTotal?.count ?? 0);
+    const ns = newsStats.rows[0] ?? { total: 0, local_count: 0, global_count: 0, critical_active: 0, high_active: 0, resolved: 0 };
+    const ts = threatStats.rows[0] ?? { total: 0, local_count: 0, global_count: 0, critical_active: 0, high_active: 0, resolved: 0 };
+
+    const totalThreatsToday = ns.total + ts.total;
 
     let localThreatsToday: number;
     let globalThreatsToday: number;
@@ -124,13 +93,13 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
       localThreatsToday = scope === "local" ? totalThreatsToday : 0;
       globalThreatsToday = scope === "global" ? totalThreatsToday : 0;
     } else {
-      localThreatsToday = (localNews?.count ?? 0) + (localThreats?.count ?? 0);
-      globalThreatsToday = (globalNews?.count ?? 0) + (globalThreats?.count ?? 0);
+      localThreatsToday = ns.local_count + ts.local_count;
+      globalThreatsToday = ns.global_count + ts.global_count;
     }
 
-    const criticalAlerts = (criticalNews?.count ?? 0) + (criticalThreats?.count ?? 0);
-    const highAlerts = (highNews?.count ?? 0) + (highThreats?.count ?? 0);
-    const resolvedIncidents = (resolvedNews?.count ?? 0) + (resolvedThreats?.count ?? 0);
+    const criticalAlerts = ns.critical_active + ts.critical_active;
+    const highAlerts = ns.high_active + ts.high_active;
+    const resolvedIncidents = ns.resolved + ts.resolved;
 
     const recentItems = [
       ...recentNewsItems.map((item) => ({ ...item, sourceType: "news" as const })),
@@ -147,18 +116,21 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
     // India stats - only fetch when scope=local
     let indiaStats: { byState: Array<{ state: string; count: number }>; bySector: Array<{ sector: string; count: number }> } | undefined;
     if (scope === "local") {
+      const cnt = sql<number>`count(*)::int`;
+      const dateGte = gte(newsItemsTable.publishedAt, dateFilter);
+      const threatDateGte = gte(threatIntelTable.publishedAt, dateFilter);
       const [threatStateRows, newsStateRows, threatSectorRows, newsSectorRows] = await Promise.all([
-        db.select({ state: threatIntelTable.indianState, count }).from(threatIntelTable)
-          .where(and(threatBase, eq(threatIntelTable.scope, "local"), isNotNull(threatIntelTable.indianState)))
+        db.select({ state: threatIntelTable.indianState, count: cnt }).from(threatIntelTable)
+          .where(and(threatDateGte, eq(threatIntelTable.scope, "local"), isNotNull(threatIntelTable.indianState)))
           .groupBy(threatIntelTable.indianState),
-        db.select({ state: newsItemsTable.indianState, count }).from(newsItemsTable)
-          .where(and(newsBase, eq(newsItemsTable.scope, "local"), isNotNull(newsItemsTable.indianState)))
+        db.select({ state: newsItemsTable.indianState, count: cnt }).from(newsItemsTable)
+          .where(and(dateGte, eq(newsItemsTable.scope, "local"), isNotNull(newsItemsTable.indianState)))
           .groupBy(newsItemsTable.indianState),
-        db.select({ sector: threatIntelTable.indianSector, count }).from(threatIntelTable)
-          .where(and(threatBase, eq(threatIntelTable.scope, "local"), isNotNull(threatIntelTable.indianSector)))
+        db.select({ sector: threatIntelTable.indianSector, count: cnt }).from(threatIntelTable)
+          .where(and(threatDateGte, eq(threatIntelTable.scope, "local"), isNotNull(threatIntelTable.indianSector)))
           .groupBy(threatIntelTable.indianSector),
-        db.select({ sector: newsItemsTable.indianSector, count }).from(newsItemsTable)
-          .where(and(newsBase, eq(newsItemsTable.scope, "local"), isNotNull(newsItemsTable.indianSector)))
+        db.select({ sector: newsItemsTable.indianSector, count: cnt }).from(newsItemsTable)
+          .where(and(dateGte, eq(newsItemsTable.scope, "local"), isNotNull(newsItemsTable.indianSector)))
           .groupBy(newsItemsTable.indianSector),
       ]);
 

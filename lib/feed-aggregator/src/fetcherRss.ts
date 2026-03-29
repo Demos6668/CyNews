@@ -319,13 +319,13 @@ export async function fetchRssFeeds(
   async function processSource(source: RssSource): Promise<void> {
     try {
       const feed = await parser.parseURL(source.url);
-      let addedNews = 0;
-      let addedThreats = 0;
       const isThreat = THREAT_CATEGORY_SOURCES.has(source.name) || source.category === "THREAT";
+      const newsBatch: (typeof newsItemsTable.$inferInsert)[] = [];
+      const threatBatch: (typeof threatIntelTable.$inferInsert)[] = [];
 
       for (const item of feed.items ?? []) {
         const link = extractRealUrl(item as RssItem, source.name);
-        if (!link || seenUrls.has(link)) continue;
+        if (!link || seenUrls.has(link) || knownUrls.has(link)) continue;
         seenUrls.add(link);
 
         const title = item.title?.trim() ?? "Untitled";
@@ -361,8 +361,7 @@ export async function fetchRssFeeds(
         };
 
         if (isThreat) {
-          if (knownUrls.has(link)) continue;
-          await db.insert(threatIntelTable).values({
+          threatBatch.push({
             title,
             summary,
             description: content.slice(0, 5000),
@@ -376,11 +375,8 @@ export async function fetchRssFeeds(
             publishedAt: pubDate,
             ...indiaFields,
           });
-          knownUrls.add(link);
-          addedThreats++;
         } else {
-          if (knownUrls.has(link)) continue;
-          await db.insert(newsItemsTable).values({
+          newsBatch.push({
             title,
             summary,
             content: content.slice(0, 10000),
@@ -399,13 +395,19 @@ export async function fetchRssFeeds(
             publishedAt: pubDate,
             ...indiaFields,
           });
-          knownUrls.add(link);
-          addedNews++;
         }
+        knownUrls.add(link);
       }
-      result.rssNews += addedNews;
-      result.rssThreats += addedThreats;
-      if (addedNews + addedThreats > 0) logger.info(`[RSS] ${source.name}: +${addedNews} news, +${addedThreats} threats`);
+
+      // Batch insert all items for this source in one query each
+      if (newsBatch.length > 0) await db.insert(newsItemsTable).values(newsBatch);
+      if (threatBatch.length > 0) await db.insert(threatIntelTable).values(threatBatch);
+
+      result.rssNews += newsBatch.length;
+      result.rssThreats += threatBatch.length;
+      if (newsBatch.length + threatBatch.length > 0) {
+        logger.info(`[RSS] ${source.name}: +${newsBatch.length} news, +${threatBatch.length} threats`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result.errors.push({ source: source.name, error: msg });
