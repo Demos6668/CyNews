@@ -27,7 +27,7 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     // Sanitize LIKE wildcards to prevent pattern injection
     const sanitized = query.q.replace(/[%_\\]/g, "\\$&");
     const searchTerm = `%${sanitized}%`;
-    const limit = query.limit ?? 20;
+    const limit = Math.min(query.limit ?? 20, 100);
     const results: SearchResultItem[] = [];
 
     if (!query.type || query.type === "news") {

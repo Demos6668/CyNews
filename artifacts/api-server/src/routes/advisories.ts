@@ -87,7 +87,7 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     const totalCritical = criticalResult[0]?.count ?? 0;
     const totalHigh = highResult[0]?.count ?? 0;
     const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 
     const items = await db
@@ -149,7 +149,7 @@ router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
 
     const total = totalResult?.count ?? 0;
     const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 
     const items = await db
