@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/shared";
+import { addProduct as apiAddProduct } from "@workspace/api-client-react";
 
 const PRODUCT_CATEGORIES = [
   "Operating System",
@@ -54,20 +55,12 @@ export function AddProductModal({ isOpen, onClose, workspaceId, onAdded }: AddPr
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: product.name.trim(),
-          vendor: product.vendor.trim() || undefined,
-          version: product.version.trim() || undefined,
-          category: product.category,
-        }),
+      await apiAddProduct(workspaceId, {
+        name: product.name.trim(),
+        vendor: product.vendor.trim() || undefined,
+        version: product.version.trim() || undefined,
+        category: product.category,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Failed to add product");
-      }
       setProduct({ name: "", vendor: "", version: "", category: "Other" });
       onAdded();
       onClose();
@@ -82,16 +75,11 @@ export function AddProductModal({ isOpen, onClose, workspaceId, onAdded }: AddPr
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: p.name,
-          vendor: p.vendor,
-          category: p.category,
-        }),
+      await apiAddProduct(workspaceId, {
+        name: p.name,
+        vendor: p.vendor,
+        category: p.category,
       });
-      if (!res.ok) throw new Error("Failed to add product");
       onAdded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add product");

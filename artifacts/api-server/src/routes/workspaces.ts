@@ -14,13 +14,24 @@ import {
   getWorkspaceFeed,
 } from "../services/workspaceService";
 import { logger } from "../lib/logger";
+import { validate } from "../middlewares/validate";
+import {
+  CreateWorkspaceBody,
+  GetWorkspaceParams,
+  UpdateWorkspaceParams,
+  UpdateWorkspaceBody,
+  DeleteWorkspaceParams,
+  AddProductParams,
+  AddProductBody,
+  RemoveProductParams,
+  GetWorkspaceFeedParams,
+  GetWorkspaceFeedQueryParams,
+  MatchWorkspaceThreatsParams,
+  UpdateMatchParams,
+  UpdateMatchBody,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
-
-function isValidUuid(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-}
 
 router.get("/workspaces", async (req: Request, res: Response) => {
   try {
@@ -44,13 +55,9 @@ router.get("/workspaces", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/workspaces/:id", async (req: Request, res: Response) => {
+router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
+    const id = req.params.id;
 
     const [workspace] = await db
       .select()
@@ -85,18 +92,14 @@ router.get("/workspaces/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/workspaces", async (req: Request, res: Response) => {
+router.post("/workspaces", validate({ body: CreateWorkspaceBody }), async (req: Request, res: Response) => {
   try {
     const { name, domain, description, products } = req.body;
-    if (!name || !domain) {
-      res.status(400).json({ error: "Name and domain are required" });
-      return;
-    }
 
     const workspace = await createWorkspace({
-      name: String(name),
-      domain: String(domain),
-      description: description ? String(description) : undefined,
+      name,
+      domain,
+      description: description ?? undefined,
       products: Array.isArray(products) ? products : undefined,
     });
 
@@ -113,19 +116,15 @@ router.post("/workspaces", async (req: Request, res: Response) => {
   }
 });
 
-router.put("/workspaces/:id", async (req: Request, res: Response) => {
+router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
+    const id = req.params.id;
 
     const { name, domain, description } = req.body;
     const updates: Record<string, unknown> = {};
-    if (name !== undefined) updates.name = String(name);
-    if (domain !== undefined) updates.domain = String(domain);
-    if (description !== undefined) updates.description = String(description);
+    if (name !== undefined) updates.name = name;
+    if (domain !== undefined) updates.domain = domain;
+    if (description !== undefined) updates.description = description;
     updates.updatedAt = new Date();
 
     const [updated] = await db
@@ -146,13 +145,9 @@ router.put("/workspaces/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/workspaces/:id", async (req: Request, res: Response) => {
+router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
+    const id = req.params.id;
 
     const [workspace] = await db
       .select()
@@ -178,25 +173,16 @@ router.delete("/workspaces/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/workspaces/:id/products", async (req: Request, res: Response) => {
+router.post("/workspaces/:id/products", validate({ params: AddProductParams, body: AddProductBody }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
-
+    const id = req.params.id;
     const { name, vendor, version, category } = req.body;
-    if (!name) {
-      res.status(400).json({ error: "Product name is required" });
-      return;
-    }
 
     const product = await addProduct(id, {
-      name: String(name),
-      vendor: vendor ? String(vendor) : undefined,
-      version: version ? String(version) : undefined,
-      category: category ? String(category) : undefined,
+      name,
+      vendor: vendor ?? undefined,
+      version: version ?? undefined,
+      category: category ?? undefined,
     });
 
     res.status(201).json(product);
@@ -206,14 +192,10 @@ router.post("/workspaces/:id/products", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/workspaces/:id/products/:productId", async (req: Request, res: Response) => {
+router.delete("/workspaces/:id/products/:productId", validate({ params: RemoveProductParams }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    const productId = String(req.params.productId ?? "");
-    if (!isValidUuid(id) || !isValidUuid(productId)) {
-      res.status(400).json({ error: "Invalid ID" });
-      return;
-    }
+    const id = req.params.id;
+    const productId = req.params.productId;
 
     const [product] = await db
       .select({ productName: workspaceProductsTable.productName })
@@ -253,16 +235,11 @@ router.delete("/workspaces/:id/products/:productId", async (req: Request, res: R
   }
 });
 
-router.get("/workspaces/:id/feed", async (req: Request, res: Response) => {
+router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, query: GetWorkspaceFeedQueryParams }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
-
-    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit), 10) || 20));
+    const id = req.params.id;
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
 
     const { items, total } = await getWorkspaceFeed(id, { page, limit });
 
@@ -306,13 +283,9 @@ router.get("/workspaces/:id/feed", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/workspaces/:id/match", async (req: Request, res: Response) => {
+router.post("/workspaces/:id/match", validate({ params: MatchWorkspaceThreatsParams }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    if (!isValidUuid(id)) {
-      res.status(400).json({ error: "Invalid workspace ID" });
-      return;
-    }
+    const id = req.params.id;
 
     const matches = await matchThreatsToWorkspace(id);
     res.json({ matchedCount: matches.length });
@@ -322,19 +295,15 @@ router.post("/workspaces/:id/match", async (req: Request, res: Response) => {
   }
 });
 
-router.put("/workspaces/:id/matches/:matchId", async (req: Request, res: Response) => {
+router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchParams, body: UpdateMatchBody }), async (req: Request, res: Response) => {
   try {
-    const id = String(req.params.id ?? "");
-    const matchId = String(req.params.matchId ?? "");
-    if (!isValidUuid(id) || !isValidUuid(matchId)) {
-      res.status(400).json({ error: "Invalid ID" });
-      return;
-    }
+    const id = req.params.id;
+    const matchId = req.params.matchId;
 
     const { reviewed, dismissed } = req.body;
     const updates: Record<string, unknown> = {};
-    if (reviewed !== undefined) updates.reviewed = Boolean(reviewed);
-    if (dismissed !== undefined) updates.dismissed = Boolean(dismissed);
+    if (reviewed !== undefined) updates.reviewed = reviewed;
+    if (dismissed !== undefined) updates.dismissed = dismissed;
 
     const [updated] = await db
       .update(workspaceThreatMatchesTable)

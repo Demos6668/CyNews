@@ -3,16 +3,16 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Loader, ErrorBoundary } from "@/components/Common";
-import Dashboard from "@/pages/Dashboard";
-import NewsPage from "@/pages/NewsPage";
-import Advisories from "@/pages/Advisories";
-import CertInAdvisories from "@/pages/CertInAdvisories";
-import ThreatIntel from "@/pages/ThreatIntel";
-import NotFound from "@/pages/not-found";
+import { Loader, ErrorBoundary, RouteErrorBoundary } from "@/components/Common";
 
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const NewsPage = lazy(() => import("@/pages/NewsPage"));
+const Advisories = lazy(() => import("@/pages/Advisories"));
+const CertInAdvisories = lazy(() => import("@/pages/CertInAdvisories"));
+const ThreatIntel = lazy(() => import("@/pages/ThreatIntel"));
 const Search = lazy(() => import("@/pages/Search"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,45 +26,31 @@ const queryClient = new QueryClient({
 function Router() {
   return (
     <AppLayout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/news/local">
-          {() => <NewsPage scope="local" />}
-        </Route>
-        <Route path="/news/global">
-          {() => <NewsPage scope="global" />}
-        </Route>
-        <Route path="/cert-in" component={CertInAdvisories} />
-        <Route path="/advisories" component={Advisories} />
-        <Route path="/threat-intel" component={ThreatIntel} />
-        <Route path="/search">
-          {() => (
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-20">
-                  <Loader size="lg" />
-                </div>
-              }
-            >
-              <Search />
-            </Suspense>
-          )}
-        </Route>
-        <Route path="/settings">
-          {() => (
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-20">
-                  <Loader size="lg" />
-                </div>
-              }
-            >
-              <Settings />
-            </Suspense>
-          )}
-        </Route>
-        <Route component={NotFound} />
-      </Switch>
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-20">
+            <Loader size="lg" />
+          </div>
+        }
+      >
+        <RouteErrorBoundary>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/news/local">
+              {() => <NewsPage scope="local" />}
+            </Route>
+            <Route path="/news/global">
+              {() => <NewsPage scope="global" />}
+            </Route>
+            <Route path="/cert-in" component={CertInAdvisories} />
+            <Route path="/advisories" component={Advisories} />
+            <Route path="/threat-intel" component={ThreatIntel} />
+            <Route path="/search" component={Search} />
+            <Route path="/settings" component={Settings} />
+            <Route component={NotFound} />
+          </Switch>
+        </RouteErrorBoundary>
+      </Suspense>
     </AppLayout>
   );
 }

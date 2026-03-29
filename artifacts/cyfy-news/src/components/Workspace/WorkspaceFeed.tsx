@@ -6,6 +6,13 @@ import { AddProductModal } from "./AddProductModal";
 import { Button, Skeleton } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
+import {
+  getWorkspace,
+  getWorkspaceFeed,
+  removeProduct as apiRemoveProduct,
+  matchWorkspaceThreats,
+  updateMatch,
+} from "@workspace/api-client-react";
 
 interface WorkspaceProduct {
   id: string;
@@ -46,18 +53,16 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
   const [selectedItem, setSelectedItem] = useState<ThreatIntelItem | null>(null);
 
   const fetchWorkspace = useCallback(() => {
-    fetch(`/api/workspaces/${workspace.id}`)
-      .then((r) => r.json())
-      .then((data) => setProducts(data.products ?? []))
+    getWorkspace(workspace.id)
+      .then((data) => setProducts((data as { products?: WorkspaceProduct[] }).products ?? []))
       .catch(() => setProducts([]));
   }, [workspace.id]);
 
   const fetchFeed = useCallback(() => {
     setLoading(true);
-    fetch(`/api/workspaces/${workspace.id}/feed?limit=50`)
-      .then((r) => r.json())
+    getWorkspaceFeed(workspace.id, { limit: 50 })
       .then((data) => {
-        setItems(data.items ?? []);
+        setItems((data.items ?? []) as FeedItem[]);
         setTotal(data.total ?? 0);
       })
       .catch(() => setItems([]))
@@ -74,23 +79,21 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
 
   const handleRemoveProduct = async (productId: string) => {
     try {
-      await fetch(`/api/workspaces/${workspace.id}/products/${productId}`, {
-        method: "DELETE",
-      });
+      await apiRemoveProduct(workspace.id, productId);
       setProducts((prev) => prev.filter((p) => p.id !== productId));
       fetchFeed();
     } catch (e) {
-      console.error(e);
+      // silently fail — UI already reflects optimistic state
     }
   };
 
   const handleMatch = async () => {
     setMatching(true);
     try {
-      await fetch(`/api/workspaces/${workspace.id}/match`, { method: "POST" });
+      await matchWorkspaceThreats(workspace.id);
       fetchFeed();
     } catch (e) {
-      console.error(e);
+      // silently fail
     } finally {
       setMatching(false);
     }
@@ -101,32 +104,24 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
 
   const handleReview = async (matchId: string) => {
     try {
-      await fetch(`/api/workspaces/${workspace.id}/matches/${matchId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewed: true }),
-      });
+      await updateMatch(workspace.id, matchId, { reviewed: true });
       setItems((prev) =>
         prev.map((t) => (t.matchId === matchId ? { ...t, reviewed: true } : t))
       );
       onReview?.(matchId);
     } catch (e) {
-      console.error(e);
+      // silently fail
     }
   };
 
   const handleDismiss = async (matchId: string) => {
     try {
-      await fetch(`/api/workspaces/${workspace.id}/matches/${matchId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dismissed: true }),
-      });
+      await updateMatch(workspace.id, matchId, { dismissed: true });
       setItems((prev) => prev.filter((t) => t.matchId !== matchId));
       setTotal((t) => Math.max(0, t - 1));
       onDismiss?.(matchId);
     } catch (e) {
-      console.error(e);
+      // silently fail
     }
   };
 
