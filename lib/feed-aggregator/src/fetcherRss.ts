@@ -6,6 +6,7 @@
 import Parser from "rss-parser";
 import { logger } from "./logger";
 import { db, newsItemsTable, threatIntelTable } from "@workspace/db";
+import { gte } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { cyberRelevanceDetector } from "./cyberRelevanceDetector";
 import {
@@ -300,18 +301,22 @@ export async function fetchRssFeeds(
   const seenUrls = new Set<string>();
   const sorted = [...RSS_SOURCES].sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2));
 
-  // Batch-load existing source URLs to avoid N+1 per-item SELECT queries
+  // Batch-load existing source URLs from last 90 days to avoid N+1 per-item SELECT queries
+  const dedupCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const [existingNews, existingThreats] = await Promise.all([
-    db.select({ sourceUrl: newsItemsTable.sourceUrl }).from(newsItemsTable),
-    db.select({ sourceUrl: threatIntelTable.sourceUrl }).from(threatIntelTable),
+    db.select({ sourceUrl: newsItemsTable.sourceUrl }).from(newsItemsTable).where(gte(newsItemsTable.publishedAt, dedupCutoff)),
+    db.select({ sourceUrl: threatIntelTable.sourceUrl }).from(threatIntelTable).where(gte(threatIntelTable.publishedAt, dedupCutoff)),
   ]);
   const knownUrls = new Set([
     ...existingNews.map((r) => r.sourceUrl).filter(Boolean),
     ...existingThreats.map((r) => r.sourceUrl).filter(Boolean),
   ] as string[]);
 
-  for (const source of sorted) {
-    if (CERT_IN_SOURCES.has(source.name)) continue;
+  const BATCH_SIZE = 5;
+  const BATCH_DELAY_MS = 500;
+  const sources = sorted.filter((s) => !CERT_IN_SOURCES.has(s.name));
+
+  async function processSource(source: RssSource): Promise<void> {
     try {
       const feed = await parser.parseURL(source.url);
       let addedNews = 0;
@@ -406,6 +411,14 @@ export async function fetchRssFeeds(
       result.errors.push({ source: source.name, error: msg });
       logger.error(`[RSS] ${source.name} failed:`, msg);
     }
-    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  // Process sources in batches of BATCH_SIZE for controlled concurrency
+  for (let i = 0; i < sources.length; i += BATCH_SIZE) {
+    const batch = sources.slice(i, i + BATCH_SIZE);
+    await Promise.allSettled(batch.map((s) => processSource(s)));
+    if (i + BATCH_SIZE < sources.length) {
+      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+    }
   }
 }

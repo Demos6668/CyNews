@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { resolve, join } from "path";
 import { existsSync } from "fs";
+import { randomUUID } from "crypto";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -27,7 +28,20 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
 }));
+
+// Request ID for log correlation
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestId = (req.headers["x-request-id"] as string) || randomUUID();
+  res.setHeader("X-Request-Id", requestId);
+  (req as any).id = requestId;
+  next();
+});
 
 // CORS - restrict to known origins in production
 const allowedOrigins = process.env.CORS_ORIGINS
@@ -41,7 +55,11 @@ app.use(cors(allowedOrigins ? {
 
 // Structured request logging
 if (process.env.NODE_ENV !== "test") {
-  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === "/api/healthz" } }));
+  app.use(pinoHttp({
+    logger,
+    genReqId: (req) => (req as any).id,
+    autoLogging: { ignore: (req) => req.url === "/api/healthz" },
+  }));
 }
 
 // Body parsing with size limits
