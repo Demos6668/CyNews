@@ -3,8 +3,10 @@ import { db, newsItemsTable } from "@workspace/db";
 import { insertNewsItemSchema } from "@workspace/db/schema";
 import { eq, sql, and, gte, lte, inArray, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { logger } from "../lib/logger";
+import { validate } from "../middlewares/validate";
+import { asyncHandler } from "../middlewares/errorHandler";
 
 import {
   GetNewsQueryParams,
@@ -15,6 +17,8 @@ import {
   ToggleBookmarkResponse,
   GetBookmarkedNewsResponse,
 } from "@workspace/api-zod";
+
+const RssQueryParams = z.object({ scope: z.enum(["local", "global"]).optional() });
 
 const router: IRouter = Router();
 
@@ -48,9 +52,17 @@ function formatNewsItem(item: typeof newsItemsTable.$inferSelect) {
   };
 }
 
-router.get("/news/rss", async (req: Request, res: Response) => {
-  try {
-    const scope = req.query.scope as "local" | "global" | undefined;
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+router.get("/news/rss", validate({ query: RssQueryParams }), asyncHandler(async (req: Request, res: Response) => {
+    const scope = req.query.scope as string | undefined;
     const conditions: SQL[] = [];
     if (scope) conditions.push(eq(newsItemsTable.scope, scope));
 
@@ -89,23 +101,9 @@ ${rssItems}
 
     res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
     res.send(rss);
-  } catch (error) {
-    logger.error({ err: error }, "RSS error");
-    res.status(500).json({ error: "Failed to generate RSS feed" });
-  }
-});
+}));
 
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-router.get("/news/bookmarked", async (_req: Request, res: Response) => {
-  try {
+router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response) => {
     const items = await db
       .select()
       .from(newsItemsTable)
@@ -121,18 +119,9 @@ router.get("/news/bookmarked", async (_req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Bookmarked news error");
-    res.status(500).json({ error: "Failed to fetch bookmarked news" });
-  }
-});
+}));
 
-router.get("/news", async (req: Request, res: Response) => {
-  try {
+router.get("/news", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = { ...req.query } as Record<string, unknown>;
     if (typeof rawQuery.from === "string") rawQuery.from = new Date(rawQuery.from);
     if (typeof rawQuery.to === "string") rawQuery.to = new Date(rawQuery.to);
@@ -189,18 +178,9 @@ router.get("/news", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "News list error");
-    res.status(500).json({ error: "Failed to fetch news" });
-  }
-});
+}));
 
-router.get("/news/:id", async (req: Request, res: Response) => {
-  try {
+router.get("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     const params = GetNewsByIdParams.parse({ id: Number(req.params.id) });
 
     const [item] = await db
@@ -215,18 +195,9 @@ router.get("/news/:id", async (req: Request, res: Response) => {
 
     const data = GetNewsByIdResponse.parse(formatNewsItem(item));
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "News detail error");
-    res.status(500).json({ error: "Failed to fetch news item" });
-  }
-});
+}));
 
-router.post("/news", async (req: Request, res: Response) => {
-  try {
+router.post("/news", asyncHandler(async (req: Request, res: Response) => {
     const body = insertNewsItemSchema.parse(req.body);
     const [inserted] = await db
       .insert(newsItemsTable)
@@ -251,18 +222,9 @@ router.post("/news", async (req: Request, res: Response) => {
 
     const data = GetNewsByIdResponse.parse(formatNewsItem(inserted));
     res.status(201).json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request body", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Create news error");
-    res.status(500).json({ error: "Failed to create news item" });
-  }
-});
+}));
 
-router.put("/news/:id", async (req: Request, res: Response) => {
-  try {
+router.put("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const body = insertNewsItemSchema.partial().parse(req.body);
 
@@ -306,18 +268,9 @@ router.put("/news/:id", async (req: Request, res: Response) => {
 
     const data = GetNewsByIdResponse.parse(formatNewsItem(updated));
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request body", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Update news error");
-    res.status(500).json({ error: "Failed to update news item" });
-  }
-});
+}));
 
-router.delete("/news/:id", async (req: Request, res: Response) => {
-  try {
+router.delete("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     const params = GetNewsByIdParams.parse({ id: Number(req.params.id) });
 
     const [item] = await db
@@ -332,18 +285,9 @@ router.delete("/news/:id", async (req: Request, res: Response) => {
 
     await db.delete(newsItemsTable).where(eq(newsItemsTable.id, params.id));
     res.status(204).send();
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Delete news error");
-    res.status(500).json({ error: "Failed to delete news item" });
-  }
-});
+}));
 
-router.post("/news/:id/bookmark", async (req: Request, res: Response) => {
-  try {
+router.post("/news/:id/bookmark", asyncHandler(async (req: Request, res: Response) => {
     const params = ToggleBookmarkParams.parse({ id: Number(req.params.id) });
 
     const [item] = await db
@@ -368,14 +312,6 @@ router.post("/news/:id/bookmark", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Bookmark error");
-    res.status(500).json({ error: "Failed to toggle bookmark" });
-  }
-});
+}));
 
 export default router;

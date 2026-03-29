@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Mail, Copy, Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
+import { getEmailTemplates, exportEmailBatch } from "@/lib/exportApi";
 
 interface TemplateListEntry {
   id: string;
@@ -43,11 +44,10 @@ export function BulkEmailExportModal({
   useEffect(() => {
     if (isOpen) {
       const type = isCertIn ? "cert-in" : "general";
-      fetch(`/api/export/templates?type=${type}`)
-        .then((r) => r.json())
-        .then((data: TemplateListEntry[]) => {
-          setTemplates(data);
-          const defaultT = data.find((t) => t.isDefault) ?? data[0];
+      getEmailTemplates(type)
+        .then((data) => {
+          setTemplates(data as TemplateListEntry[]);
+          const defaultT = data.find((t) => (t as TemplateListEntry).isDefault) ?? data[0];
           if (defaultT) setSelectedTemplateId(defaultT.id);
         })
         .catch(console.error);
@@ -58,16 +58,11 @@ export function BulkEmailExportModal({
     if (!selectedTemplateId || advisoryIds.length === 0) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/export/email/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          advisoryIds,
-          templateId: selectedTemplateId,
-          format: "html",
-        }),
+      const data = await exportEmailBatch({
+        advisoryIds,
+        templateId: selectedTemplateId ?? undefined,
+        format: "html",
       });
-      const data = await res.json();
       setExports(data.exports ?? []);
     } catch (e) {
       console.error("Batch export error:", e);

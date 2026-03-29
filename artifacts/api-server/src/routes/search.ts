@@ -3,7 +3,7 @@ import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspac
 import { sql, ilike, or } from "drizzle-orm";
 
 import { SearchQueryParams, SearchResponse } from "@workspace/api-zod";
-import { logger } from "../lib/logger";
+import { asyncHandler } from "../middlewares/errorHandler";
 
 const router: IRouter = Router();
 
@@ -17,8 +17,7 @@ interface SearchResultItem {
   publishedAt: string;
 }
 
-router.get("/search", async (req: Request, res: Response) => {
-  try {
+router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     const query = SearchQueryParams.parse(req.query);
     // Sanitize LIKE wildcards to prevent pattern injection
     const sanitized = query.q.replace(/[%_\\]/g, "\\$&");
@@ -138,14 +137,6 @@ router.get("/search", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid search parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Search error");
-    res.status(500).json({ error: "Failed to search" });
-  }
-});
+}));
 
 export default router;

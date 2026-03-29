@@ -8,9 +8,37 @@ import {
   type AdvisoryWithCustomizations,
 } from "../services/emailTemplateService";
 import type { AdvisoryForExport } from "../services/exportService";
-import { logger } from "../lib/logger";
+import { asyncHandler } from "../middlewares/errorHandler";
+import { validate } from "../middlewares/validate";
+import { z } from "zod";
 
 const router: IRouter = Router();
+
+const BulkAdvisoriesBody = z.object({
+  ids: z.array(z.number().int().positive()).optional(),
+  timeframe: z.string().optional(),
+  scope: z.enum(["local", "global"]).optional(),
+  vendor: z.string().optional(),
+});
+
+const ExportPreviewBody = z.object({
+  advisoryId: z.union([z.number(), z.string()]),
+  templateId: z.string().optional(),
+  customizations: z.record(z.unknown()).optional(),
+});
+
+const ExportEmailBody = z.object({
+  advisoryId: z.union([z.number(), z.string()]),
+  templateId: z.string().optional(),
+  customizations: z.record(z.unknown()).optional(),
+  format: z.enum(["html", "text", "mailto", "outlook"]).optional(),
+});
+
+const ExportEmailBatchBody = z.object({
+  advisoryIds: z.array(z.number().int().positive()),
+  templateId: z.string().optional(),
+  format: z.enum(["html", "text"]).optional(),
+});
 const MAX_BULK_IDS = 50;
 
 function convertHtmlToPlainText(html: string): string {
@@ -132,8 +160,7 @@ function toThreatForExport(row: typeof threatIntelTable.$inferSelect): AdvisoryW
   };
 }
 
-router.get("/export/advisory/:id", async (req: Request, res: Response) => {
-  try {
+router.get("/export/advisory/:id", asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) {
       res.status(400).json({ error: "Invalid advisory ID" });
@@ -160,15 +187,10 @@ router.get("/export/advisory/:id", async (req: Request, res: Response) => {
       `attachment; filename="${filename}-advisory.html"`
     );
     res.send(html);
-  } catch (error) {
-    logger.error({ err: error }, "Export advisory error");
-    res.status(500).json({ error: "Failed to export advisory" });
-  }
-});
+}));
 
-router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
-  try {
-    const body = req.body as { ids?: number[]; timeframe?: string; scope?: "local" | "global"; vendor?: string };
+router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body;
     let items: typeof advisoriesTable.$inferSelect[];
 
     if (body.ids && Array.isArray(body.ids)) {
@@ -224,11 +246,7 @@ router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
       `attachment; filename="cyfy-advisories-${new Date().toISOString().slice(0, 10)}.html"`
     );
     res.send(html);
-  } catch (error) {
-    logger.error({ err: error }, "Bulk export error");
-    res.status(500).json({ error: "Failed to export advisories" });
-  }
-});
+}));
 
 router.get("/export/templates", (req: Request, res: Response) => {
   const type = (req.query.type as string) || "all";
@@ -245,17 +263,8 @@ router.get("/export/templates/:id", (req: Request, res: Response) => {
   res.json(template);
 });
 
-router.post("/export/preview", async (req: Request, res: Response) => {
-  try {
-    const { advisoryId, templateId, customizations } = req.body as {
-      advisoryId: number | string;
-      templateId?: string;
-      customizations?: Record<string, unknown>;
-    };
-    if (!advisoryId) {
-      res.status(400).json({ error: "advisoryId required" });
-      return;
-    }
+router.post("/export/preview", validate({ body: ExportPreviewBody }), asyncHandler(async (req: Request, res: Response) => {
+    const { advisoryId, templateId, customizations } = req.body;
 
     const exportItem = await findExportItemById(advisoryId);
     if (!exportItem) {
@@ -300,24 +309,10 @@ router.post("/export/preview", async (req: Request, res: Response) => {
         type: exportItem.type === "threat" ? "threat" : exportItem.type === "advisory" && (row as typeof advisoriesTable.$inferSelect).isCertIn ? "cert-in" : "advisory",
       },
     });
-  } catch (error) {
-    logger.error({ err: error }, "Preview error");
-    res.status(500).json({ error: "Failed to generate preview" });
-  }
-});
+}));
 
-router.post("/export/email", async (req: Request, res: Response) => {
-  try {
-    const { advisoryId, templateId, customizations, format } = req.body as {
-      advisoryId: number | string;
-      templateId?: string;
-      customizations?: Record<string, unknown>;
-      format?: "html" | "text" | "mailto" | "outlook";
-    };
-    if (!advisoryId) {
-      res.status(400).json({ error: "advisoryId required" });
-      return;
-    }
+router.post("/export/email", validate({ body: ExportEmailBody }), asyncHandler(async (req: Request, res: Response) => {
+    const { advisoryId, templateId, customizations, format } = req.body;
 
     const exportItem = await findExportItemById(advisoryId);
     if (!exportItem) {
@@ -374,32 +369,12 @@ router.post("/export/email", async (req: Request, res: Response) => {
         });
         break;
     }
-  } catch (error) {
-    logger.error({ err: error }, "Export email error");
-    res.status(500).json({ error: "Failed to export" });
-  }
-});
+}));
 
-router.post("/export/email/batch", async (req: Request, res: Response) => {
-  try {
-    const { advisoryIds, templateId, format } = req.body as {
-      advisoryIds: number[];
-      templateId?: string;
-      format?: "html" | "text";
-    };
+router.post("/export/email/batch", validate({ body: ExportEmailBatchBody }), asyncHandler(async (req: Request, res: Response) => {
+    const { advisoryIds, templateId, format } = req.body;
 
-    if (!advisoryIds || !Array.isArray(advisoryIds)) {
-      res.status(400).json({ error: "advisoryIds array required" });
-      return;
-    }
-
-    const ids = advisoryIds
-      .slice(0, MAX_BULK_IDS)
-      .filter((id) => Number.isInteger(id) && id > 0);
-    if (ids.length === 0) {
-      res.status(400).json({ error: "No valid advisory IDs provided" });
-      return;
-    }
+    const ids = advisoryIds.slice(0, MAX_BULK_IDS);
 
     const items = await db
       .select()
@@ -439,10 +414,6 @@ router.post("/export/email/batch", async (req: Request, res: Response) => {
     }
 
     res.json({ exports: results });
-  } catch (error) {
-    logger.error({ err: error }, "Batch export error");
-    res.status(500).json({ error: "Failed to batch export" });
-  }
-});
+}));
 
 export default router;

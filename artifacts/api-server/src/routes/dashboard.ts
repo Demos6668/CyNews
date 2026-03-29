@@ -2,17 +2,25 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte, isNotNull } from "drizzle-orm";
 
-import { GetDashboardStatsResponse } from "@workspace/api-zod";
+import { GetDashboardStatsResponse, GetDashboardStatsQueryParams } from "@workspace/api-zod";
+import { validate } from "../middlewares/validate";
+import { asyncHandler } from "../middlewares/errorHandler";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { logger } from "../lib/logger";
+import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { TimeframeValue } from "../lib/timeframe";
 
 const router: IRouter = Router();
 
-router.get("/dashboard/stats", async (req: Request, res: Response) => {
-  try {
-    const timeframe = (req.query.timeframe as TimeframeValue) ?? "24h";
-    const scope = req.query.scope as "local" | "global" | undefined;
+router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams }), asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = (req.query.timeframe ?? "24h") as TimeframeValue;
+    const scope = req.query.scope as string | undefined;
+
+    const cacheKey = `dashboard:${timeframe}:${scope ?? "all"}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
     const fromDate = getTimeframeStartDate(timeframe);
     const dateFilter = fromDate ?? new Date(0);
 
@@ -191,15 +199,8 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
       indiaStats: indiaStats ?? undefined,
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.DASHBOARD);
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Dashboard stats error");
-    res.status(500).json({ error: "Failed to fetch dashboard stats" });
-  }
-});
+}));
 
 export default router;

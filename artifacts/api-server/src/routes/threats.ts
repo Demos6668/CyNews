@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { logger } from "../lib/logger";
+import { asyncHandler } from "../middlewares/errorHandler";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -52,8 +52,7 @@ function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
   };
 }
 
-router.get("/threats/export", async (req: Request, res: Response) => {
-  try {
+router.get("/threats/export", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = req.query as Record<string, string>;
     const format = rawQuery.format === "json" ? "json" : "csv";
     const query = ExportThreatsQueryParams.parse(req.query);
@@ -127,18 +126,9 @@ router.get("/threats/export", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=threats-export.csv");
     res.send(csvRows.join("\n"));
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Export threats error");
-    res.status(500).json({ error: "Failed to export threats" });
-  }
-});
+}));
 
-router.get("/threats/:id", async (req: Request, res: Response) => {
-  try {
+router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
     const params = GetThreatByIdParams.parse({ id: Number(req.params.id) });
 
     const [item] = await db
@@ -153,18 +143,9 @@ router.get("/threats/:id", async (req: Request, res: Response) => {
 
     const data = GetThreatByIdResponse.parse(formatThreatIntel(item));
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Threat detail error");
-    res.status(500).json({ error: "Failed to fetch threat" });
-  }
-});
+}));
 
-router.get("/threats", async (req: Request, res: Response) => {
-  try {
+router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
     const query = GetThreatsQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
@@ -214,14 +195,6 @@ router.get("/threats", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Threats list error");
-    res.status(500).json({ error: "Failed to fetch threats" });
-  }
-});
+}));
 
 export default router;

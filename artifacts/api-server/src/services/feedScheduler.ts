@@ -5,6 +5,7 @@
 import cron from "node-cron";
 import { runFeedUpdate, type OnBroadcast } from "@workspace/feed-aggregator";
 import { logger } from "../lib/logger";
+import { apiCache } from "../lib/cache";
 
 export interface SchedulerStatus {
   isRunning: boolean;
@@ -44,6 +45,7 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
       lastRun = new Date();
       stats.successfulRuns++;
       stats.lastError = null;
+      apiCache.invalidate();
       const duration = ((Date.now() - start) / 1000).toFixed(2);
       logger.info({ duration }, "Feed update complete");
     } catch (err) {

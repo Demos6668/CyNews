@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
+import { exportAdvisoriesBulk } from "@/lib/exportApi";
 
 export default function CertInAdvisories() {
   const searchString = useSearch();
@@ -78,13 +79,8 @@ export default function CertInAdvisories() {
 
   const handleExportSelected = async () => {
     if (selectedIds.size === 0) return;
-    const res = await fetch("/api/export/advisories/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: Array.from(selectedIds) }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
+    const blob = await exportAdvisoriesBulk({ ids: Array.from(selectedIds) });
+    if (!blob) return;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -95,13 +91,8 @@ export default function CertInAdvisories() {
   };
 
   const handleExportAll = async () => {
-    const res = await fetch("/api/export/advisories/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ timeframe: certInTimeframe, vendor: "CERT-In" }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
+    const blob = await exportAdvisoriesBulk({ timeframe: certInTimeframe, vendor: "CERT-In" });
+    if (!blob) return;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

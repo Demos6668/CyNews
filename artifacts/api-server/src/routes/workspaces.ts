@@ -13,7 +13,7 @@ import {
   matchThreatsToWorkspace,
   getWorkspaceFeed,
 } from "../services/workspaceService";
-import { logger } from "../lib/logger";
+import { asyncHandler } from "../middlewares/errorHandler";
 import { validate } from "../middlewares/validate";
 import {
   CreateWorkspaceBody,
@@ -33,8 +33,7 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/workspaces", async (req: Request, res: Response) => {
-  try {
+router.get("/workspaces", asyncHandler(async (req: Request, res: Response) => {
     const rows = await db
       .select()
       .from(workspacesTable)
@@ -49,14 +48,9 @@ router.get("/workspaces", async (req: Request, res: Response) => {
       createdAt: r.createdAt?.toISOString() ?? null,
       updatedAt: r.updatedAt?.toISOString() ?? null,
     })));
-  } catch (error) {
-    logger.error({ err: error }, "List workspaces error");
-    res.status(500).json({ error: "Failed to list workspaces" });
-  }
-});
+}));
 
-router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), async (req: Request, res: Response) => {
-  try {
+router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
 
     const [workspace] = await db
@@ -86,14 +80,9 @@ router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), async (r
         enabled: p.enabled,
       })),
     });
-  } catch (error) {
-    logger.error({ err: error }, "Get workspace error");
-    res.status(500).json({ error: "Failed to get workspace" });
-  }
-});
+}));
 
-router.post("/workspaces", validate({ body: CreateWorkspaceBody }), async (req: Request, res: Response) => {
-  try {
+router.post("/workspaces", validate({ body: CreateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
     const { name, domain, description, products } = req.body;
 
     const workspace = await createWorkspace({
@@ -110,14 +99,9 @@ router.post("/workspaces", validate({ body: CreateWorkspaceBody }), async (req: 
       description: workspace.description,
       isDefault: workspace.isDefault ?? false,
     });
-  } catch (error) {
-    logger.error({ err: error }, "Create workspace error");
-    res.status(500).json({ error: "Failed to create workspace" });
-  }
-});
+}));
 
-router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), async (req: Request, res: Response) => {
-  try {
+router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
 
     const { name, domain, description } = req.body;
@@ -139,14 +123,9 @@ router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: Up
     }
 
     res.json(updated);
-  } catch (error) {
-    logger.error({ err: error }, "Update workspace error");
-    res.status(500).json({ error: "Failed to update workspace" });
-  }
-});
+}));
 
-router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), async (req: Request, res: Response) => {
-  try {
+router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
 
     const [workspace] = await db
@@ -167,14 +146,9 @@ router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), as
 
     await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
     res.json({ success: true });
-  } catch (error) {
-    logger.error({ err: error }, "Delete workspace error");
-    res.status(500).json({ error: "Failed to delete workspace" });
-  }
-});
+}));
 
-router.post("/workspaces/:id/products", validate({ params: AddProductParams, body: AddProductBody }), async (req: Request, res: Response) => {
-  try {
+router.post("/workspaces/:id/products", validate({ params: AddProductParams, body: AddProductBody }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const { name, vendor, version, category } = req.body;
 
@@ -186,14 +160,9 @@ router.post("/workspaces/:id/products", validate({ params: AddProductParams, bod
     });
 
     res.status(201).json(product);
-  } catch (error) {
-    logger.error({ err: error }, "Add product error");
-    res.status(500).json({ error: "Failed to add product" });
-  }
-});
+}));
 
-router.delete("/workspaces/:id/products/:productId", validate({ params: RemoveProductParams }), async (req: Request, res: Response) => {
-  try {
+router.delete("/workspaces/:id/products/:productId", validate({ params: RemoveProductParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const productId = req.params.productId;
 
@@ -229,14 +198,9 @@ router.delete("/workspaces/:id/products/:productId", validate({ params: RemovePr
     }
 
     res.json({ success: true });
-  } catch (error) {
-    logger.error({ err: error }, "Remove product error");
-    res.status(500).json({ error: "Failed to remove product" });
-  }
-});
+}));
 
-router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, query: GetWorkspaceFeedQueryParams }), async (req: Request, res: Response) => {
-  try {
+router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, query: GetWorkspaceFeedQueryParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
@@ -277,26 +241,16 @@ router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, qu
     }));
 
     res.json({ items: formatted, total, page, limit });
-  } catch (error) {
-    logger.error({ err: error }, "Get feed error");
-    res.status(500).json({ error: "Failed to get workspace feed" });
-  }
-});
+}));
 
-router.post("/workspaces/:id/match", validate({ params: MatchWorkspaceThreatsParams }), async (req: Request, res: Response) => {
-  try {
+router.post("/workspaces/:id/match", validate({ params: MatchWorkspaceThreatsParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
 
     const matches = await matchThreatsToWorkspace(id);
     res.json({ matchedCount: matches.length });
-  } catch (error) {
-    logger.error({ err: error }, "Match threats error");
-    res.status(500).json({ error: "Failed to match threats" });
-  }
-});
+}));
 
-router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchParams, body: UpdateMatchBody }), async (req: Request, res: Response) => {
-  try {
+router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchParams, body: UpdateMatchBody }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const matchId = req.params.matchId;
 
@@ -322,10 +276,6 @@ router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchPar
     }
 
     res.json(updated);
-  } catch (error) {
-    logger.error({ err: error }, "Update match error");
-    res.status(500).json({ error: "Failed to update match" });
-  }
-});
+}));
 
 export default router;

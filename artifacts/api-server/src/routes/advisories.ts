@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { logger } from "../lib/logger";
+import { asyncHandler } from "../middlewares/errorHandler";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -48,8 +48,7 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
   };
 }
 
-router.get("/advisories/cert-in", async (req: Request, res: Response) => {
-  try {
+router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = { ...req.query };
     if (rawQuery.timeframe === "90d") rawQuery.timeframe = "all";
     const query = GetCertInAdvisoriesQueryParams.parse(rawQuery);
@@ -100,18 +99,9 @@ router.get("/advisories/cert-in", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "CERT-In advisories error");
-    res.status(500).json({ error: "Failed to fetch CERT-In advisories" });
-  }
-});
+}));
 
-router.get("/advisories", async (req: Request, res: Response) => {
-  try {
+router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
     const query = GetAdvisoriesQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
@@ -169,18 +159,9 @@ router.get("/advisories", async (req: Request, res: Response) => {
     });
 
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Advisories list error");
-    res.status(500).json({ error: "Failed to fetch advisories" });
-  }
-});
+}));
 
-router.get("/advisories/:id", async (req: Request, res: Response) => {
-  try {
+router.get("/advisories/:id", asyncHandler(async (req: Request, res: Response) => {
     const idParam = req.params.id;
     const numericId = Number(idParam);
     const isNumeric = !Number.isNaN(numericId) && String(numericId) === idParam;
@@ -203,14 +184,6 @@ router.get("/advisories/:id", async (req: Request, res: Response) => {
 
     const data = GetAdvisoryByIdResponse.parse(formatAdvisory(item));
     res.json(data);
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
-      return;
-    }
-    logger.error({ err: error }, "Advisory detail error");
-    res.status(500).json({ error: "Failed to fetch advisory" });
-  }
-});
+}));
 
 export default router;

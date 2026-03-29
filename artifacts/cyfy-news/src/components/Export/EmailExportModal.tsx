@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/shared";
 import type { Advisory } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { getEmailTemplates, previewEmail, exportEmail } from "@/lib/exportApi";
 
 interface TemplateListEntry {
   id: string;
@@ -299,21 +300,13 @@ export function EmailExportModal({
     setPreviewLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/export/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          advisoryId: advisory.id ?? advisory.certInId,
-          templateId: selectedTemplateId,
-          customizations: Object.keys(customizations).length
-            ? customizations
-            : undefined,
-        }),
+      const data = await previewEmail({
+        advisoryId: advisory.id ?? advisory.certInId,
+        templateId: selectedTemplateId ?? undefined,
+        customizations: Object.keys(customizations).length
+          ? customizations
+          : undefined,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to generate preview");
-      }
       setPreview({
         subject: data.subject ?? "",
         body: data.body ?? "",
@@ -329,11 +322,10 @@ export function EmailExportModal({
   useEffect(() => {
     if (isOpen && advisory) {
       const type = isCertIn ? "cert-in" : "general";
-      fetch(`/api/export/templates?type=${type}`)
-        .then((r) => r.json())
-        .then((data: TemplateListEntry[]) => {
-          setTemplates(data);
-          const defaultT = data.find((t) => t.isDefault) ?? data[0];
+      getEmailTemplates(type)
+        .then((data) => {
+          setTemplates(data as TemplateListEntry[]);
+          const defaultT = data.find((t) => (t as TemplateListEntry).isDefault) ?? data[0];
           if (defaultT) setSelectedTemplateId(defaultT.id);
         })
         .catch(console.error);
@@ -414,19 +406,14 @@ export function EmailExportModal({
 
   const handleOpenInMail = async () => {
     try {
-      const res = await fetch("/api/export/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          advisoryId: advisory!.id ?? advisory!.certInId,
-          templateId: selectedTemplateId,
-          customizations: Object.keys(customizations).length
-            ? customizations
-            : undefined,
-          format: "mailto",
-        }),
+      const data = await exportEmail({
+        advisoryId: advisory!.id ?? advisory!.certInId,
+        templateId: selectedTemplateId ?? undefined,
+        customizations: Object.keys(customizations).length
+          ? customizations
+          : undefined,
+        format: "mailto",
       });
-      const data = await res.json();
       if (data.mailtoLink) window.location.href = data.mailtoLink;
     } catch (e) {
       console.error("Failed to open mail client:", e);

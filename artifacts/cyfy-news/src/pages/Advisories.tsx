@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
+import { exportAdvisoriesBulk } from "@/lib/exportApi";
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "New", value: "new" },
@@ -117,13 +118,8 @@ export default function Advisories() {
 
   const handleExportSelected = async () => {
     if (selectedIds.size === 0) return;
-    const res = await fetch("/api/export/advisories/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: Array.from(selectedIds) }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
+    const blob = await exportAdvisoriesBulk({ ids: Array.from(selectedIds) });
+    if (!blob) return;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -147,13 +143,8 @@ export default function Advisories() {
   const totalItems = data?.total ?? 0;
 
   const handleExportAll = async () => {
-    const res = await fetch("/api/export/advisories/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ timeframe, scope }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
+    const blob = await exportAdvisoriesBulk({ timeframe, scope });
+    if (!blob) return;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
