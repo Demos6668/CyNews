@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { logger } from "../lib/logger";
 
 /**
  * Centralized async route handler that catches errors and sends proper responses.
@@ -30,6 +31,6 @@ export function globalErrorHandler(
     return;
   }
 
-  console.error("Unhandled error:", err);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Internal server error" });
 }

@@ -13,6 +13,7 @@ import {
   matchThreatsToWorkspace,
   getWorkspaceFeed,
 } from "../services/workspaceService";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -38,7 +39,7 @@ router.get("/workspaces", async (req: Request, res: Response) => {
       updatedAt: r.updatedAt?.toISOString() ?? null,
     })));
   } catch (error) {
-    console.error("List workspaces error:", error);
+    logger.error({ err: error }, "List workspaces error");
     res.status(500).json({ error: "Failed to list workspaces" });
   }
 });
@@ -79,7 +80,7 @@ router.get("/workspaces/:id", async (req: Request, res: Response) => {
       })),
     });
   } catch (error) {
-    console.error("Get workspace error:", error);
+    logger.error({ err: error }, "Get workspace error");
     res.status(500).json({ error: "Failed to get workspace" });
   }
 });
@@ -107,7 +108,7 @@ router.post("/workspaces", async (req: Request, res: Response) => {
       isDefault: workspace.isDefault ?? false,
     });
   } catch (error) {
-    console.error("Create workspace error:", error);
+    logger.error({ err: error }, "Create workspace error");
     res.status(500).json({ error: "Failed to create workspace" });
   }
 });
@@ -140,7 +141,7 @@ router.put("/workspaces/:id", async (req: Request, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    console.error("Update workspace error:", error);
+    logger.error({ err: error }, "Update workspace error");
     res.status(500).json({ error: "Failed to update workspace" });
   }
 });
@@ -172,7 +173,7 @@ router.delete("/workspaces/:id", async (req: Request, res: Response) => {
     await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
     res.json({ success: true });
   } catch (error) {
-    console.error("Delete workspace error:", error);
+    logger.error({ err: error }, "Delete workspace error");
     res.status(500).json({ error: "Failed to delete workspace" });
   }
 });
@@ -200,7 +201,7 @@ router.post("/workspaces/:id/products", async (req: Request, res: Response) => {
 
     res.status(201).json(product);
   } catch (error) {
-    console.error("Add product error:", error);
+    logger.error({ err: error }, "Add product error");
     res.status(500).json({ error: "Failed to add product" });
   }
 });
@@ -247,7 +248,7 @@ router.delete("/workspaces/:id/products/:productId", async (req: Request, res: R
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Remove product error:", error);
+    logger.error({ err: error }, "Remove product error");
     res.status(500).json({ error: "Failed to remove product" });
   }
 });
@@ -300,7 +301,7 @@ router.get("/workspaces/:id/feed", async (req: Request, res: Response) => {
 
     res.json({ items: formatted, total, page, limit });
   } catch (error) {
-    console.error("Get feed error:", error);
+    logger.error({ err: error }, "Get feed error");
     res.status(500).json({ error: "Failed to get workspace feed" });
   }
 });
@@ -316,7 +317,7 @@ router.post("/workspaces/:id/match", async (req: Request, res: Response) => {
     const matches = await matchThreatsToWorkspace(id);
     res.json({ matchedCount: matches.length });
   } catch (error) {
-    console.error("Match threats error:", error);
+    logger.error({ err: error }, "Match threats error");
     res.status(500).json({ error: "Failed to match threats" });
   }
 });
@@ -353,7 +354,7 @@ router.put("/workspaces/:id/matches/:matchId", async (req: Request, res: Respons
 
     res.json(updated);
   } catch (error) {
-    console.error("Update match error:", error);
+    logger.error({ err: error }, "Update match error");
     res.status(500).json({ error: "Failed to update match" });
   }
 });

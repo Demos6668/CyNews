@@ -9,6 +9,7 @@ import { ensureMasterWorkspace } from "./services/workspaceService";
 import { createFeedScheduler } from "./services/feedScheduler";
 import { setScheduler } from "./routes/scheduler";
 import { pool } from "@workspace/db";
+import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) throw new Error("PORT environment variable is required");
@@ -75,7 +76,7 @@ scheduler.start();
 
 // Graceful shutdown
 async function shutdown(signal: string): Promise<void> {
-  console.log(`\n[Server] ${signal} received, shutting down gracefully...`);
+  logger.info({ signal }, "Shutting down gracefully");
   clearInterval(heartbeatTimer);
 
   wss.clients.forEach((ws: any) => {
@@ -89,7 +90,7 @@ async function shutdown(signal: string): Promise<void> {
   });
 
   await pool.end().catch(() => {});
-  console.log("[Server] Shutdown complete");
+  logger.info("Shutdown complete");
   process.exit(0);
 }
 
@@ -97,10 +98,10 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
 ensureMasterWorkspace()
-  .catch((err) => console.error("Failed to ensure master workspace:", err))
+  .catch((err) => logger.error({ err }, "Failed to ensure master workspace"))
   .then(() => {
     server.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
-      console.log(`WebSocket available at ws://localhost:${port}/ws`);
+      logger.info({ port }, "Server listening");
+      logger.info({ port }, "WebSocket available");
     });
   });

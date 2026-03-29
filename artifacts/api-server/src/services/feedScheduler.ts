@@ -4,6 +4,7 @@
 
 import cron from "node-cron";
 import { runFeedUpdate, type OnBroadcast } from "@workspace/feed-aggregator";
+import { logger } from "../lib/logger";
 
 export interface SchedulerStatus {
   isRunning: boolean;
@@ -30,13 +31,13 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
 
   async function runFeedUpdateTask(): Promise<void> {
     if (isRunning) {
-      console.log("[Scheduler] Previous update still running, skipping...");
+      logger.warn("Previous update still running, skipping");
       return;
     }
     isRunning = true;
     stats.totalRuns++;
     const start = Date.now();
-    console.log(`[Scheduler] Feed update started at ${new Date().toLocaleString()}`);
+    logger.info("Feed update started");
 
     try {
       await runFeedUpdate(onBroadcast);
@@ -44,11 +45,11 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
       stats.successfulRuns++;
       stats.lastError = null;
       const duration = ((Date.now() - start) / 1000).toFixed(2);
-      console.log(`[Scheduler] Feed update complete in ${duration}s`);
+      logger.info({ duration }, "Feed update complete");
     } catch (err) {
       stats.failedRuns++;
       stats.lastError = err instanceof Error ? err.message : String(err);
-      console.error("[Scheduler] Feed update failed:", stats.lastError);
+      logger.error({ error: stats.lastError }, "Feed update failed");
       broadcast("REFRESH_ERROR", {
         timestamp: new Date().toISOString(),
         error: stats.lastError,
@@ -78,10 +79,10 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
   }
 
   function start(): void {
-    console.log("[Scheduler] Starting - updates every 15 minutes");
-    runFeedUpdateTask().catch(console.error);
-    cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch(console.error));
-    console.log("[Scheduler] Started");
+    logger.info("Scheduler starting - updates every 15 minutes");
+    runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed"));
+    cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
+    logger.info("Scheduler started");
   }
 
   function triggerRefresh(): Promise<void> {

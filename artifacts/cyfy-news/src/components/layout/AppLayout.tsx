@@ -1,41 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { BottomNav } from "./BottomNav";
 import { WorkspaceSidebar, CreateWorkspaceModal, WorkspaceFeed } from "@/components/Workspace";
-import type { Workspace } from "@/components/Workspace/WorkspaceSidebar";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { ReactNode } from "react";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/workspaces")
-      .then((r) => r.json())
-      .then((data: Workspace[]) => {
-        setWorkspaces(Array.isArray(data) ? data : []);
-        const master = (Array.isArray(data) ? data : []).find((w) => w.isDefault);
-        const first = (Array.isArray(data) ? data : [])[0];
-        setActiveWorkspace(master ?? first ?? null);
-      })
-      .catch(() => setWorkspaces([]));
-  }, []);
-
-  const handleDeleteWorkspace = async (ws: Workspace) => {
-    const res = await fetch(`/api/workspaces/${ws.id}`, { method: "DELETE" });
-    if (!res.ok) return;
-    const updated = await fetch("/api/workspaces").then((r) => r.json());
-    setWorkspaces(Array.isArray(updated) ? updated : []);
-    if (activeWorkspace?.id === ws.id) {
-      const master = (Array.isArray(updated) ? updated : []).find((w: Workspace) => w.isDefault);
-      const first = (Array.isArray(updated) ? updated : [])[0];
-      setActiveWorkspace(master ?? first ?? null);
-    }
-  };
+  const {
+    workspaces,
+    activeWorkspace,
+    setActiveWorkspace,
+    deleteWorkspace,
+    createWorkspace,
+  } = useWorkspaces();
 
   const handleCreateWorkspace = async (data: {
     name: string;
@@ -43,26 +24,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     description?: string;
     products?: Array<{ id: number; name: string; vendor?: string; version?: string; category: string }>;
   }) => {
-    const res = await fetch("/api/workspaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: data.name,
-        domain: data.domain,
-        description: data.description,
-        products: data.products?.map((p) => ({
-          name: p.name,
-          vendor: p.vendor,
-          version: p.version,
-          category: p.category,
-        })),
-      }),
-    });
-    if (!res.ok) throw new Error("Failed to create workspace");
-    const created = await res.json();
-    const updated = await fetch("/api/workspaces").then((r) => r.json());
-    setWorkspaces(Array.isArray(updated) ? updated : [...workspaces, created]);
-    setActiveWorkspace(created);
+    await createWorkspace(data);
     setShowCreateModal(false);
   };
 
@@ -84,7 +46,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           activeWorkspace={activeWorkspace}
           onSelect={setActiveWorkspace}
           onCreateNew={() => setShowCreateModal(true)}
-          onDelete={handleDeleteWorkspace}
+          onDelete={deleteWorkspace}
         />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <Header />

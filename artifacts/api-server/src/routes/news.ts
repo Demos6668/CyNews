@@ -4,6 +4,7 @@ import { insertNewsItemSchema } from "@workspace/db/schema";
 import { eq, sql, and, gte, lte, inArray, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
+import { logger } from "../lib/logger";
 
 import {
   GetNewsQueryParams,
@@ -89,7 +90,7 @@ ${rssItems}
     res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
     res.send(rss);
   } catch (error) {
-    console.error("RSS error:", error);
+    logger.error({ err: error }, "RSS error");
     res.status(500).json({ error: "Failed to generate RSS feed" });
   }
 });
@@ -125,7 +126,7 @@ router.get("/news/bookmarked", async (_req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Bookmarked news error:", error);
+    logger.error({ err: error }, "Bookmarked news error");
     res.status(500).json({ error: "Failed to fetch bookmarked news" });
   }
 });
@@ -193,7 +194,7 @@ router.get("/news", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("News list error:", error);
+    logger.error({ err: error }, "News list error");
     res.status(500).json({ error: "Failed to fetch news" });
   }
 });
@@ -219,7 +220,7 @@ router.get("/news/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("News detail error:", error);
+    logger.error({ err: error }, "News detail error");
     res.status(500).json({ error: "Failed to fetch news item" });
   }
 });
@@ -255,7 +256,7 @@ router.post("/news", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request body", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Create news error:", error);
+    logger.error({ err: error }, "Create news error");
     res.status(500).json({ error: "Failed to create news item" });
   }
 });
@@ -310,7 +311,7 @@ router.put("/news/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request body", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Update news error:", error);
+    logger.error({ err: error }, "Update news error");
     res.status(500).json({ error: "Failed to update news item" });
   }
 });
@@ -336,7 +337,7 @@ router.delete("/news/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Delete news error:", error);
+    logger.error({ err: error }, "Delete news error");
     res.status(500).json({ error: "Failed to delete news item" });
   }
 });
@@ -372,7 +373,7 @@ router.post("/news/:id/bookmark", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Bookmark error:", error);
+    logger.error({ err: error }, "Bookmark error");
     res.status(500).json({ error: "Failed to toggle bookmark" });
   }
 });

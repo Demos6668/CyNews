@@ -8,6 +8,7 @@ import {
   type AdvisoryWithCustomizations,
 } from "../services/emailTemplateService";
 import type { AdvisoryForExport } from "../services/exportService";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const MAX_BULK_IDS = 50;
@@ -160,7 +161,7 @@ router.get("/export/advisory/:id", async (req: Request, res: Response) => {
     );
     res.send(html);
   } catch (error) {
-    console.error("Export advisory error:", error);
+    logger.error({ err: error }, "Export advisory error");
     res.status(500).json({ error: "Failed to export advisory" });
   }
 });
@@ -224,7 +225,7 @@ router.post("/export/advisories/bulk", async (req: Request, res: Response) => {
     );
     res.send(html);
   } catch (error) {
-    console.error("Bulk export error:", error);
+    logger.error({ err: error }, "Bulk export error");
     res.status(500).json({ error: "Failed to export advisories" });
   }
 });
@@ -300,7 +301,7 @@ router.post("/export/preview", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Preview error:", error);
+    logger.error({ err: error }, "Preview error");
     res.status(500).json({ error: "Failed to generate preview" });
   }
 });
@@ -374,7 +375,7 @@ router.post("/export/email", async (req: Request, res: Response) => {
         break;
     }
   } catch (error) {
-    console.error("Export email error:", error);
+    logger.error({ err: error }, "Export email error");
     res.status(500).json({ error: "Failed to export" });
   }
 });
@@ -439,7 +440,7 @@ router.post("/export/email/batch", async (req: Request, res: Response) => {
 
     res.json({ exports: results });
   } catch (error) {
-    console.error("Batch export error:", error);
+    logger.error({ err: error }, "Batch export error");
     res.status(500).json({ error: "Failed to batch export" });
   }
 });

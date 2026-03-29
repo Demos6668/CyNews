@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -15,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^2.1.9"
   }
 }

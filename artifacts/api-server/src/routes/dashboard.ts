@@ -4,6 +4,7 @@ import { eq, sql, and, gte, isNotNull } from "drizzle-orm";
 
 import { GetDashboardStatsResponse } from "@workspace/api-zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
+import { logger } from "../lib/logger";
 import type { TimeframeValue } from "../lib/timeframe";
 
 const router: IRouter = Router();
@@ -196,7 +197,7 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Dashboard stats error:", error);
+    logger.error({ err: error }, "Dashboard stats error");
     res.status(500).json({ error: "Failed to fetch dashboard stats" });
   }
 });

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
+import { logger } from "../lib/logger";
 import type { SQL } from "drizzle-orm";
 
 import {
@@ -104,7 +105,7 @@ router.get("/advisories/cert-in", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("CERT-In advisories error:", error);
+    logger.error({ err: error }, "CERT-In advisories error");
     res.status(500).json({ error: "Failed to fetch CERT-In advisories" });
   }
 });
@@ -173,7 +174,7 @@ router.get("/advisories", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Advisories list error:", error);
+    logger.error({ err: error }, "Advisories list error");
     res.status(500).json({ error: "Failed to fetch advisories" });
   }
 });
@@ -207,7 +208,7 @@ router.get("/advisories/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid request parameters", details: (error as { errors?: unknown }).errors });
       return;
     }
-    console.error("Advisory detail error:", error);
+    logger.error({ err: error }, "Advisory detail error");
     res.status(500).json({ error: "Failed to fetch advisory" });
   }
 });
