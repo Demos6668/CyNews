@@ -148,11 +148,11 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
-    const cacheKey = `threats:${JSON.stringify(req.query)}`;
+    const query = GetThreatsQueryParams.parse(req.query);
+
+    const cacheKey = `threats:${query.scope ?? ""}:${query.severity ?? ""}:${query.category ?? ""}:${query.state ?? ""}:${query.sector ?? ""}:${query.status ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-
-    const query = GetThreatsQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));

@@ -123,14 +123,14 @@ router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response)
 }));
 
 router.get("/news", asyncHandler(async (req: Request, res: Response) => {
-    const cacheKey = `news:${JSON.stringify(req.query)}`;
-    const cached = apiCache.get<object>(cacheKey);
-    if (cached) { res.json(cached); return; }
-
     const rawQuery = { ...req.query } as Record<string, unknown>;
     if (typeof rawQuery.from === "string") rawQuery.from = new Date(rawQuery.from);
     if (typeof rawQuery.to === "string") rawQuery.to = new Date(rawQuery.to);
     const query = GetNewsQueryParams.parse(rawQuery);
+
+    const cacheKey = `news:${query.scope ?? ""}:${query.severity ?? ""}:${query.category ?? ""}:${query.type ?? ""}:${query.status ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(newsItemsTable.scope, query.scope));

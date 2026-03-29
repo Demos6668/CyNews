@@ -50,13 +50,13 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
 }
 
 router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Response) => {
-    const cacheKey = `certin:${JSON.stringify(req.query)}`;
-    const cached = apiCache.get<object>(cacheKey);
-    if (cached) { res.json(cached); return; }
-
     const rawQuery = { ...req.query };
     if (rawQuery.timeframe === "90d") rawQuery.timeframe = "all";
     const query = GetCertInAdvisoriesQueryParams.parse(rawQuery);
+
+    const cacheKey = `certin:${query.severity ?? ""}:${query.category ?? ""}:${req.query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const conditions: SQL[] = [eq(advisoriesTable.isCertIn, true)];
 
     if (query.severity) {
@@ -108,11 +108,11 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
 }));
 
 router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
-    const cacheKey = `advisories:${JSON.stringify(req.query)}`;
+    const query = GetAdvisoriesQueryParams.parse(req.query);
+
+    const cacheKey = `advisories:${query.scope ?? ""}:${query.severity ?? ""}:${query.vendor ?? ""}:${query.status ?? ""}:${query.excludeCertIn ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-
-    const query = GetAdvisoriesQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
     if (query.scope) conditions.push(eq(advisoriesTable.scope, query.scope));

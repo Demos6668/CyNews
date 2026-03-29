@@ -22,11 +22,11 @@ interface SearchResultItem {
 }
 
 router.get("/search", asyncHandler(async (req: Request, res: Response) => {
-    const cacheKey = `search:${JSON.stringify(req.query)}`;
+    const query = SearchQueryParams.parse(req.query);
+
+    const cacheKey = `search:${query.q}:${query.type ?? ""}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-
-    const query = SearchQueryParams.parse(req.query);
     if (query.q.length < MIN_SEARCH_LENGTH || query.q.length > MAX_SEARCH_LENGTH) {
       throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
     }
