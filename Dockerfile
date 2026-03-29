@@ -44,10 +44,12 @@ COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
 COPY --from=builder /app/artifacts/cyfy-news/dist ./artifacts/cyfy-news/dist
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/.env.example ./.env.example
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["node", "artifacts/api-server/dist/index.cjs"]
+CMD ["./docker-entrypoint.sh"]
