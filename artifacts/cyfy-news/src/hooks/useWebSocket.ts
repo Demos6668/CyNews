@@ -3,6 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type WsMessage = { type: string; data?: unknown; timestamp?: string };
 
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY = 1000;
+const MAX_RECONNECT_DELAY = 30000;
+
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -10,6 +14,7 @@ export function useWebSocket() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptRef = useRef(0);
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
@@ -19,6 +24,7 @@ export function useWebSocket() {
 
     ws.onopen = () => {
       setIsConnected(true);
+      attemptRef.current = 0;
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current);
         reconnectRef.current = null;
@@ -55,7 +61,14 @@ export function useWebSocket() {
 
     ws.onclose = () => {
       setIsConnected(false);
-      reconnectRef.current = setTimeout(() => connect(), 5000);
+      if (attemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+        const delay = Math.min(
+          BASE_RECONNECT_DELAY * Math.pow(2, attemptRef.current) + Math.random() * 1000,
+          MAX_RECONNECT_DELAY
+        );
+        attemptRef.current++;
+        reconnectRef.current = setTimeout(() => connect(), delay);
+      }
     };
 
     ws.onerror = () => {

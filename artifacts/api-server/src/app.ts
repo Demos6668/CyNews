@@ -93,6 +93,11 @@ if (process.env.NODE_ENV === "production" && existsSync(frontendDist)) {
   });
 }
 
+// 404 catch-all for unmapped API routes
+app.use("/api", (_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 // Global error handler (must be after routes)
 app.use(globalErrorHandler);
 

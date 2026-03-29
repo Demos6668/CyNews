@@ -5,6 +5,7 @@
 import { db, advisoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
+import { logger } from "./logger";
 import { type FeedUpdateResult } from "./feedUtils";
 
 const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
@@ -44,10 +45,10 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
       added++;
     }
     result.advisories += added;
-    if (added > 0) console.log(`[CISA KEV] ${added} new advisories`);
+    if (added > 0) logger.info(`[CISA KEV] ${added} new advisories`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "CISA KEV", error: msg });
-    console.error("[CISA KEV] failed:", msg);
+    logger.error("[CISA KEV] failed:", msg);
   }
 }

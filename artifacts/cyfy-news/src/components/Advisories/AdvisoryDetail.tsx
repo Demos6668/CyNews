@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";
 import { EmailExportModal } from "@/components/Export";
+import { exportAdvisoryHtml } from "@/lib/exportApi";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { Advisory } from "@workspace/api-client-react";
@@ -172,9 +173,8 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
                 size="sm"
                 className="gap-2"
                 onClick={async () => {
-                  const res = await fetch(`/api/export/advisory/${item.id}`);
-                  if (!res.ok) return;
-                  const blob = await res.blob();
+                  const blob = await exportAdvisoryHtml(item.id);
+                  if (!blob) return;
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;

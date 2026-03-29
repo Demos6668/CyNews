@@ -74,6 +74,13 @@ export async function exportEmail(params: {
   return res.json();
 }
 
+/** Export single advisory as HTML blob */
+export async function exportAdvisoryHtml(id: number): Promise<Blob | null> {
+  const res = await fetch(`${BASE}/export/advisory/${id}`);
+  if (!res.ok) return null;
+  return res.blob();
+}
+
 /** Batch email export */
 export interface BatchExportResult {
   exports: Array<{

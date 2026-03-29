@@ -4,6 +4,7 @@
  */
 
 import Parser from "rss-parser";
+import { logger } from "./logger";
 import { db, newsItemsTable, threatIntelTable } from "@workspace/db";
 import { indiaDetector } from "@workspace/india-detector";
 import { cyberRelevanceDetector } from "./cyberRelevanceDetector";
@@ -284,7 +285,7 @@ function extractRealUrl(item: RssItem, feedName: string): string | null {
   const m = content.match(/href=["'](https?:\/\/[^"']+)["']/);
   if (m && isValidUrl(m[1]) && isValidArticleUrl(m[1], feedName)) return m[1];
   if (item.link && isValidUrl(item.link)) return item.link;
-  console.warn(`[RSS] No valid URL for: ${item.title ?? "?"} (${feedName})`);
+  logger.warn(`[RSS] No valid URL for: ${item.title ?? "?"} (${feedName})`);
   return null;
 }
 
@@ -399,11 +400,11 @@ export async function fetchRssFeeds(
       }
       result.rssNews += addedNews;
       result.rssThreats += addedThreats;
-      if (addedNews + addedThreats > 0) console.log(`[RSS] ${source.name}: +${addedNews} news, +${addedThreats} threats`);
+      if (addedNews + addedThreats > 0) logger.info(`[RSS] ${source.name}: +${addedNews} news, +${addedThreats} threats`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result.errors.push({ source: source.name, error: msg });
-      console.error(`[RSS] ${source.name} failed:`, msg);
+      logger.error(`[RSS] ${source.name} failed:`, msg);
     }
     await new Promise((r) => setTimeout(r, 300));
   }

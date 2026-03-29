@@ -5,6 +5,7 @@
 import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
+import { logger } from "./logger";
 import { type FeedUpdateResult } from "./feedUtils";
 
 export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
@@ -52,7 +53,7 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
       added++;
     }
     result.urlhaus += added;
-    if (added > 0) console.log(`[URLhaus] ${added} new items`);
+    if (added > 0) logger.info(`[URLhaus] ${added} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "URLhaus", error: msg });

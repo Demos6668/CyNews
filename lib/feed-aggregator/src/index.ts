@@ -3,6 +3,7 @@
  * Used by scripts (CLI) and api-server (scheduler).
  */
 
+import { logger } from "./logger";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { fetchCertInAdvisories } from "./certInFetcher";
@@ -86,11 +87,11 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
       added++;
     }
     result.certIn = added;
-    if (added > 0) console.log(`[CERT-In] ${added} advisories`);
+    if (added > 0) logger.info(`[CERT-In] ${added} advisories`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "CERT-In", error: msg });
-    console.error("[CERT-In] failed:", msg);
+    logger.error("[CERT-In] failed:", msg);
   }
 }
 
@@ -98,7 +99,7 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
 export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpdateResult> {
   const result = createEmptyResult();
   onBroadcast?.("REFRESH_STARTED", { timestamp: new Date().toISOString() });
-  console.log("[Feed] Fetching all sources...");
+  logger.info("[Feed] Fetching all sources...");
 
   await fetchCertIn(result);
   await fetchRssFeeds(onBroadcast, result);
@@ -117,6 +118,6 @@ export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpda
     errorCount: result.errors.length,
     ...rest,
   });
-  console.log(`[Feed] Done. +${total} items, ${result.errors.length} errors`);
+  logger.info(`[Feed] Done. +${total} items, ${result.errors.length} errors`);
   return result;
 }

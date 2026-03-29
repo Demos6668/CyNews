@@ -15,9 +15,11 @@
     "@workspace/india-detector": "workspace:*",
     "cheerio": "^1.0.0",
     "drizzle-orm": "catalog:",
+    "pino": "^9.6.0",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "pino-pretty": "^13.0.0",
     "@types/node": "catalog:",
     "typescript": "~5.9.2",
     "vitest": "^2.1.9"

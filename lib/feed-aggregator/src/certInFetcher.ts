@@ -5,6 +5,7 @@
 
 import Parser from "rss-parser";
 import { load } from "cheerio";
+import { logger } from "./logger";
 
 const CERT_IN_BASE = "https://www.cert-in.org.in";
 
@@ -204,7 +205,7 @@ async function fetchRSSFeed(url: string, type: "vulnerability" | "advisory"): Pr
 
     return items;
   } catch (err) {
-    console.error(`[CERT-In] RSS error (${type}):`, err instanceof Error ? err.message : String(err));
+    logger.error(`[CERT-In] RSS error (${type}):`, err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -249,7 +250,7 @@ async function scrapeAdvisoriesPage(): Promise<CertInAdvisory[]> {
         }
       });
     } catch (err) {
-      console.error(`[CERT-In] Scraping error (${pageUrl}):`, err instanceof Error ? err.message : String(err));
+      logger.error(`[CERT-In] Scraping error (${pageUrl}):`, err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -281,7 +282,7 @@ async function enrichAdvisories(advisories: CertInAdvisory[]): Promise<CertInAdv
 }
 
 export async function fetchCertInAdvisories(): Promise<CertInAdvisory[]> {
-  console.log("[CERT-In] Fetching advisories...");
+  logger.info("[CERT-In] Fetching advisories...");
 
   const [vulnItems, advItems] = await Promise.allSettled([
     fetchRSSFeed(RSS_FEEDS.vulnerabilities, "vulnerability"),
@@ -293,7 +294,7 @@ export async function fetchCertInAdvisories(): Promise<CertInAdvisory[]> {
   if (advItems.status === "fulfilled") allItems.push(...advItems.value);
 
   if (allItems.length === 0) {
-    console.log("[CERT-In] RSS empty, trying page scraping...");
+    logger.info("[CERT-In] RSS empty, trying page scraping...");
     allItems = await scrapeAdvisoriesPage();
   }
 
@@ -307,6 +308,6 @@ export async function fetchCertInAdvisories(): Promise<CertInAdvisory[]> {
   allItems = Array.from(seen.values());
 
   const enriched = await enrichAdvisories(allItems);
-  console.log(`[CERT-In] Fetched ${enriched.length} advisories`);
+  logger.info(`[CERT-In] Fetched ${enriched.length} advisories`);
   return enriched;
 }

@@ -5,6 +5,7 @@
 import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
+import { logger } from "./logger";
 import { type FeedUpdateResult, detectScopeFromCountry } from "./feedUtils";
 
 export type RansomwareVictim = {
@@ -62,7 +63,7 @@ export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<voi
       added++;
     }
     result.ransomwareLive += added;
-    if (added > 0) console.log(`[Ransomware.live] ${added} new items`);
+    if (added > 0) logger.info(`[Ransomware.live] ${added} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "Ransomware.live", error: msg });

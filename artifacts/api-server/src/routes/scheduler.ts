@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import type { createFeedScheduler } from "../services/feedScheduler";
+import { asyncHandler } from "../middlewares/errorHandler";
 
 let schedulerInstance: ReturnType<typeof createFeedScheduler> | null = null;
 
@@ -17,17 +18,13 @@ router.get("/scheduler/status", (req: Request, res: Response) => {
   res.json(schedulerInstance.getStatus());
 });
 
-router.post("/scheduler/refresh", async (req: Request, res: Response) => {
+router.post("/scheduler/refresh", asyncHandler(async (req: Request, res: Response) => {
   if (!schedulerInstance) {
     res.status(503).json({ error: "Scheduler not initialized" });
     return;
   }
-  try {
-    await schedulerInstance.triggerRefresh();
-    res.json({ success: true, message: "Refresh triggered" });
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Refresh failed" });
-  }
-});
+  await schedulerInstance.triggerRefresh();
+  res.json({ success: true, message: "Refresh triggered" });
+}));
 
 export default router;

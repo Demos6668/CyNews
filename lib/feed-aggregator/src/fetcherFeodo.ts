@@ -4,6 +4,7 @@
 
 import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { logger } from "./logger";
 import { type FeedUpdateResult } from "./feedUtils";
 
 const FEODO_URL = "https://feodotracker.abuse.ch/downloads/ipblocklist.json";
@@ -53,10 +54,10 @@ export async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void>
       added++;
     }
     result.feodo += added;
-    if (added > 0) console.log(`[Feodo Tracker] ${added} new items`);
+    if (added > 0) logger.info(`[Feodo Tracker] ${added} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "Feodo Tracker", error: msg });
-    console.error("[Feodo Tracker] failed:", msg);
+    logger.error("[Feodo Tracker] failed:", msg);
   }
 }

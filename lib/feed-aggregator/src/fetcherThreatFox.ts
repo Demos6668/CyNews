@@ -5,6 +5,7 @@
 import { db, threatIntelTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
+import { logger } from "./logger";
 import { type FeedUpdateResult } from "./feedUtils";
 
 export async function fetchThreatFox(result: FeedUpdateResult): Promise<void> {
@@ -51,7 +52,7 @@ export async function fetchThreatFox(result: FeedUpdateResult): Promise<void> {
       added++;
     }
     result.threatFox += added;
-    if (added > 0) console.log(`[ThreatFox] ${added} new items`);
+    if (added > 0) logger.info(`[ThreatFox] ${added} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "ThreatFox", error: msg });

@@ -6,6 +6,7 @@ import { IndiaBadge } from "@/components/Threats/IndiaBadge";
 import type { Advisory } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { exportAdvisoryHtml } from "@/lib/exportApi";
 
 function getCvssColor(score: number): string {
   if (score >= 9.0) return "var(--danger-red)";
@@ -23,9 +24,8 @@ interface AdvisoryCardProps {
 }
 
 async function handleExportAdvisory(id: number) {
-  const res = await fetch(`/api/export/advisory/${id}`);
-  if (!res.ok) throw new Error("Export failed");
-  const blob = await res.blob();
+  const blob = await exportAdvisoryHtml(id);
+  if (!blob) return;
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

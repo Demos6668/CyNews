@@ -5,6 +5,7 @@
 import { db, advisoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
+import { logger } from "./logger";
 import { type FeedUpdateResult, cvssToSeverity } from "./feedUtils";
 
 export const NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
@@ -68,11 +69,11 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       added++;
     }
     result.nvd += added;
-    if (added > 0) console.log(`[NVD] ${added} new advisories`);
+    if (added > 0) logger.info(`[NVD] ${added} new advisories`);
     await new Promise((r) => setTimeout(r, 6000));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "NVD", error: msg });
-    console.error("[NVD] failed:", msg);
+    logger.error("[NVD] failed:", msg);
   }
 }
