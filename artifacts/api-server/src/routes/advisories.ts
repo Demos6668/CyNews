@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
 
@@ -189,8 +189,7 @@ router.get("/advisories/:id", asyncHandler(async (req: Request, res: Response) =
     }
 
     if (!item) {
-      res.status(404).json({ error: "Advisory not found" });
-      return;
+      throw new NotFoundError("Advisory not found");
     }
 
     const data = GetAdvisoryByIdResponse.parse(formatAdvisory(item));

@@ -19,6 +19,8 @@ tags:
     description: Threat intelligence
   - name: search
     description: Global search
+  - name: export
+    description: Export and email operations
   - name: workspaces
     description: Workspace management
 
@@ -470,6 +472,147 @@ paths:
             text/csv:
               schema:
                 type: string
+
+  /export/advisory/{id}:
+    get:
+      operationId: exportAdvisory
+      tags: [export]
+      summary: Export a single advisory as HTML
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HTML advisory document
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /export/advisories/bulk:
+    post:
+      operationId: exportAdvisoriesBulk
+      tags: [export]
+      summary: Export multiple advisories as a single HTML report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                timeframe:
+                  type: string
+                scope:
+                  type: string
+                  enum: [local, global]
+                vendor:
+                  type: string
+      responses:
+        "200":
+          description: Bulk HTML advisory report
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /export/templates:
+    get:
+      operationId: getEmailTemplates
+      tags: [export]
+      summary: Get available email templates
+      parameters:
+        - name: type
+          in: query
+          description: Filter by template type (general, cert-in, threat, all)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of email templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailTemplate"
+
+  /export/preview:
+    post:
+      operationId: previewEmail
+      tags: [export]
+      summary: Preview an email export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportPreviewRequest"
+      responses:
+        "200":
+          description: Email preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailPreview"
+
+  /export/email:
+    post:
+      operationId: exportEmail
+      tags: [export]
+      summary: Export an advisory/threat as email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportEmailRequest"
+      responses:
+        "200":
+          description: Email export result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  body:
+                    type: string
+                  mailtoLink:
+                    type: string
+
+  /export/email/batch:
+    post:
+      operationId: exportEmailBatch
+      tags: [export]
+      summary: Batch export advisories as emails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportEmailBatchRequest"
+      responses:
+        "200":
+          description: Batch email export results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchExportResult"
 
   /search:
     get:
@@ -1460,6 +1603,135 @@ components:
           type: integer
         totalPages:
           type: integer
+
+    EmailTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - subject
+        - body
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+
+    ExportPreviewRequest:
+      type: object
+      required:
+        - advisoryId
+      properties:
+        advisoryId:
+          oneOf:
+            - type: integer
+            - type: string
+        templateId:
+          type: string
+        customizations:
+          type: object
+          additionalProperties: true
+
+    ExportEmailRequest:
+      type: object
+      required:
+        - advisoryId
+      properties:
+        advisoryId:
+          oneOf:
+            - type: integer
+            - type: string
+        templateId:
+          type: string
+        customizations:
+          type: object
+          additionalProperties: true
+        format:
+          type: string
+          enum: [html, text, mailto, outlook]
+
+    ExportEmailBatchRequest:
+      type: object
+      required:
+        - advisoryIds
+      properties:
+        advisoryIds:
+          type: array
+          items:
+            type: integer
+        templateId:
+          type: string
+        format:
+          type: string
+          enum: [html, text]
+
+    EmailPreview:
+      type: object
+      required:
+        - subject
+        - body
+        - plainText
+        - templateUsed
+        - item
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        plainText:
+          type: string
+        templateUsed:
+          type: string
+        item:
+          type: object
+          required:
+            - id
+            - title
+            - type
+          properties:
+            id:
+              type: integer
+            certInId:
+              type: string
+              nullable: true
+            title:
+              type: string
+            type:
+              type: string
+
+    BatchExportResult:
+      type: object
+      required:
+        - exports
+      properties:
+        exports:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - title
+              - subject
+              - body
+            properties:
+              id:
+                type: integer
+              certInId:
+                type: string
+                nullable: true
+              title:
+                type: string
+              subject:
+                type: string
+              body:
+                type: string
 
     ErrorResponse:
       type: object

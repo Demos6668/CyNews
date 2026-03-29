@@ -8,7 +8,7 @@ import {
   type AdvisoryWithCustomizations,
 } from "../services/emailTemplateService";
 import type { AdvisoryForExport } from "../services/exportService";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { validate } from "../middlewares/validate";
 import { z } from "zod";
 
@@ -173,8 +173,7 @@ router.get("/export/advisory/:id", asyncHandler(async (req: Request, res: Respon
       .where(eq(advisoriesTable.id, id));
 
     if (!item) {
-      res.status(404).json({ error: "Advisory not found" });
-      return;
+      throw new NotFoundError("Advisory not found");
     }
 
     const advisory = toAdvisoryForExport(item);
@@ -233,8 +232,7 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
     }
 
     if (items.length === 0) {
-      res.status(404).json({ error: "No advisories found" });
-      return;
+      throw new NotFoundError("No advisories found");
     }
 
     const advisories = items.map(toAdvisoryForExport);
@@ -268,8 +266,7 @@ router.post("/export/preview", validate({ body: ExportPreviewBody }), asyncHandl
 
     const exportItem = await findExportItemById(advisoryId);
     if (!exportItem) {
-      res.status(404).json({ error: "Advisory not found" });
-      return;
+      throw new NotFoundError("Advisory not found");
     }
 
     const advisory: AdvisoryWithCustomizations =
@@ -289,8 +286,7 @@ router.post("/export/preview", validate({ body: ExportPreviewBody }), asyncHandl
       : emailTemplateService.getDefaultTemplate(templateType);
 
     if (!template) {
-      res.status(404).json({ error: "Template not found" });
-      return;
+      throw new NotFoundError("Template not found");
     }
 
     const result = emailTemplateService.processTemplate(template, advisory);
@@ -316,8 +312,7 @@ router.post("/export/email", validate({ body: ExportEmailBody }), asyncHandler(a
 
     const exportItem = await findExportItemById(advisoryId);
     if (!exportItem) {
-      res.status(404).json({ error: "Advisory not found" });
-      return;
+      throw new NotFoundError("Advisory not found");
     }
 
     const advisory: AdvisoryWithCustomizations =
@@ -337,8 +332,7 @@ router.post("/export/email", validate({ body: ExportEmailBody }), asyncHandler(a
       : emailTemplateService.getDefaultTemplate(templateType);
 
     if (!template) {
-      res.status(404).json({ error: "Template not found" });
-      return;
+      throw new NotFoundError("Template not found");
     }
 
     const result = emailTemplateService.processTemplate(template, advisory);

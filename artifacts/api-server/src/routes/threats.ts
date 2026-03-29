@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, threatIntelTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or } from "drizzle-orm";
 import { getTimeframeStartDate } from "../lib/timeframe";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
 
@@ -138,8 +138,7 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
       .where(eq(threatIntelTable.id, params.id));
 
     if (!item) {
-      res.status(404).json({ error: "Threat not found" });
-      return;
+      throw new NotFoundError("Threat not found");
     }
 
     const data = GetThreatByIdResponse.parse(formatThreatIntel(item));

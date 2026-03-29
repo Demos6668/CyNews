@@ -4,6 +4,7 @@ import { sql, ilike, or } from "drizzle-orm";
 
 import { SearchQueryParams, SearchResponse } from "@workspace/api-zod";
 import { asyncHandler } from "../middlewares/errorHandler";
+import { apiCache, CACHE_TTL } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -18,6 +19,10 @@ interface SearchResultItem {
 }
 
 router.get("/search", asyncHandler(async (req: Request, res: Response) => {
+    const cacheKey = `search:${JSON.stringify(req.query)}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const query = SearchQueryParams.parse(req.query);
     // Sanitize LIKE wildcards to prevent pattern injection
     const sanitized = query.q.replace(/[%_\\]/g, "\\$&");
@@ -136,6 +141,7 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
       total: limitedResults.length,
     });
 
+    apiCache.set(cacheKey, data, CACHE_TTL.SEARCH);
     res.json(data);
 }));
 

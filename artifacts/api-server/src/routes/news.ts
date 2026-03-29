@@ -6,7 +6,7 @@ import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { validate } from "../middlewares/validate";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 
 import {
@@ -195,8 +195,7 @@ router.get("/news/:id", asyncHandler(async (req: Request, res: Response) => {
       .where(eq(newsItemsTable.id, params.id));
 
     if (!item) {
-      res.status(404).json({ error: "News item not found" });
-      return;
+      throw new NotFoundError("News item not found");
     }
 
     const data = GetNewsByIdResponse.parse(formatNewsItem(item));
@@ -240,8 +239,7 @@ router.put("/news/:id", asyncHandler(async (req: Request, res: Response) => {
       .where(eq(newsItemsTable.id, id));
 
     if (!existing) {
-      res.status(404).json({ error: "News item not found" });
-      return;
+      throw new NotFoundError("News item not found");
     }
 
     type NewsType = "threat" | "news" | "advisory";
@@ -285,8 +283,7 @@ router.delete("/news/:id", asyncHandler(async (req: Request, res: Response) => {
       .where(eq(newsItemsTable.id, params.id));
 
     if (!item) {
-      res.status(404).json({ error: "News item not found" });
-      return;
+      throw new NotFoundError("News item not found");
     }
 
     await db.delete(newsItemsTable).where(eq(newsItemsTable.id, params.id));
@@ -302,8 +299,7 @@ router.post("/news/:id/bookmark", asyncHandler(async (req: Request, res: Respons
       .where(eq(newsItemsTable.id, params.id));
 
     if (!item) {
-      res.status(404).json({ error: "News item not found" });
-      return;
+      throw new NotFoundError("News item not found");
     }
 
     const [updated] = await db

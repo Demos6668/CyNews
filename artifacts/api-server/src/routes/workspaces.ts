@@ -13,7 +13,7 @@ import {
   matchThreatsToWorkspace,
   getWorkspaceFeed,
 } from "../services/workspaceService";
-import { asyncHandler } from "../middlewares/errorHandler";
+import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { validate } from "../middlewares/validate";
 import {
   CreateWorkspaceBody,
@@ -60,8 +60,7 @@ router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), asyncHan
       .limit(1);
 
     if (!workspace) {
-      res.status(404).json({ error: "Workspace not found" });
-      return;
+      throw new NotFoundError("Workspace not found");
     }
 
     const products = await db
@@ -118,8 +117,7 @@ router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: Up
       .returning();
 
     if (!updated) {
-      res.status(404).json({ error: "Workspace not found" });
-      return;
+      throw new NotFoundError("Workspace not found");
     }
 
     res.json(updated);
@@ -135,8 +133,7 @@ router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), as
       .limit(1);
 
     if (!workspace) {
-      res.status(404).json({ error: "Workspace not found" });
-      return;
+      throw new NotFoundError("Workspace not found");
     }
 
     if (workspace.isDefault) {
@@ -271,8 +268,7 @@ router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchPar
       .returning();
 
     if (!updated) {
-      res.status(404).json({ error: "Match not found" });
-      return;
+      throw new NotFoundError("Match not found");
     }
 
     res.json(updated);
