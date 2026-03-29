@@ -13,6 +13,11 @@ import {
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 import type { ThreatIntel } from "@workspace/db";
 
+/** Escape LIKE wildcard characters to prevent injection */
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
+}
+
 export interface ProductInput {
   name: string;
   vendor?: string;
@@ -148,11 +153,14 @@ export async function matchThreatsToWorkspace(workspaceId: string): Promise<Thre
 
   const uniqueKeywords = [...new Set(allKeywords)].slice(0, 30);
 
-  const keywordConditions = uniqueKeywords.flatMap((kw) => [
-    ilike(threatIntelTable.title, `%${kw}%`),
-    ilike(threatIntelTable.summary, `%${kw}%`),
-    ilike(threatIntelTable.description, `%${kw}%`),
-  ]);
+  const keywordConditions = uniqueKeywords.flatMap((kw) => {
+    const escaped = escapeLike(kw);
+    return [
+      ilike(threatIntelTable.title, `%${escaped}%`),
+      ilike(threatIntelTable.summary, `%${escaped}%`),
+      ilike(threatIntelTable.description, `%${escaped}%`),
+    ];
+  });
 
   const threats = await db
     .select()

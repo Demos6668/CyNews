@@ -1,7 +1,7 @@
 # Stage 1: Install dependencies and build
 FROM node:24-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN pnpm run build
 # Stage 2: Production image
 FROM node:24-slim AS production
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 WORKDIR /app
 

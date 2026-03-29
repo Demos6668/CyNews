@@ -344,6 +344,16 @@ async function fetchRssFeeds(
   const seenUrls = new Set<string>();
   const sorted = [...RSS_SOURCES].sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2));
 
+  // Batch-load existing source URLs to avoid N+1 per-item SELECT queries
+  const [existingNews, existingThreats] = await Promise.all([
+    db.select({ sourceUrl: newsItemsTable.sourceUrl }).from(newsItemsTable),
+    db.select({ sourceUrl: threatIntelTable.sourceUrl }).from(threatIntelTable),
+  ]);
+  const knownUrls = new Set([
+    ...existingNews.map((r) => r.sourceUrl).filter(Boolean),
+    ...existingThreats.map((r) => r.sourceUrl).filter(Boolean),
+  ] as string[]);
+
   for (const source of sorted) {
     if (CERT_IN_SOURCES.has(source.name)) continue;
     try {
@@ -390,8 +400,7 @@ async function fetchRssFeeds(
         };
 
         if (isThreat) {
-          const existing = await db.select({ id: threatIntelTable.id }).from(threatIntelTable).where(eq(threatIntelTable.sourceUrl, link)).limit(1);
-          if (existing.length > 0) continue;
+          if (knownUrls.has(link)) continue;
           await db.insert(threatIntelTable).values({
             title,
             summary,
@@ -406,10 +415,10 @@ async function fetchRssFeeds(
             publishedAt: pubDate,
             ...indiaFields,
           });
+          knownUrls.add(link);
           addedThreats++;
         } else {
-          const existing = await db.select({ id: newsItemsTable.id }).from(newsItemsTable).where(eq(newsItemsTable.sourceUrl, link)).limit(1);
-          if (existing.length > 0) continue;
+          if (knownUrls.has(link)) continue;
           await db.insert(newsItemsTable).values({
             title,
             summary,
@@ -428,6 +437,7 @@ async function fetchRssFeeds(
             status: "active",
             ...indiaFields,
           });
+          knownUrls.add(link);
           addedNews++;
         }
       }
@@ -845,6 +855,19 @@ async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void> {
     result.errors.push({ source: "Feodo Tracker", error: msg });
     console.error("[Feodo Tracker] failed:", msg);
   }
+}
+
+/** Pre-load all known source URLs and CVE IDs to avoid N+1 queries in API fetchers */
+async function loadKnownIdentifiers(): Promise<{ threatUrls: Set<string>; advisoryCveIds: Set<string>; advisoryUrls: Set<string> }> {
+  const [threats, advisories] = await Promise.all([
+    db.select({ sourceUrl: threatIntelTable.sourceUrl }).from(threatIntelTable),
+    db.select({ cveId: advisoriesTable.cveId, sourceUrl: advisoriesTable.sourceUrl }).from(advisoriesTable),
+  ]);
+  return {
+    threatUrls: new Set(threats.map((r) => r.sourceUrl).filter(Boolean) as string[]),
+    advisoryCveIds: new Set(advisories.map((r) => r.cveId).filter(Boolean) as string[]),
+    advisoryUrls: new Set(advisories.map((r) => r.sourceUrl).filter(Boolean) as string[]),
+  };
 }
 
 export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpdateResult> {

@@ -44,7 +44,18 @@ const heartbeatTimer = setInterval(() => {
 
 wss.on("close", () => clearInterval(heartbeatTimer));
 
-wss.on("connection", (ws: any) => {
+wss.on("connection", (ws: any, req: import("http").IncomingMessage) => {
+  // Validate API key on WebSocket connect if configured
+  const apiKey = process.env.API_KEY;
+  if (apiKey) {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+    const providedKey = url.searchParams.get("api_key") ?? req.headers["x-api-key"];
+    if (providedKey !== apiKey) {
+      ws.close(4001, "Unauthorized");
+      return;
+    }
+  }
+
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
 

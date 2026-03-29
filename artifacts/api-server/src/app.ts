@@ -7,12 +7,24 @@ import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import router from "./routes";
 import { globalErrorHandler } from "./middlewares/errorHandler";
+import { writeAuth, apiKeyAuth } from "./middlewares/auth";
 
 const app: Express = express();
 
 // Security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // CSP handled by frontend
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -61,6 +73,10 @@ app.use("/api/news", (req: Request, res: Response, next: NextFunction) => {
   }
 });
 app.use("/api/export", writeLimiter);
+
+// Authentication: protect write operations and sensitive endpoints
+app.use("/api/scheduler", apiKeyAuth);
+app.use("/api", writeAuth);
 
 app.use("/api", router);
 

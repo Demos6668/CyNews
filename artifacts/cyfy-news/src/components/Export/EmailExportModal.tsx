@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import DOMPurify from "dompurify";
 import {
   X,
   Mail,
@@ -572,7 +573,7 @@ export function EmailExportModal({
               ) : (
                 <div
                   className="email-preview p-5"
-                  dangerouslySetInnerHTML={{ __html: preview.body }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(preview.body) }}
                 />
               )}
             </div>
