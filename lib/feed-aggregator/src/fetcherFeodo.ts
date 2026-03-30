@@ -59,6 +59,6 @@ export async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void>
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "Feodo Tracker", error: msg });
-    logger.error("[Feodo Tracker] failed:", msg);
+    logger.error(`[Feodo Tracker] failed: ${msg}`);
   }
 }

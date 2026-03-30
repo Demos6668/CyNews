@@ -153,7 +153,8 @@ export class EmailTemplateService {
 
   getDefaultTemplate(type: string): EmailTemplate | null {
     const templates = this.getTemplates(type);
-    return templates.find((t) => t.isDefault) ?? templates[0] ?? null;
+    const found = templates.find((t) => t.isDefault) ?? templates[0] ?? null;
+    return found as EmailTemplate | null;
   }
 
   processTemplate(template: EmailTemplate, advisory: AdvisoryWithCustomizations): { subject: string; body: string } {

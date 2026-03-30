@@ -75,6 +75,6 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "NVD", error: msg });
-    logger.error("[NVD] failed:", msg);
+    logger.error(`[NVD] failed: ${msg}`);
   }
 }

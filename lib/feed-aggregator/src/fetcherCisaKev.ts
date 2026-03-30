@@ -50,6 +50,6 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "CISA KEV", error: msg });
-    logger.error("[CISA KEV] failed:", msg);
+    logger.error(`[CISA KEV] failed: ${msg}`);
   }
 }

@@ -65,7 +65,7 @@ function escapeXml(str: string): string {
 router.get("/news/rss", validate({ query: RssQueryParams }), asyncHandler(async (req: Request, res: Response) => {
     const scope = req.query.scope as string | undefined;
     const conditions: SQL[] = [];
-    if (scope) conditions.push(eq(newsItemsTable.scope, scope));
+    if (scope) conditions.push(eq(newsItemsTable.scope, scope as "local" | "global"));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 

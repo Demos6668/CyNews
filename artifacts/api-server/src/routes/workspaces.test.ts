@@ -91,7 +91,7 @@ describe("Workspace routes", () => {
       const res = await request(app)
         .get("/api/workspaces/not-a-uuid")
         .expect(400);
-      expect(res.body).toHaveProperty("error", "Invalid workspace ID");
+      expect(res.body).toHaveProperty("error", "Validation failed");
     });
 
     it("returns 404 when workspace not found", async () => {

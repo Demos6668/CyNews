@@ -41,7 +41,13 @@ describe("CyberSecurityRelevanceDetector", () => {
     });
 
     it("rejects movie/entertainment content", () => {
-      const result = detector.isRelevant("New Bollywood movie starring popular celebrity won best film at festival");
+      const result = detector.isRelevant("New Bollywood movie starring popular actor won best film at festival");
+      expect(result.isRelevant).toBe(false);
+    });
+
+    it("does not false-positive on words containing cyber substrings", () => {
+      // "actor" contains "tor", "monitor" contains "tor", "rapid" contains "api"
+      const result = detector.isRelevant("The actor was seen on a monitor during the rapid deployment ceremony");
       expect(result.isRelevant).toBe(false);
     });
 

@@ -16,6 +16,7 @@ const sampleAdvisory = {
   references: ["https://nvd.nist.gov/vuln/detail/CVE-2024-1234"],
   status: "new" as const,
   publishedAt: new Date("2024-06-14T10:00:00Z"),
+  updatedAt: new Date("2024-06-14T10:00:00Z"),
   scope: "global" as const,
   isIndiaRelated: false,
   indiaConfidence: 0,

@@ -8,8 +8,8 @@ interface TemplateListEntry {
   id: string;
   name: string;
   type: string;
-  isDefault: boolean;
-  description: string;
+  isDefault?: boolean;
+  description?: string;
 }
 
 interface BatchExportItem {

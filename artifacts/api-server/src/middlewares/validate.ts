@@ -18,7 +18,9 @@ export function validate(schemas: ValidateOptions) {
         req.params = schemas.params.parse(req.params);
       }
       if (schemas.query) {
-        req.query = schemas.query.parse(req.query);
+        // Express 5 makes req.query a read-only getter — validate only, don't reassign.
+        // Routes read raw query params which are already strings matching the schema.
+        schemas.query.parse(req.query);
       }
       if (schemas.body) {
         req.body = schemas.body.parse(req.body);

@@ -19,6 +19,7 @@ describe("Scheduler routes", () => {
       triggerRefresh: mockTriggerRefresh,
       getNextUpdateTime: () => "2024-01-15T12:15:00.000Z",
       start: vi.fn(),
+      stop: vi.fn(),
     });
   });
 

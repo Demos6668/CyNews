@@ -18,15 +18,20 @@ const recentThreatItem = {
   sourceUrl: "https://cisa.gov/advisory",
 };
 
+const statsRow = {
+  total: 5,
+  local_count: 2,
+  global_count: 3,
+  critical_active: 1,
+  high_active: 2,
+  resolved: 1,
+};
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@workspace/db")>();
   const { newsItemsTable, threatIntelTable, advisoriesTable } = actual;
   const p = <T>(v: T) => Promise.resolve(v);
 
-  const countChain = (n: number) => ({
-    where: () => p(countRow(n)),
-    orderBy: () => ({ limit: () => p(countRow(n)) }),
-  });
   const arrayChain = (items: unknown[]) => ({
     where: () => ({ orderBy: () => ({ limit: () => p(items) }) }),
     orderBy: () => ({ limit: () => p(items) }),
@@ -35,18 +40,23 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return {
     ...actual,
     db: {
+      execute: () => p({ rows: [statsRow] }),
       select: (cols: unknown) => ({
         from: (table: unknown) => {
           if (table === newsItemsTable) {
             const hasCount = cols && typeof cols === "object" && "count" in cols;
-            return hasCount ? countChain(5) : arrayChain([recentNewsItem]);
+            return hasCount
+              ? { where: () => p(countRow(5)) }
+              : arrayChain([recentNewsItem]);
           }
           if (table === threatIntelTable) {
             const hasCount = cols && typeof cols === "object" && "count" in cols;
-            return hasCount ? countChain(3) : arrayChain([recentThreatItem]);
+            return hasCount
+              ? { where: () => p(countRow(3)) }
+              : arrayChain([recentThreatItem]);
           }
           if (table === advisoriesTable) {
-            return countChain(2);
+            return { where: () => p(countRow(2)) };
           }
           return { where: () => p(countRow(0)), orderBy: () => ({ limit: () => p([]) }) };
         },
@@ -68,7 +78,8 @@ describe("Dashboard routes", () => {
         .get("/api/dashboard/stats")
         .expect(200);
 
-      expect(res.body).toHaveProperty("totalThreatsToday", 8);
+      // totalThreatsToday = newsStats.total + threatStats.total = 5 + 5 = 10
+      expect(res.body).toHaveProperty("totalThreatsToday", 10);
       expect(res.body).toHaveProperty("activeAdvisories", 2);
       expect(res.body).toHaveProperty("recentActivity");
       expect(Array.isArray(res.body.recentActivity)).toBe(true);

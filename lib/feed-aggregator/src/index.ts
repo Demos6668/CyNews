@@ -91,7 +91,7 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "CERT-In", error: msg });
-    logger.error("[CERT-In] failed:", msg);
+    logger.error(`[CERT-In] failed: ${msg}`);
   }
 }
 

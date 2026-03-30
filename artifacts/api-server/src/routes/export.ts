@@ -193,7 +193,7 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
     let items: typeof advisoriesTable.$inferSelect[];
 
     if (body.ids && Array.isArray(body.ids)) {
-      const ids = body.ids.slice(0, MAX_BULK_IDS).filter((id) => Number.isInteger(id) && id > 0);
+      const ids = body.ids.slice(0, MAX_BULK_IDS).filter((id: number) => Number.isInteger(id) && id > 0);
       if (ids.length === 0) {
         res.status(400).json({ error: "No valid advisory IDs provided" });
         return;
@@ -253,7 +253,7 @@ router.get("/export/templates", asyncHandler(async (req: Request, res: Response)
 }));
 
 router.get("/export/templates/:id", asyncHandler(async (req: Request, res: Response) => {
-  const template = emailTemplateService.getTemplate(req.params.id);
+  const template = emailTemplateService.getTemplate(req.params.id as string);
   if (!template) {
     throw new NotFoundError("Template not found");
   }

@@ -411,7 +411,7 @@ export async function fetchRssFeeds(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result.errors.push({ source: source.name, error: msg });
-      logger.error(`[RSS] ${source.name} failed:`, msg);
+      logger.error(`[RSS] ${source.name} failed: ${msg}`);
     }
   }
 

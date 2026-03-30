@@ -51,7 +51,7 @@ router.get("/workspaces", asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
 
     const [workspace] = await db
       .select()
@@ -101,7 +101,7 @@ router.post("/workspaces", validate({ body: CreateWorkspaceBody }), asyncHandler
 }));
 
 router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
 
     const { name, domain, description } = req.body;
     const updates: Record<string, unknown> = {};
@@ -124,7 +124,7 @@ router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: Up
 }));
 
 router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
 
     const [workspace] = await db
       .select()
@@ -146,7 +146,7 @@ router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), as
 }));
 
 router.post("/workspaces/:id/products", validate({ params: AddProductParams, body: AddProductBody }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
     const { name, vendor, version, category } = req.body;
 
     const product = await addProduct(id, {
@@ -160,8 +160,8 @@ router.post("/workspaces/:id/products", validate({ params: AddProductParams, bod
 }));
 
 router.delete("/workspaces/:id/products/:productId", validate({ params: RemoveProductParams }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const productId = req.params.productId;
+    const id = req.params.id as string;
+    const productId = req.params.productId as string;
 
     const [product] = await db
       .select({ productName: workspaceProductsTable.productName })
@@ -198,7 +198,7 @@ router.delete("/workspaces/:id/products/:productId", validate({ params: RemovePr
 }));
 
 router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, query: GetWorkspaceFeedQueryParams }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
 
@@ -241,15 +241,15 @@ router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, qu
 }));
 
 router.post("/workspaces/:id/match", validate({ params: MatchWorkspaceThreatsParams }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
 
     const matches = await matchThreatsToWorkspace(id);
     res.json({ matchedCount: matches.length });
 }));
 
 router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchParams, body: UpdateMatchBody }), asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const matchId = req.params.matchId;
+    const id = req.params.id as string;
+    const matchId = req.params.matchId as string;
 
     const { reviewed, dismissed } = req.body;
     const updates: Record<string, unknown> = {};

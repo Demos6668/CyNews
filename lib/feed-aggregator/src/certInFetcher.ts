@@ -206,7 +206,7 @@ async function fetchRSSFeed(url: string, type: "vulnerability" | "advisory"): Pr
 
     return items;
   } catch (err) {
-    logger.error(`[CERT-In] RSS error (${type}):`, err instanceof Error ? err.message : String(err));
+    logger.error(`[CERT-In] RSS error (${type}): ${err instanceof Error ? err.message : String(err)}`);
     return [];
   }
 }
@@ -251,7 +251,7 @@ async function scrapeAdvisoriesPage(): Promise<CertInAdvisory[]> {
         }
       });
     } catch (err) {
-      logger.error(`[CERT-In] Scraping error (${pageUrl}):`, err instanceof Error ? err.message : String(err));
+      logger.error(`[CERT-In] Scraping error (${pageUrl}): ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

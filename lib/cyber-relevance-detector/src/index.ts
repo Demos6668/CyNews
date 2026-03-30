@@ -321,6 +321,26 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 const CVE_PATTERN = /CVE-\d{4}-\d{4,}/i;
 const RELEVANCE_THRESHOLD = 25;
 
+/**
+ * Build a RegExp cache for word-boundary matching.
+ * Keywords containing hyphens or special chars (e.g. "cve-", "c&c", "mitre att&ck")
+ * use escaped literal matching. Multi-word phrases match as-is.
+ * Short keywords like "tor", "apt", "ids" require word boundaries to avoid
+ * false positives from substrings (e.g. "actor" matching "tor").
+ */
+function buildKeywordRegexMap(keywords: readonly string[]): Map<string, RegExp> {
+  const map = new Map<string, RegExp>();
+  for (const kw of keywords) {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    map.set(kw, new RegExp(`(?:^|\\b|\\s)${escaped}(?:\\b|\\s|$)`, "i"));
+  }
+  return map;
+}
+
+const strongCyberRegexMap = buildKeywordRegexMap(STRONG_CYBER_KEYWORDS);
+const itTechRegexMap = buildKeywordRegexMap(IT_TECH_KEYWORDS);
+const cyberContextRegexMap = buildKeywordRegexMap(CYBER_CONTEXT_PHRASES);
+
 export class CyberSecurityRelevanceDetector {
   isRelevant(
     text: string,
@@ -338,9 +358,10 @@ export class CyberSecurityRelevanceDetector {
     // Step 1: Check non-relevant content first
     for (const pattern of NON_RELEVANT_PATTERNS) {
       if (pattern.test(lowerText)) {
-        const hasCyberContent = STRONG_CYBER_KEYWORDS.some((kw) =>
-          lowerText.includes(kw.toLowerCase())
-        );
+        const hasCyberContent = STRONG_CYBER_KEYWORDS.some((kw) => {
+          const re = strongCyberRegexMap.get(kw)!;
+          return re.test(lowerText);
+        });
         if (!hasCyberContent) {
           return {
             isRelevant: false,
@@ -352,9 +373,9 @@ export class CyberSecurityRelevanceDetector {
       }
     }
 
-    // Step 2: Strong cyber keywords
-    for (const keyword of STRONG_CYBER_KEYWORDS) {
-      if (lowerText.includes(keyword.toLowerCase())) {
+    // Step 2: Strong cyber keywords (word-boundary matching)
+    for (const [keyword, re] of strongCyberRegexMap) {
+      if (re.test(lowerText)) {
         relevanceScore += 30;
         matches.push({ type: "strong_cyber", value: keyword });
         if (!category) {
@@ -363,17 +384,17 @@ export class CyberSecurityRelevanceDetector {
       }
     }
 
-    // Step 3: IT/Tech keywords
-    for (const keyword of IT_TECH_KEYWORDS) {
-      if (lowerText.includes(keyword.toLowerCase())) {
+    // Step 3: IT/Tech keywords (word-boundary matching)
+    for (const [keyword, re] of itTechRegexMap) {
+      if (re.test(lowerText)) {
         relevanceScore += 10;
         matches.push({ type: "it_tech", value: keyword });
       }
     }
 
-    // Step 4: Cyber context phrases
-    for (const phrase of CYBER_CONTEXT_PHRASES) {
-      if (lowerText.includes(phrase.toLowerCase())) {
+    // Step 4: Cyber context phrases (word-boundary matching)
+    for (const [phrase, re] of cyberContextRegexMap) {
+      if (re.test(lowerText)) {
         relevanceScore += 20;
         matches.push({ type: "context", value: phrase });
       }
