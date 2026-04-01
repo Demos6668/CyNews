@@ -13,10 +13,12 @@
     "lint:fix": "eslint . --fix"
   },
   "private": true,
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
     "cross-env": "^10.1.0",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",

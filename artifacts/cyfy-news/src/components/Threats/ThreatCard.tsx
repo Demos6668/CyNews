@@ -79,7 +79,7 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
             {item.title}
           </h3>
 
-          <p className="text-muted-foreground text-sm flex-grow line-clamp-3 mb-4">
+          <p className="text-muted-foreground text-sm flex-grow line-clamp-5 mb-4">
             {stripHtml(item.summary ?? "")}
           </p>
 

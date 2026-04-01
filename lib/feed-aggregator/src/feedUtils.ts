@@ -32,6 +32,29 @@ export function inferSeverity(title: string, summary: string): "critical" | "hig
   return "info";
 }
 
+/**
+ * Extracts the best available content from an RSS item.
+ * Picks the longest text between contentSnippet and stripped HTML content.
+ * Falls back to title only as a last resort.
+ */
+export function extractItemContent(
+  title: string,
+  contentSnippet: string | undefined,
+  rawHtmlContent: string | undefined,
+): { summary: string; content: string } {
+  const rawSnippet = contentSnippet?.trim() ?? "";
+  const rawContent = (rawHtmlContent ?? "")
+    .replace(/<\/?(p|div|li|br|h[1-6])[^>]*>/gi, " ")
+    .replace(/<[^>]{0,2000}>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const bestText = rawContent.length > rawSnippet.length ? rawContent : rawSnippet;
+  return {
+    summary: (bestText || title).slice(0, 2000),
+    content: bestText || title,
+  };
+}
+
 export function cvssToSeverity(score: number): "critical" | "high" | "medium" | "low" | "info" {
   if (score >= 9.0) return "critical";
   if (score >= 7.0) return "high";

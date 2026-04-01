@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   createEmptyResult,
+  extractItemContent,
   inferSeverity,
   cvssToSeverity,
   isValidUrl,
@@ -159,5 +160,70 @@ describe("source constant sets", () => {
   it("CISA_SOURCES contains expected entries", () => {
     expect(CISA_SOURCES.has("CISA Alerts")).toBe(true);
     expect(CISA_SOURCES.has("US-CERT")).toBe(true);
+  });
+});
+
+describe("extractItemContent", () => {
+  it("picks contentSnippet when content is empty", () => {
+    const result = extractItemContent("My Title", "A short snippet", undefined);
+    expect(result.summary).toBe("A short snippet");
+    expect(result.content).toBe("A short snippet");
+  });
+
+  it("picks stripped HTML content when longer than snippet", () => {
+    const result = extractItemContent(
+      "My Title",
+      "Short",
+      "<p>This is a much longer HTML content body with details</p>",
+    );
+    expect(result.summary).toBe("This is a much longer HTML content body with details");
+    expect(result.content).toBe("This is a much longer HTML content body with details");
+  });
+
+  it("picks snippet when longer than stripped content", () => {
+    const result = extractItemContent(
+      "My Title",
+      "A longer plain text snippet with more detail",
+      "<b>Short</b>",
+    );
+    expect(result.summary).toBe("A longer plain text snippet with more detail");
+    expect(result.content).toBe("A longer plain text snippet with more detail");
+  });
+
+  it("falls back to title when both snippet and content are empty", () => {
+    const result = extractItemContent("Fallback Title", undefined, undefined);
+    expect(result.summary).toBe("Fallback Title");
+    expect(result.content).toBe("Fallback Title");
+  });
+
+  it("falls back to title when both snippet and content are whitespace", () => {
+    const result = extractItemContent("Fallback Title", "   ", "  <br/>  ");
+    expect(result.summary).toBe("Fallback Title");
+    expect(result.content).toBe("Fallback Title");
+  });
+
+  it("caps summary at 2000 characters", () => {
+    const longContent = "x".repeat(3000);
+    const result = extractItemContent("Title", longContent, undefined);
+    expect(result.summary.length).toBe(2000);
+    expect(result.content.length).toBe(3000);
+  });
+
+  it("strips HTML tags from content and preserves word boundaries", () => {
+    const result = extractItemContent(
+      "Title",
+      undefined,
+      "<div><p>Clean <strong>text</strong> here</p></div>",
+    );
+    expect(result.content).toBe("Clean text here");
+  });
+
+  it("inserts spaces between block-level elements", () => {
+    const result = extractItemContent(
+      "Title",
+      undefined,
+      "<p>First paragraph</p><p>Second paragraph</p>",
+    );
+    expect(result.content).toBe("First paragraph Second paragraph");
   });
 });

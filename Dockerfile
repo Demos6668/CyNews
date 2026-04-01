@@ -27,23 +27,42 @@ RUN pnpm install --frozen-lockfile
 # Copy all source files
 COPY . .
 
-# Build libraries and frontend
-RUN pnpm run build
+# Build libs (generates .d.ts files) then build all packages
+RUN pnpm run typecheck:libs && pnpm -r --if-present run build
+
+# Prune devDependencies after build (CI=true suppresses interactive prompt)
+RUN CI=true pnpm prune --prod
 
 # Stage 2: Production image
 FROM node:24-slim AS production
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+ARG VERSION=0.0.0
+LABEL org.opencontainers.image.title="CYFY-N" \
+      org.opencontainers.image.description="Cybersecurity news aggregator and intelligence platform" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="https://github.com/vinne-1/CYFY-N"
 
 WORKDIR /app
 
-# Copy built artifacts
+# Copy workspace config (needed for pnpm/node_modules resolution)
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/.npmrc ./
+
+# Copy production-only node_modules
 COPY --from=builder /app/node_modules ./node_modules
+
+# Copy built api-server (bundled CJS + runtime deps)
 COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
+
+# Copy frontend static dist
 COPY --from=builder /app/artifacts/cyfy-news/dist ./artifacts/cyfy-news/dist
+
+# Copy libs (needed for workspace resolution and migrations)
 COPY --from=builder /app/lib ./lib
+
+# Copy env example for reference
 COPY --from=builder /app/.env.example ./.env.example
+
+# Copy entrypoint
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 

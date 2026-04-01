@@ -12,6 +12,7 @@ import { cyberRelevanceDetector } from "./cyberRelevanceDetector";
 import {
   type FeedUpdateResult,
   type OnBroadcast,
+  extractItemContent,
   inferSeverity,
   isValidUrl,
   THREAT_CATEGORY_SOURCES,
@@ -329,8 +330,7 @@ export async function fetchRssFeeds(
         seenUrls.add(link);
 
         const title = item.title?.trim() ?? "Untitled";
-        const summary = item.contentSnippet?.trim().slice(0, 500) ?? (item.content ?? "").replace(/<[^>]+>/g, "").slice(0, 500) ?? title;
-        const content = item.content ?? summary;
+        const { summary, content } = extractItemContent(title, item.contentSnippet, item.content);
         const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
         const fullText = `${title} ${summary} ${content}`;
 

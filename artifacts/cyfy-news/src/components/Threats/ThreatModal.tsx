@@ -197,14 +197,30 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
             )}
           </div>
 
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold mb-3 border-b border-border pb-2">
-              Description
-            </h3>
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {stripHtml(item.description ?? "")}
-            </p>
-          </div>
+          {(() => {
+            const strippedDescription = stripHtml(item.description ?? "").trim();
+            const strippedSummary = stripHtml(item.summary ?? "").trim();
+            return (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-3 border-b border-border pb-2">
+                  Description
+                </h3>
+                {strippedDescription ? (
+                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {strippedDescription}
+                  </p>
+                ) : strippedSummary && strippedSummary !== item.title ? (
+                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {strippedSummary}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground/60 italic">
+                    No description available — view the original source for full details.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="space-y-3">
             {item.ttps.length > 0 && (
@@ -284,8 +300,8 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
                 color="text-green-400"
               >
                 <ul className="list-disc list-inside space-y-1.5 text-muted-foreground text-sm">
-                  {item.mitigations.map((m: string, i: number) => (
-                    <li key={i}>{m}</li>
+                  {item.mitigations.map((m: string) => (
+                    <li key={m}>{m}</li>
                   ))}
                 </ul>
               </AccordionSection>
