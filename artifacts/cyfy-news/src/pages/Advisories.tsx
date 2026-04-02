@@ -16,6 +16,7 @@ import {
 import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 import { exportAdvisoriesBulk } from "@/lib/exportApi";
+import { useQuery } from "@tanstack/react-query";
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "New", value: "new" },
@@ -24,12 +25,16 @@ const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "Dismissed", value: "dismissed" },
 ];
 
-const VENDOR_OPTIONS = [
-  "Fortinet", "Apache", "Microsoft", "Linux", "VMware", "Cisco", "WordPress",
-];
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export default function Advisories() {
   const searchString = useSearch();
+  const { data: vendorData } = useQuery<{ vendors: string[] }>({
+    queryKey: ["advisories-vendors"],
+    queryFn: () => fetch(`${API_BASE}/advisories/vendors`).then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const vendorOptions = vendorData?.vendors ?? [];
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkEmailExportOpen, setBulkEmailExportOpen] = useState(false);
@@ -208,7 +213,7 @@ export default function Advisories() {
         statuses={statuses}
         statusOptions={STATUS_OPTIONS}
         vendors={vendors}
-        vendorOptions={VENDOR_OPTIONS}
+        vendorOptions={vendorOptions}
         onToggleSeverity={toggleSeverity}
         onToggleStatus={toggleStatus}
         onToggleVendor={toggleVendor}

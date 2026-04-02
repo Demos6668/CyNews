@@ -199,6 +199,26 @@ export default function CertInAdvisories() {
         </div>
       </section>
 
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-6 py-3 bg-card border border-orange-500/30 rounded-full shadow-2xl backdrop-blur-md">
+          <span className="text-sm font-medium text-orange-400">
+            {selectedIds.size} selected
+          </span>
+          <div className="h-4 w-px bg-border" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSelected}>
+            <FileDown className="h-4 w-4" />
+            Export HTML
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setBulkEmailExportOpen(true)}>
+            <Mail className="h-4 w-4" />
+            Email Export
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+
       <AdvisoryDetail
         item={selectedItem}
         isOpen={!!selectedItem}

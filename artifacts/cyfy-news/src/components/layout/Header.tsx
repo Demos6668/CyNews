@@ -30,6 +30,7 @@ export function Header() {
   useEffect(() => {
     if (debouncedSearch) {
       setLocation(`/search?q=${encodeURIComponent(debouncedSearch)}`);
+      setSearchQuery("");
     }
   }, [debouncedSearch, setLocation]);
 
@@ -53,6 +54,12 @@ export function Header() {
         <button
           className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
           aria-label="Notifications"
+          title={criticalCount > 0 ? `${criticalCount} critical alert${criticalCount > 1 ? "s" : ""} — click to view` : "Notifications — coming soon"}
+          onClick={() => {
+            if (criticalCount > 0) {
+              setLocation("/advisories?severities=critical");
+            }
+          }}
         >
           <Bell className="h-5 w-5" />
           {criticalCount > 0 && (

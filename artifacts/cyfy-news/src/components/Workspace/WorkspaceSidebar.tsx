@@ -1,4 +1,5 @@
-import { Plus, Globe, Building2, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Globe, Building2, Star, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Workspace {
@@ -24,15 +25,25 @@ export function WorkspaceSidebar({
   onCreateNew,
   onDelete,
 }: WorkspaceSidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="w-56 bg-card border-r border-border flex flex-col shrink-0">
-      <div className="p-4 border-b border-border">
+      <button
+        onClick={() => setCollapsed((prev) => !prev)}
+        className="p-4 border-b border-border flex items-center justify-between w-full hover:bg-white/5 transition-colors text-left"
+      >
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Workspaces
         </h2>
-      </div>
+        {collapsed ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      {!collapsed && <div className="flex-1 overflow-y-auto p-2">
         {workspaces.map((ws) => (
           <div
             key={ws.id}
@@ -82,17 +93,19 @@ export function WorkspaceSidebar({
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
-      <div className="p-4 border-t border-border">
-        <button
-          onClick={onCreateNew}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Workspace
-        </button>
-      </div>
+      {!collapsed && (
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={onCreateNew}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Workspace
+          </button>
+        </div>
+      )}
     </div>
   );
 }

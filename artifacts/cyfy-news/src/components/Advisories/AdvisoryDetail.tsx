@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import {
   ShieldAlert,
   Calendar,
@@ -89,6 +90,8 @@ interface AdvisoryDetailProps {
 }
 
 export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
+  useBodyScrollLock(isOpen);
+
   const [emailExportOpen, setEmailExportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>

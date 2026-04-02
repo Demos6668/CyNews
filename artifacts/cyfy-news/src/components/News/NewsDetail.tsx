@@ -4,6 +4,7 @@ import { formatDate, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 interface NewsDetailProps {
   item: NewsItem | null;
@@ -12,6 +13,8 @@ interface NewsDetailProps {
 }
 
 export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
+  useBodyScrollLock(isOpen);
+
   if (!item) return null;
 
   return (

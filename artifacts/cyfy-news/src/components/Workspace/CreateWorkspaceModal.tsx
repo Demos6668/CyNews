@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +73,18 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const resetForm = () => {
+    setFormData({ name: "", domain: "", description: "" });
+    setProducts([]);
+    setNewProduct({ name: "", vendor: "", version: "", category: "Other" });
+    setShowSuggestions(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleAddProduct = () => {
     if (!newProduct.name.trim()) return;
     setProducts((prev) => [
@@ -99,21 +111,17 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
       description: formData.description.trim() || undefined,
       products: products.length > 0 ? products : undefined,
     });
-    setFormData({ name: "", domain: "", description: "" });
-    setProducts([]);
+    resetForm();
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border rounded-xl">
-        <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border rounded-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-border">
           <h2 className="text-xl font-semibold">Create Workspace</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -264,7 +272,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={!formData.name.trim() || !formData.domain.trim()}>

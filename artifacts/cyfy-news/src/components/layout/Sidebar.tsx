@@ -73,7 +73,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
               onCollapsedChange?.(!collapsed);
             }
           }}
-          className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors ml-auto"
+          className={cn("p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors", collapsed ? "mx-auto" : "ml-auto")}
         >
           {window.innerWidth < 1024 ? <X size={20} /> : collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -125,7 +125,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-white transition-colors"
+        className="lg:hidden fixed top-4 left-2 z-50 p-2 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-white transition-colors"
         aria-label="Open menu"
       >
         <Menu size={20} />

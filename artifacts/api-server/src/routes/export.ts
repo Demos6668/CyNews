@@ -241,7 +241,7 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="cyfy-advisories-${new Date().toISOString().slice(0, 10)}.html"`
+      `attachment; filename="security-advisories-${new Date().toISOString().slice(0, 10)}.html"`
     );
     res.send(html);
 }));

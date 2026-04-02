@@ -108,6 +108,24 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     res.json(data);
 }));
 
+router.get("/advisories/vendors", asyncHandler(async (req: Request, res: Response) => {
+    const cached = apiCache.get<object>("advisories:vendors");
+    if (cached) { res.json(cached); return; }
+
+    const rows = await db
+      .selectDistinct({ vendor: advisoriesTable.vendor })
+      .from(advisoriesTable)
+      .where(and(
+        sql`${advisoriesTable.vendor} IS NOT NULL`,
+        sql`${advisoriesTable.vendor} != 'Unknown'`,
+      ))
+      .orderBy(advisoriesTable.vendor);
+
+    const data = { vendors: rows.map((r) => r.vendor).filter(Boolean) };
+    apiCache.set("advisories:vendors", data, CACHE_TTL.LIST);
+    res.json(data);
+}));
+
 router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
     const query = GetAdvisoriesQueryParams.parse(req.query);
 

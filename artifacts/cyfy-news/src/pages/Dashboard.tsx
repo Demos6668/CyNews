@@ -156,8 +156,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="space-y-6">
-          <Card className="glass-panel h-full flex flex-col">
+        <div className="space-y-6 flex flex-col items-center xl:items-stretch">
+          <Card className="glass-panel flex flex-col w-full max-w-sm xl:max-w-none">
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <h3 className="font-bold">Threat Distribution</h3>
               <Badge variant="outline" className="font-mono text-[10px]">{timeframe === "all" ? "ALL" : timeframe.toUpperCase()}</Badge>

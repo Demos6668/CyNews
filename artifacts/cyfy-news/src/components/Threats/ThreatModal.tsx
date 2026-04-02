@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import {
   Crosshair,
   Shield,
@@ -74,6 +75,8 @@ function AccordionSection({
 }
 
 export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
+  useBodyScrollLock(isOpen);
+
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     ttps: true,
     iocs: true,
