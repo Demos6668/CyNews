@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
   Crosshair,
   Shield,
@@ -76,6 +77,7 @@ function AccordionSection({
 
 export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
   useBodyScrollLock(isOpen);
+  useEscapeKey(isOpen, onClose);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     ttps: true,
@@ -108,6 +110,9 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
         "fixed inset-0 z-50 transition-all duration-300",
         isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       )}
+      role="dialog"
+      aria-modal="true"
+      aria-label={item?.title ?? "Threat detail"}
     >
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"

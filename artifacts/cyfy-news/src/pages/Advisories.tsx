@@ -31,7 +31,7 @@ export default function Advisories() {
   const searchString = useSearch();
   const { data: vendorData } = useQuery<{ vendors: string[] }>({
     queryKey: ["advisories-vendors"],
-    queryFn: () => fetch(`${API_BASE}/advisories/vendors`).then((r) => r.json()),
+    queryFn: async () => { const r = await fetch(`${API_BASE}/advisories/vendors`); if (!r.ok) throw new Error("Failed to fetch vendors"); return r.json(); },
     staleTime: 5 * 60 * 1000,
   });
   const vendorOptions = vendorData?.vendors ?? [];

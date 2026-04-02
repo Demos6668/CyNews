@@ -5,6 +5,7 @@ import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface NewsDetailProps {
   item: NewsItem | null;
@@ -14,6 +15,7 @@ interface NewsDetailProps {
 
 export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
   useBodyScrollLock(isOpen);
+  useEscapeKey(isOpen, onClose);
 
   if (!item) return null;
 
@@ -23,6 +25,9 @@ export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
         "fixed inset-0 z-50 transition-all duration-300",
         isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       )}
+      role="dialog"
+      aria-modal="true"
+      aria-label={item.title}
     >
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"

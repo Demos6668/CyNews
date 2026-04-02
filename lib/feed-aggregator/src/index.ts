@@ -36,7 +36,7 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         .limit(1);
       const cveId = a.cveIds?.[0] ?? a.advisoryId;
       const description = a.summary || (a.content ?? "").slice(0, 500) || a.title;
-      const cvssScore = a.cvssScore ?? 7.0;
+      const cvssScore = a.cvssScore ?? 0;
 
       if (existing.length > 0) {
         const ex = existing[0];

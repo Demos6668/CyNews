@@ -103,8 +103,8 @@ export default function ThreatIntel() {
   }, []);
 
   const handleExport = (format: "csv" | "json") => {
-    const baseUrl = import.meta.env.BASE_URL || "/";
-    window.open(`${baseUrl}api/threats/export?format=${format}`, "_blank");
+    const apiBase = import.meta.env.VITE_API_BASE ?? "/api";
+    window.open(`${apiBase}/threats/export?format=${format}`, "_blank");
   };
 
   const handlePageChange = useCallback((newPage: number) => {

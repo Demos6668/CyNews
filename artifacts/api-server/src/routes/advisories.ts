@@ -51,11 +51,12 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
 }
 
 router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Response) => {
-    const rawQuery = { ...req.query };
-    if (rawQuery.timeframe === "90d") rawQuery.timeframe = "all";
-    const query = GetCertInAdvisoriesQueryParams.parse(rawQuery);
+    const rawTimeframe = (req.query.timeframe as string) ?? "";
+    const parsableQuery = { ...req.query };
+    if (rawTimeframe === "90d") parsableQuery.timeframe = "all";
+    const query = GetCertInAdvisoriesQueryParams.parse(parsableQuery);
 
-    const cacheKey = `certin:${query.severity ?? ""}:${query.category ?? ""}:${req.query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
+    const cacheKey = `certin:${query.severity ?? ""}:${query.category ?? ""}:${rawTimeframe}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
     const conditions: SQL[] = [eq(advisoriesTable.isCertIn, true)];
@@ -69,10 +70,10 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
       conditions.push(eq(advisoriesTable.certInType, query.category.trim()));
     }
     const fromDate =
-      req.query.timeframe === "90d"
+      rawTimeframe === "90d"
         ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-        : query.timeframe
-          ? getTimeframeStartDate(query.timeframe)
+        : rawTimeframe && rawTimeframe !== "all"
+          ? getTimeframeStartDate(rawTimeframe as Parameters<typeof getTimeframeStartDate>[0])
           : undefined;
     if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
 

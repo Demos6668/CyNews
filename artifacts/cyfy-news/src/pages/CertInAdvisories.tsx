@@ -4,7 +4,7 @@ import { Skeleton, Button } from "@/components/ui/shared";
 import { TimeframeSelector, Pagination, type TimeframeValue } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { ShieldAlert, Download, ExternalLink, RefreshCw, ChevronDown, Mail, FileDown } from "lucide-react";
+import { ShieldAlert, Download, ExternalLink, RefreshCw, Mail, FileDown } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
 import { EmptyState } from "@/components/Common";
 import {
@@ -49,7 +49,7 @@ export default function CertInAdvisories() {
   }, [timeframe]);
 
   const certInTimeframe = timeframe === "all" ? "90d" : timeframe;
-  const { data: certInData, isLoading: certInLoading } = useGetCertInAdvisories({
+  const { data: certInData, isLoading: certInLoading, isError: certInError } = useGetCertInAdvisories({
     timeframe: certInTimeframe,
     page,
     limit,
@@ -157,7 +157,13 @@ export default function CertInAdvisories() {
           </div>
         </div>
         <div className="p-6">
-          {certInLoading ? (
+          {certInError ? (
+            <div className="text-center py-12">
+              <ShieldAlert className="w-12 h-12 text-destructive mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load CERT-In advisories</h3>
+              <p className="text-muted-foreground text-sm">Please check your connection and try again.</p>
+            </div>
+          ) : certInLoading ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="w-6 h-6 text-orange-500 animate-spin" />
               <span className="ml-3 text-muted-foreground">Loading CERT-In advisories...</span>

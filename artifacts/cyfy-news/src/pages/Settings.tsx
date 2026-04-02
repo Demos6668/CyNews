@@ -9,10 +9,12 @@ type SettingsTab = "profile" | "notifications" | "preferences" | "api";
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [desktopNotifications, setDesktopNotifications] = useState(false);
-  const [criticalOnly, setCriticalOnly] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState("60");
+  const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("cyfy-auto-refresh") !== "false");
+  const [desktopNotifications, setDesktopNotifications] = useState(() => localStorage.getItem("cyfy-desktop-notifications") === "true");
+  const [criticalOnly, setCriticalOnly] = useState(() => localStorage.getItem("cyfy-critical-only") === "true");
+  const [refreshInterval, setRefreshInterval] = useState(() => localStorage.getItem("cyfy-refresh-interval") ?? "60");
+  const [profileName, setProfileName] = useState(() => localStorage.getItem("cyfy-profile-name") ?? "Lead Analyst 01");
+  const [department, setDepartment] = useState(() => localStorage.getItem("cyfy-department") ?? "Global Threat Intelligence");
 
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },
@@ -25,7 +27,7 @@ export default function Settings() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
       <div>
         <h1 className="text-3xl font-bold font-sans tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your SOC analyst preferences and integrations.</p>
+        <p className="text-muted-foreground mt-1">Manage your analyst preferences and integrations.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -52,17 +54,20 @@ export default function Settings() {
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Display Name</label>
-                    <Input defaultValue="Lead Analyst 01" />
+                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Email Address</label>
-                    <Input defaultValue="analyst@cyfy.soc" disabled />
+                    <Input defaultValue="analyst@soc.local" disabled />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Department</label>
-                    <Input defaultValue="Global Threat Intelligence" />
+                    <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
                   </div>
-                  <Button className="mt-4">Save Changes</Button>
+                  <Button className="mt-4" onClick={() => {
+                    localStorage.setItem("cyfy-profile-name", profileName);
+                    localStorage.setItem("cyfy-department", department);
+                  }}>Save Changes</Button>
                 </CardContent>
               </Card>
 
@@ -100,10 +105,13 @@ export default function Settings() {
                     onCheckedChange={(checked) => {
                       if (checked && "Notification" in window) {
                         Notification.requestPermission().then((perm) => {
-                          setDesktopNotifications(perm === "granted");
+                          const granted = perm === "granted";
+                          setDesktopNotifications(granted);
+                          localStorage.setItem("cyfy-desktop-notifications", String(granted));
                         });
                       } else {
                         setDesktopNotifications(checked);
+                        localStorage.setItem("cyfy-desktop-notifications", String(checked));
                       }
                     }}
                   />
@@ -115,7 +123,7 @@ export default function Settings() {
                       Only notify for critical and high severity items
                     </p>
                   </div>
-                  <Switch checked={criticalOnly} onCheckedChange={setCriticalOnly} />
+                  <Switch checked={criticalOnly} onCheckedChange={(v) => { setCriticalOnly(v); localStorage.setItem("cyfy-critical-only", String(v)); }} />
                 </div>
               </CardContent>
             </Card>
@@ -178,7 +186,7 @@ export default function Settings() {
                         </p>
                       </div>
                     </div>
-                    <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+                    <Switch checked={autoRefresh} onCheckedChange={(v) => { setAutoRefresh(v); localStorage.setItem("cyfy-auto-refresh", String(v)); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -195,7 +203,7 @@ export default function Settings() {
                       min={10}
                       max={300}
                       value={refreshInterval}
-                      onChange={(e) => setRefreshInterval(e.target.value)}
+                      onChange={(e) => { setRefreshInterval(e.target.value); localStorage.setItem("cyfy-refresh-interval", e.target.value); }}
                       className="w-24 text-center"
                     />
                   </div>
@@ -226,7 +234,7 @@ export default function Settings() {
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     <strong>WebSocket:</strong>{" "}
-                    <code className="bg-background px-2 py-0.5 rounded text-xs">ws://localhost:8080/ws</code>
+                    <code className="bg-background px-2 py-0.5 rounded text-xs">ws://{"{host}"}/ws</code>
                   </p>
                 </div>
                 <Button className="mt-4">Save API Keys</Button>

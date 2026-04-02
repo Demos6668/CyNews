@@ -83,7 +83,7 @@ function detectSeverity(title: string, description: string): "critical" | "high"
   if (text.includes("medium") || text.includes("moderate") || text.includes("information disclosure")) return "medium";
   if (text.includes("low") || text.includes("minor")) return "low";
 
-  return "high";
+  return "medium";
 }
 
 function extractCVEs(text: string): string[] {
@@ -169,7 +169,8 @@ async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory
     });
 
     return details;
-  } catch {
+  } catch (err) {
+    console.warn(`[CERT-In] Failed to enrich advisory: ${url}`, err instanceof Error ? err.message : err);
     return {};
   }
 }
@@ -274,7 +275,8 @@ async function enrichAdvisories(advisories: CertInAdvisory[]): Promise<CertInAdv
         enriched.push(advisory);
       }
       await delay(500);
-    } catch {
+    } catch (err) {
+      console.warn(`[CERT-In] Enrichment failed for ${advisory.advisoryId}:`, err instanceof Error ? err.message : err);
       enriched.push(advisory);
     }
   }

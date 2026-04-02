@@ -91,9 +91,9 @@ export function Header() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem disabled>
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              Sign out (coming soon)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Loader, ErrorBoundary, RouteErrorBoundary } from "@/components/Common";
+import { Toaster } from "@/components/ui/sonner";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const NewsPage = lazy(() => import("@/pages/NewsPage"));
@@ -63,6 +64,8 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
+          <Toaster position="bottom-right" />
+
         </QueryClientProvider>
       </ThemeProvider>
     </ErrorBoundary>

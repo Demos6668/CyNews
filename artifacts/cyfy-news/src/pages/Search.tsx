@@ -3,9 +3,19 @@ import { useSearch as useWouterSearch } from "wouter";
 import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate, stripHtml } from "@/lib/utils";
 import { Search as SearchIcon, ChevronRight, AlertTriangle } from "lucide-react";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
+
+function getResultHref(result: { type: string; id: number }): string {
+  switch (result.type) {
+    case "news": return "/news/global";
+    case "advisory": return "/advisories";
+    case "threat": return "/threat-intel";
+    default: return "/";
+  }
+}
 
 export default function Search() {
+  const [, setLocation] = useLocation();
   const searchString = useWouterSearch();
   const query = new URLSearchParams(searchString).get("q") || "";
   
@@ -21,7 +31,7 @@ export default function Search() {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <SearchIcon className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
-        <h2 className="text-2xl font-bold mb-2">Search the SOC</h2>
+        <h2 className="text-2xl font-bold mb-2">Search Threats</h2>
         <p className="text-muted-foreground max-w-md">Type in the search bar above to find specific threats, CVEs, or intelligence reports.</p>
       </div>
     );
@@ -52,7 +62,7 @@ export default function Search() {
       ) : (
         <div className="space-y-4">
           {(data?.results ?? []).map(result => (
-            <Card key={result.id} className="hover:bg-white/5 transition-colors group cursor-pointer border-white/5">
+            <Card key={result.id} className="hover:bg-white/5 transition-colors group cursor-pointer border-white/5" onClick={() => setLocation(getResultHref(result))}>
               <div className="p-4 flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
