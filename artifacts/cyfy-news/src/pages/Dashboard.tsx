@@ -26,7 +26,7 @@ export default function Dashboard() {
   if (statsLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold font-sans">SOC Overview</h1>
+        <h1 className="text-3xl font-bold font-sans">Threat Overview</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-32" />)}
         </div>
@@ -41,7 +41,7 @@ export default function Dashboard() {
   if (statsError || !stats) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold font-sans">SOC Overview</h1>
+        <h1 className="text-3xl font-bold font-sans">Threat Overview</h1>
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load dashboard</h3>
@@ -75,7 +75,7 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-sans tracking-tight">SOC Overview</h1>
+          <h1 className="text-3xl font-bold font-sans tracking-tight">Threat Overview</h1>
           <p className="text-muted-foreground mt-1">Real-time threat intelligence landscape</p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
