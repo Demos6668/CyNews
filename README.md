@@ -2,13 +2,13 @@
 
 **Cybersecurity Threat Intelligence & News Aggregation Platform**
 
-A real-time SOC (Security Operations Center) dashboard that aggregates cybersecurity news, threat intelligence, and advisories from 50+ sources. Built with a dark, professional SOC-style interface.
+A real-time cybersecurity threat intelligence dashboard that aggregates news, advisories, and threat data from 50+ sources. Built with a dark, professional SOC-style interface.
 
 ---
 
 ## Features
 
-- **Real-time Dashboard** - SOC overview with threat level gauge, stats cards, severity distribution charts, and live activity stream
+- **Real-time Dashboard** - Threat overview with threat level gauge, stats cards, severity distribution charts, and live activity stream
 - **50+ Feed Sources** - Aggregates from The Hacker News, BleepingComputer, Dark Reading, Krebs on Security, SANS ISC, CISA KEV, and dozens more
 - **CERT-In Advisories** - Dedicated page for Indian CERT advisories with severity filtering
 - **Threat Intelligence** - Threat actor profiles, TTPs (MITRE ATT&CK), IOCs, malware families, and campaign tracking
@@ -60,44 +60,68 @@ CyNews/
 ## Quick Start
 
 ### Prerequisites
-- Node.js 24+
-- pnpm 9+
-- PostgreSQL 15+
+- [Node.js 24+](https://nodejs.org/)
+- [pnpm 9+](https://pnpm.io/installation)
+- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL)
 
-### Setup
+### One-Command Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/Demos6668/CyNews.git
 cd CyNews
-
-# Install dependencies
-pnpm install
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL
-
-# Push database schema
-pnpm --filter @workspace/db run push
-
-# Seed with demo data
-pnpm --filter @workspace/scripts run seed
-
-# Start development servers
-pnpm --filter @workspace/api-server run dev    # API on :8080
-pnpm --filter @workspace/cyfy-news run dev     # Frontend on :5173
+pnpm run setup
+pnpm dev
 ```
 
-### Docker
+This installs dependencies, starts PostgreSQL in Docker, pushes the database schema, and launches both the API server (`:8080`) and frontend (`:5173`).
+
+### Manual Setup (Step by Step)
 
 ```bash
+# 1. Clone and install
+git clone https://github.com/Demos6668/CyNews.git
+cd CyNews
+pnpm install
+
+# 2. Configure environment
+cp .env.example .env
+# Defaults work out-of-the-box — edit only if needed
+
+# 3. Start PostgreSQL
+pnpm run db:up
+
+# 4. Push database schema
+pnpm run db:push:force
+
+# 5. (Optional) Seed with demo data
+pnpm --filter @workspace/scripts run seed
+
+# 6. Start dev servers (API + frontend)
+pnpm dev
+```
+
+Open http://localhost:5173 in your browser. The API server runs at http://localhost:8080.
+
+### Docker (Production)
+
+```bash
+cp .env.example .env
+# Edit POSTGRES_PASSWORD to a strong value for production
 docker compose up -d
 ```
 
-This starts PostgreSQL, the API server, and serves the built frontend.
+This starts PostgreSQL, builds and runs the API server, and serves the frontend — all in containers.
 
 ### Live Feeds
+
+The API server runs the feed scheduler automatically every 15 minutes. To trigger a manual refresh:
+
+```bash
+curl -X POST http://localhost:8080/api/scheduler/refresh
+```
+
+Or run the standalone feed scripts:
 
 ```bash
 # One-time fetch from all sources
@@ -107,7 +131,15 @@ pnpm --filter @workspace/scripts run live-feed
 pnpm --filter @workspace/scripts run live-feed:watch
 ```
 
-The API server also runs the feed scheduler automatically (every 15 min).
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `database "cynews" does not exist` | Run `pnpm run db:up` first — Docker creates the database automatically |
+| `connection refused` on port 5432 | Make sure Docker is running: `docker ps` should show the `cynews-db-1` container |
+| Port 5432 already in use | A local PostgreSQL is running — stop it or change the port in `.env` and `docker-compose.yml` |
+| Schema push fails | Use `pnpm run db:push:force` for a clean push on a fresh database |
+| API returns 500 errors | Check that the database has tables: run `pnpm run db:push:force` |
 
 ## API Endpoints
 
@@ -145,12 +177,20 @@ The API server also runs the feed scheduler automatically (every 15 min).
 ## Key Commands
 
 ```bash
+pnpm dev                # Start API + frontend dev servers
+pnpm run setup          # Full setup (install + DB + schema)
+pnpm run db:up          # Start PostgreSQL container
+pnpm run db:push        # Push DB schema (interactive)
+pnpm run db:push:force  # Push DB schema (no prompts)
+pnpm run dev:api        # Start API server only
+pnpm run dev:frontend   # Start frontend only
+pnpm run typecheck      # Full typecheck
+pnpm run build          # Build all packages
+
+# Less common
 pnpm --filter @workspace/api-spec run codegen    # Regenerate API types
-pnpm --filter @workspace/db run push              # Push DB schema
 pnpm --filter @workspace/scripts run seed         # Seed demo data
 pnpm --filter @workspace/scripts run live-feed    # Fetch real data
-pnpm run typecheck                                # Full typecheck
-pnpm run build                                    # Build all packages
 ```
 
 ## License

@@ -5,6 +5,13 @@
   "type": "module",
   "scripts": {
     "preinstall": "node -e \"if(!/pnpm/.test(process.env.npm_config_user_agent||''))throw new Error('Use pnpm instead')\"",
+    "dev": "pnpm run --parallel --filter @workspace/api-server --filter @workspace/cyfy-news dev",
+    "dev:api": "pnpm --filter @workspace/api-server run dev",
+    "dev:frontend": "pnpm --filter @workspace/cyfy-news run dev",
+    "db:up": "docker compose up -d db",
+    "db:push": "pnpm --filter @workspace/db run push",
+    "db:push:force": "pnpm --filter @workspace/db exec drizzle-kit push --force",
+    "setup": "pnpm install && pnpm run db:up && pnpm run db:push:force",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
