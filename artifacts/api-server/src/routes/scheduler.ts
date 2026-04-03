@@ -8,6 +8,10 @@ export function setScheduler(scheduler: ReturnType<typeof createFeedScheduler>):
   schedulerInstance = scheduler;
 }
 
+export function getScheduler(): ReturnType<typeof createFeedScheduler> | null {
+  return schedulerInstance;
+}
+
 const router: IRouter = Router();
 
 router.get("/scheduler/status", (req: Request, res: Response) => {
