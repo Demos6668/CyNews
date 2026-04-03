@@ -1,3 +1,4 @@
+export { AccordionSection } from "./AccordionSection";
 export { TabSwitch } from "./TabSwitch";
 export type { TabValue } from "./TabSwitch";
 export { TimeframeSelector, getTimeframeLabel } from "./TimeframeSelector";

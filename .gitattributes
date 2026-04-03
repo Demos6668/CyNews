@@ -1,0 +1,3 @@
+# Mark generated Orval code to collapse in PR diffs and exclude from language stats
+lib/api-client-react/src/generated/** linguist-generated=true
+lib/api-zod/src/generated/** linguist-generated=true

@@ -164,7 +164,7 @@ async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory
 
     return details;
   } catch (err) {
-    console.warn(`[CERT-In] Failed to enrich advisory: ${url}`, err instanceof Error ? err.message : err);
+    logger.warn({ url, error: err instanceof Error ? err.message : String(err) }, "[CERT-In] Failed to enrich advisory");
     return {};
   }
 }
@@ -270,7 +270,7 @@ async function enrichAdvisories(advisories: CertInAdvisory[]): Promise<CertInAdv
       }
       await delay(500);
     } catch (err) {
-      console.warn(`[CERT-In] Enrichment failed for ${advisory.advisoryId}:`, err instanceof Error ? err.message : err);
+      logger.warn({ advisoryId: advisory.advisoryId, error: err instanceof Error ? err.message : String(err) }, "[CERT-In] Enrichment failed");
       enriched.push(advisory);
     }
   }
