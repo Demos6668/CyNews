@@ -18,14 +18,17 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
     const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string }> };
     const vulns = data.vulnerabilities ?? [];
     let added = 0;
-    for (const v of vulns.slice(0, 50)) {
+    const BATCH_SIZE = 50;
+    const batch: (typeof advisoriesTable.$inferInsert)[] = [];
+
+    for (const v of vulns) {
       const cveId = v.cveID ?? "";
       if (!cveId.startsWith("CVE-")) continue;
       const existing = await db.select({ id: advisoriesTable.id }).from(advisoriesTable).where(eq(advisoriesTable.cveId, cveId)).limit(1);
       if (existing.length > 0) continue;
       const fullText = `${v.vulnerabilityName ?? ""} ${v.shortDescription ?? ""} ${v.vendorProject ?? ""} ${v.product ?? ""}`;
       const indiaDetails = indiaDetector.getIndiaDetails(fullText);
-      await db.insert(advisoriesTable).values({
+      batch.push({
         cveId,
         title: v.vulnerabilityName ?? cveId,
         description: v.shortDescription ?? `Known Exploited Vulnerability: ${cveId}. See CISA KEV catalog.`,
@@ -43,8 +46,20 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
         isIndiaRelated: indiaDetails.isIndia,
         indiaConfidence: indiaDetails.confidence,
       });
-      added++;
+
+      if (batch.length >= BATCH_SIZE) {
+        await db.insert(advisoriesTable).values(batch);
+        added += batch.length;
+        logger.info(`[CISA KEV] inserted batch of ${batch.length} (total: ${added})`);
+        batch.length = 0;
+      }
     }
+
+    if (batch.length > 0) {
+      await db.insert(advisoriesTable).values(batch);
+      added += batch.length;
+    }
+
     result.advisories += added;
     if (added > 0) logger.info(`[CISA KEV] ${added} new advisories`);
   } catch (err) {

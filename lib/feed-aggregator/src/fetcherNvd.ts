@@ -71,7 +71,6 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
     }
     result.nvd += added;
     if (added > 0) logger.info(`[NVD] ${added} new advisories`);
-    await new Promise((r) => setTimeout(r, 6000));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "NVD", error: msg });
