@@ -6,7 +6,7 @@ import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, External
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatRelative } from "@/lib/utils";
 import { NewsCard, NewsDetail } from "@/components/News";
-import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown } from "@/components/Dashboard";
+import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus } from "@/components/Dashboard";
 import { TimeframeSelector, getTimeframeLabel, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
@@ -92,6 +92,7 @@ export default function Dashboard() {
             </span>
           </div>
           <RefreshCountdown nextUpdate={nextUpdate} isRefreshing={isRefreshing} />
+          <FeedStatus />
           {lastUpdate && (
             <span className="text-xs text-muted-foreground">Updated: {formatRelative(lastUpdate)}</span>
           )}

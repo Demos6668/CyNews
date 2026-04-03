@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 interface RefreshCountdownProps {
   nextUpdate: string | null;
@@ -8,6 +11,7 @@ interface RefreshCountdownProps {
 
 export function RefreshCountdown({ nextUpdate, isRefreshing }: RefreshCountdownProps) {
   const [timeLeft, setTimeLeft] = useState("");
+  const [triggering, setTriggering] = useState(false);
 
   useEffect(() => {
     if (!nextUpdate || isRefreshing) {
@@ -31,19 +35,36 @@ export function RefreshCountdown({ nextUpdate, isRefreshing }: RefreshCountdownP
     return () => clearInterval(id);
   }, [nextUpdate, isRefreshing]);
 
-  if (isRefreshing) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <RefreshCw className="h-3.5 w-3.5 animate-spin text-accent" />
-        <span>Refreshing...</span>
-      </div>
-    );
-  }
-  if (!timeLeft) return null;
+  const triggerRefresh = useCallback(async () => {
+    if (triggering || isRefreshing) return;
+    setTriggering(true);
+    try {
+      await fetch(`${API_BASE}/scheduler/refresh`, { method: "POST" });
+    } catch {
+      // WebSocket will reflect actual status
+    } finally {
+      setTriggering(false);
+    }
+  }, [triggering, isRefreshing]);
+
+  const spinning = isRefreshing || triggering;
+
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <RefreshCw className="h-3.5 w-3.5" />
-      <span>Next: {timeLeft}</span>
-    </div>
+    <button
+      type="button"
+      onClick={triggerRefresh}
+      disabled={spinning}
+      title={spinning ? "Refreshing feeds..." : "Click to refresh feeds now"}
+      className={cn(
+        "flex items-center gap-2 text-xs text-muted-foreground transition-colors",
+        !spinning && "hover:text-primary cursor-pointer",
+        spinning && "cursor-not-allowed",
+      )}
+    >
+      <RefreshCw className={cn("h-3.5 w-3.5", spinning && "animate-spin text-accent")} />
+      <span>
+        {spinning ? "Refreshing..." : timeLeft ? `Next: ${timeLeft}` : "Refresh"}
+      </span>
+    </button>
   );
 }

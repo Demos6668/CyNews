@@ -1,37 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 
-const sampleNewsItem = {
-  id: 1,
-  title: "Cyber Attack on Infrastructure",
-  summary: "A major attack was reported.",
-  type: "news",
-  severity: "high",
-  source: "CyberWire",
-  publishedAt: new Date("2024-06-14T10:00:00Z"),
-  content: "Full content of the news article.",
-};
-
-const sampleThreatItem = {
-  id: 2,
-  title: "APT29 Campaign Detected",
-  summary: "New campaign targeting government.",
-  severity: "critical",
-  source: "CISA",
-  description: "Detailed description of the threat.",
-  publishedAt: new Date("2024-06-14T09:00:00Z"),
-};
-
-const sampleAdvisoryItem = {
-  id: 3,
-  title: "CVE-2024-5678 Buffer Overflow",
-  description: "A critical buffer overflow vulnerability.",
-  severity: "critical",
-  vendor: "TestVendor",
-  cveId: "CVE-2024-5678",
-  publishedAt: new Date("2024-06-14T08:00:00Z"),
-};
-
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@workspace/db")>();
   const { newsItemsTable, threatIntelTable, advisoriesTable } = actual;
@@ -48,22 +17,59 @@ vi.mock("@workspace/db", async (importOriginal) => {
     }),
   });
 
+  // FTS result rows (snake_case matching raw SQL column names)
+  const ftsRows = [
+    [{
+      id: 1, title: "Cyber Attack on Infrastructure", summary: "A major attack was reported.",
+      type: "news", severity: "high", source: "CyberWire",
+      published_at: new Date("2024-06-14T10:00:00Z"), rank: 0.5,
+    }],
+    [{
+      id: 2, title: "APT29 Campaign Detected", summary: "New campaign targeting government.",
+      severity: "critical", source: "CISA",
+      published_at: new Date("2024-06-14T09:00:00Z"), rank: 0.4,
+    }],
+    [{
+      id: 3, title: "CVE-2024-5678 Buffer Overflow", description: "A critical buffer overflow vulnerability.",
+      severity: "critical", vendor: "TestVendor",
+      published_at: new Date("2024-06-14T08:00:00Z"), rank: 0.3,
+    }],
+  ];
+  let executeIdx = 0;
+
   return {
     ...actual,
     db: {
       select: (cols?: unknown) => ({
         from: (table: unknown) => {
           if (table === newsItemsTable) {
-            return selectChain([sampleNewsItem]);
+            return selectChain([{
+              id: 1, title: "Cyber Attack on Infrastructure", summary: "A major attack was reported.",
+              type: "news", severity: "high", source: "CyberWire",
+              publishedAt: new Date("2024-06-14T10:00:00Z"), content: "Full content.",
+            }]);
           }
           if (table === threatIntelTable) {
-            return selectChain([sampleThreatItem]);
+            return selectChain([{
+              id: 2, title: "APT29 Campaign Detected", summary: "New campaign targeting government.",
+              severity: "critical", source: "CISA",
+              publishedAt: new Date("2024-06-14T09:00:00Z"),
+            }]);
           }
           if (table === advisoriesTable) {
-            return selectChain([sampleAdvisoryItem]);
+            return selectChain([{
+              id: 3, title: "CVE-2024-5678 Buffer Overflow", description: "A critical buffer overflow vulnerability.",
+              severity: "critical", vendor: "TestVendor", cveId: "CVE-2024-5678",
+              publishedAt: new Date("2024-06-14T08:00:00Z"),
+            }]);
           }
           return selectChain([]);
         },
+      }),
+      execute: vi.fn(() => {
+        const rows = ftsRows[executeIdx % ftsRows.length];
+        executeIdx++;
+        return p({ rows });
       }),
     },
   };
