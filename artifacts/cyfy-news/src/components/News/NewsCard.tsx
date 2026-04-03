@@ -1,7 +1,7 @@
 import { Bookmark, Calendar, ExternalLink } from "lucide-react";
 import { IndiaBadge } from "@/components/Threats";
 import { Card, Badge } from "@/components/ui/shared";
-import { cn, formatRelative, getSeverityColors, stripHtml } from "@/lib/utils";
+import { cn, formatRelative, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
 import { useToggleBookmark } from "@workspace/api-client-react";

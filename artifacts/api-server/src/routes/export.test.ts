@@ -33,11 +33,6 @@ vi.mock("@workspace/db", async (importOriginal) => {
     Object.assign(p(), { limit: () => p(), offset: () => p() });
   const withOrderBy = () =>
     Object.assign(p(), { orderBy: () => withLimit(), limit: () => p() });
-  const withWhere = () =>
-    Object.assign(p(), {
-      orderBy: () => withLimit(),
-      where: () => withOrderBy(),
-    });
   return {
     ...actual,
     db: {

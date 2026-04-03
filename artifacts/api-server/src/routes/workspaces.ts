@@ -7,7 +7,6 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, asc } from "drizzle-orm";
 import {
-  ensureMasterWorkspace,
   createWorkspace,
   addProduct,
   matchThreatsToWorkspace,

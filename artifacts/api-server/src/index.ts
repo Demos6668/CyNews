@@ -102,8 +102,20 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 ensureMasterWorkspace()
   .catch((err) => logger.error({ err }, "Failed to ensure master workspace"))
   .then(() => {
+    const isProd = process.env.NODE_ENV === "production";
+    if (isProd && !process.env.API_KEY) {
+      logger.warn("API_KEY not set — all write operations are unprotected");
+    }
+    if (isProd && !process.env.CORS_ORIGINS) {
+      logger.warn("CORS_ORIGINS not set — requests from any origin are allowed");
+    }
+
     server.listen(port, () => {
-      logger.info({ port }, "Server listening");
-      logger.info({ port }, "WebSocket available");
+      logger.info({
+        port,
+        nodeEnv: process.env.NODE_ENV ?? "development",
+        apiKeyConfigured: !!process.env.API_KEY,
+        corsOrigins: process.env.CORS_ORIGINS || "all (unrestricted)",
+      }, "Server startup complete");
     });
   });

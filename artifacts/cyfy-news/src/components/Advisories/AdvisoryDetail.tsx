@@ -11,9 +11,7 @@ import {
   Shield,
   FileText,
   Download,
-  AlertCircle,
   CheckCircle,
-  Link,
   Mail,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";

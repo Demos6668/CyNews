@@ -91,12 +91,6 @@ function extractCVEs(text: string): string[] {
   return [...new Set(matches.map((c) => c.toUpperCase()))];
 }
 
-function cvssToSeverity(score: number): "critical" | "high" | "medium" | "low" | "info" {
-  if (score >= 9.0) return "critical";
-  if (score >= 7.0) return "high";
-  if (score >= 4.0) return "medium";
-  return "low";
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

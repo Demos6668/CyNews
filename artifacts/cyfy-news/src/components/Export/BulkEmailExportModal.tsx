@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Mail, Copy, Check, ChevronDown } from "lucide-react";
+import { X, Mail, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
 import { getEmailTemplates, exportEmailBatch } from "@/lib/exportApi";

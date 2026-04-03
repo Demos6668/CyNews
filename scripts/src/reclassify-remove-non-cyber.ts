@@ -6,7 +6,7 @@
  */
 
 import { db, newsItemsTable, threatIntelTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { cyberRelevanceDetector } from "@workspace/feed-aggregator";
 
 const SECURITY_CURATED_SOURCES = new Set([

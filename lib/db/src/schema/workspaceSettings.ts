@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, boolean } from "drizzle-orm/pg-core";
 import { workspacesTable } from "./workspaces";
 
 export const workspaceSettingsTable = pgTable("workspace_settings", {

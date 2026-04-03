@@ -91,14 +91,6 @@ async function findExportItemById(
   return null;
 }
 
-async function findAdvisoryByIdOrCertInId(
-  idParam: string | number
-): Promise<typeof advisoriesTable.$inferSelect | null> {
-  const item = await findExportItemById(idParam);
-  if (item?.type === "advisory") return item.row;
-  return null;
-}
-
 function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
   return {
     id: row.id,
