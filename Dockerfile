@@ -71,4 +71,7 @@ ENV PORT=8080
 
 EXPOSE 8080
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "const http = require('http'); const req = http.get('http://localhost:8080/api/healthz', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1));"
+
 CMD ["./docker-entrypoint.sh"]

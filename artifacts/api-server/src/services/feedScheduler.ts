@@ -6,6 +6,7 @@ import cron from "node-cron";
 import { runFeedUpdate, type OnBroadcast } from "@workspace/feed-aggregator";
 import { logger } from "../lib/logger";
 import { apiCache } from "../lib/cache";
+import { purgeOldRecords } from "./dataRetention";
 
 export interface SchedulerStatus {
   isRunning: boolean;
@@ -80,18 +81,24 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
     };
   }
 
-  let cronTask: cron.ScheduledTask | null = null;
+  let feedCron: cron.ScheduledTask | null = null;
+  let retentionCron: cron.ScheduledTask | null = null;
 
   function start(): void {
-    logger.info("Scheduler starting - updates every 15 minutes");
+    logger.info("Scheduler starting - feed updates every 15 minutes, retention daily at 03:00");
     runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed"));
-    cronTask = cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
+    feedCron = cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
+    retentionCron = cron.schedule("0 3 * * *", () =>
+      purgeOldRecords().catch((err) => logger.error({ err }, "Data retention task failed")),
+    );
     logger.info("Scheduler started");
   }
 
   function stop(): void {
-    cronTask?.stop();
-    cronTask = null;
+    feedCron?.stop();
+    feedCron = null;
+    retentionCron?.stop();
+    retentionCron = null;
     logger.info("Scheduler stopped");
   }
 
