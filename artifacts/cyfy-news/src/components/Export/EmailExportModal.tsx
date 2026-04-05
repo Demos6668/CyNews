@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/shared";
 import type { Advisory } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { getEmailTemplates, previewEmail, exportEmail } from "@/lib/exportApi";
+import { toast } from "sonner";
 
 interface TemplateListEntry {
   id: string;
@@ -328,7 +329,7 @@ export function EmailExportModal({
           const defaultT = data.find((t) => (t as TemplateListEntry).isDefault) ?? data[0];
           if (defaultT) setSelectedTemplateId(defaultT.id);
         })
-        .catch(console.error);
+        .catch(() => toast.error("Failed to load email templates"));
     }
   }, [isOpen, advisory, isCertIn]);
 
@@ -415,8 +416,8 @@ export function EmailExportModal({
         format: "mailto",
       });
       if (data.mailtoLink) window.location.href = data.mailtoLink;
-    } catch (e) {
-      console.error("Failed to open mail client:", e);
+    } catch {
+      toast.error("Failed to open mail client");
     }
   };
 
