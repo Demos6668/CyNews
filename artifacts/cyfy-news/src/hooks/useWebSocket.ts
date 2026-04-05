@@ -41,12 +41,19 @@ export function useWebSocket() {
           case "REFRESH_STARTED":
             setIsRefreshing(true);
             break;
-          case "REFRESH_COMPLETE":
+          case "REFRESH_COMPLETE": {
             setIsRefreshing(false);
             setLastUpdate(msg.timestamp ?? new Date().toISOString());
-            setNextUpdate(null);
+            // Compute next 15-min boundary client-side (mirrors server logic)
+            const now = new Date();
+            const nextMin = Math.ceil((now.getMinutes() + 1) / 15) * 15;
+            const next = new Date(now);
+            next.setMinutes(nextMin, 0, 0);
+            if (next <= now) next.setMinutes(next.getMinutes() + 15);
+            setNextUpdate(next.toISOString());
             queryClient.invalidateQueries();
             break;
+          }
           case "STATS_UPDATE":
             queryClient.invalidateQueries();
             break;
