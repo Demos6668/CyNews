@@ -27,6 +27,7 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
           id: string;
           descriptions?: Array<{ lang: string; value: string }>;
           metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }>; cvssMetricV30?: Array<{ cvssData: { baseScore: number } }> };
+          references?: Array<{ url: string; tags?: string[] }>;
           published?: string;
           vulnStatus?: string;
         };
@@ -49,6 +50,10 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       if (m31) cvssScore = m31.cvssData.baseScore;
       else if (m30) cvssScore = m30.cvssData.baseScore;
       const severity = cvssToSeverity(cvssScore);
+      const refs = cve.references ?? [];
+      const patchRef = refs.find((r) => r.tags?.some((t) => /patch|fix|update|vendor advisory/i.test(t)));
+      const patchAvailable = patchRef !== undefined;
+      const patchUrl = patchRef?.url ?? `https://nvd.nist.gov/vuln/detail/${cveId}`;
       await db.insert(advisoriesTable).values({
         cveId,
         title: description ? `${cveId}: ${description.slice(0, 80).replace(/\n/g, " ")}` : cveId,
@@ -57,10 +62,10 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
         severity,
         affectedProducts: [],
         vendor: "Unknown",
-        patchAvailable: false,
-        patchUrl: `https://nvd.nist.gov/vuln/detail/${cveId}`,
+        patchAvailable,
+        patchUrl,
         workarounds: [],
-        references: [`https://nvd.nist.gov/vuln/detail/${cveId}`],
+        references: [`https://nvd.nist.gov/vuln/detail/${cveId}`, ...refs.map((r) => r.url)].slice(0, 10),
         status: "new",
         publishedAt: cve.published ? new Date(cve.published) : new Date(),
         scope: indiaDetails.isIndia ? "local" : "global",
