@@ -15,7 +15,7 @@ export function Footer({ className }: FooterProps) {
     >
       <div className="flex items-center gap-2">
         <Shield className="h-3.5 w-3.5 text-primary" />
-        <span>CYFY News Board v1.0</span>
+        <span>CyNews v1.0</span>
       </div>
       <div className="flex items-center gap-4">
         <span>Internal Use Only</span>

@@ -59,8 +59,8 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
               exit={{ opacity: 0, width: 0 }}
               className="flex items-center gap-2 overflow-hidden whitespace-nowrap"
             >
-              <img src={`${import.meta.env.BASE_URL}images/logo-mark.png`} alt="CYFY" className="w-8 h-8 rounded" />
-              <span className="font-bold text-xl tracking-wider text-white glow-text">CYFY</span>
+              <img src={`${import.meta.env.BASE_URL}images/logo-mark.png`} alt="CyNews" className="w-8 h-8 rounded" />
+              <span className="font-bold text-xl tracking-wider text-white glow-text">CyNews</span>
             </motion.div>
           )}
         </AnimatePresence>
