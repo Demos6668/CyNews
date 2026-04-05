@@ -37,6 +37,8 @@ export interface CertInAdvisory {
   recommendations: string[];
   references: string[];
   cvssScore?: number;
+  patchAvailable?: boolean;
+  patchUrl?: string;
 }
 
 const parser = new Parser({
@@ -142,6 +144,25 @@ async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory
     const cvssMatch = $("body").text().match(/CVSS[:\s]+(\d+\.?\d*)/i);
     if (cvssMatch) {
       details.cvssScore = parseFloat(cvssMatch[1]);
+    }
+
+    // Patch detection: look for multiple signals to avoid false positives
+    const bodyText = $("body").text().toLowerCase();
+    const patchSignals = [
+      /patch(?:es)?\s+(?:available|released|issued)/i,
+      /update\s+available/i,
+      /fixed\s+in\s+version/i,
+      /upgrade\s+to/i,
+      /apply\s+(?:the\s+)?(?:patch|update|fix)/i,
+      /security\s+(?:patch|update|fix)\s+(?:has\s+been\s+)?released/i,
+      /(?:vendor|microsoft|google|apple|adobe|oracle|cisco)\s+has\s+released/i,
+    ];
+    const patchSignalCount = patchSignals.filter((re) => re.test(bodyText)).length;
+    if (patchSignalCount >= 1) {
+      details.patchAvailable = true;
+      // Try to find a patch URL near the signals
+      const patchLink = $('a[href*="download"], a[href*="patch"], a[href*="update"], a[href*="security"]').first().attr("href");
+      if (patchLink) details.patchUrl = patchLink;
     }
 
     const moreCVEs = extractCVEs($("body").text());

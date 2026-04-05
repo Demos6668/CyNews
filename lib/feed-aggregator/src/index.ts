@@ -18,6 +18,7 @@ import {
   type FeedUpdateResult,
   type OnBroadcast,
   createEmptyResult,
+  severityToCvss,
 } from "./feedUtils";
 
 export { cyberRelevanceDetector } from "./cyberRelevanceDetector";
@@ -30,13 +31,13 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
     let added = 0;
     for (const a of advisories) {
       const existing = await db
-        .select({ id: advisoriesTable.id, content: advisoriesTable.content })
+        .select({ id: advisoriesTable.id, content: advisoriesTable.content, cvssScore: advisoriesTable.cvssScore })
         .from(advisoriesTable)
         .where(or(eq(advisoriesTable.certInId, a.advisoryId), eq(advisoriesTable.sourceUrl, a.sourceUrl)))
         .limit(1);
       const cveId = a.cveIds?.[0] ?? a.advisoryId;
       const description = a.summary || (a.content ?? "").slice(0, 500) || a.title;
-      const cvssScore = a.cvssScore ?? 0;
+      const cvssScore = a.cvssScore ?? severityToCvss(a.severity);
 
       if (existing.length > 0) {
         const ex = existing[0];
@@ -48,7 +49,8 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
               affectedProducts: a.affectedProducts ?? [],
               recommendations: a.recommendations ?? [],
               references: a.references ?? [],
-              cvssScore,
+              // Only update cvssScore when existing record has 0 (backfill missed records)
+              ...((ex.cvssScore === 0 || ex.cvssScore === null) ? { cvssScore } : {}),
             })
             .where(eq(advisoriesTable.id, ex.id));
           added++;
@@ -64,8 +66,8 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         severity: a.severity,
         affectedProducts: a.affectedProducts ?? [],
         vendor: "CERT-In",
-        patchAvailable: false,
-        patchUrl: a.sourceUrl,
+        patchAvailable: a.patchAvailable ?? false,
+        patchUrl: a.patchUrl ?? a.sourceUrl,
         workarounds: a.recommendations ?? [],
         references: a.references?.length ? a.references : [a.sourceUrl],
         status: "new",

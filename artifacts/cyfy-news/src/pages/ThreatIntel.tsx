@@ -11,9 +11,10 @@ import {
   AlertTriangle,
   List,
   LayoutGrid,
+  Layers,
 } from "lucide-react";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
-import { ThreatCard, ThreatModal, ThreatTimeline } from "@/components/Threats";
+import { ThreatCard, ThreatModal, ThreatTimeline, ThreatGroupView } from "@/components/Threats";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
 const THREAT_CATEGORY_OPTIONS = [
@@ -35,6 +36,7 @@ export default function ThreatIntel() {
   const [categories, setCategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
+  const [groupBy, setGroupBy] = useState<string | undefined>(undefined);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const [scope, setScope] = useState<"local" | "global">("global");
   const [page, setPage] = useState(1);
@@ -84,9 +86,14 @@ export default function ThreatIntel() {
     severity: severities.length > 0 ? severities.join(",") : undefined,
     category: categories.length > 0 ? categories.join(",") : undefined,
     timeframe,
-    page,
-    limit,
-  });
+    page: groupBy ? undefined : page,
+    limit: groupBy ? undefined : limit,
+    ...(groupBy ? { groupBy } : {}),
+  } as Parameters<typeof useGetThreats>[0]);
+
+  // Grouped response shape (not in generated types, accessed via cast)
+  type GroupedResponse = { groups: { key: string; count: number; items: ThreatIntelItem[] }[]; total: number; groupBy: string };
+  const groupedData = groupBy ? (data as unknown as GroupedResponse | undefined) : undefined;
 
   const activeFilterCount = severities.length + categories.length;
   const hasActiveFilters = activeFilterCount > 0;
@@ -137,21 +144,41 @@ export default function ThreatIntel() {
           <div className="flex p-1 rounded-lg border border-border bg-secondary/50">
             <button
               type="button"
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => { setViewMode("grid"); setGroupBy(undefined); }}
+              className={`p-2 rounded ${viewMode === "grid" && !groupBy ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
               title="Grid view"
             >
               <LayoutGrid size={18} />
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("timeline")}
-              className={`p-2 rounded ${viewMode === "timeline" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => { setViewMode("timeline"); setGroupBy(undefined); }}
+              className={`p-2 rounded ${viewMode === "timeline" && !groupBy ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
               title="Timeline view"
             >
               <List size={18} />
             </button>
+            <button
+              type="button"
+              onClick={() => setGroupBy(groupBy ? undefined : "category")}
+              className={`p-2 rounded ${groupBy ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+              title="Grouped view"
+            >
+              <Layers size={18} />
+            </button>
           </div>
+          {groupBy !== undefined && (
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value)}
+              className="text-xs rounded-md border border-border bg-secondary px-2 py-1.5 text-foreground"
+            >
+              <option value="category">By Category</option>
+              <option value="severity">By Severity</option>
+              <option value="threat_actor">By Threat Actor</option>
+              <option value="source">By Source</option>
+            </select>
+          )}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -218,7 +245,7 @@ export default function ThreatIntel() {
       />
 
       <h2 className="text-xl font-bold mt-8 mb-4 border-l-4 border-primary pl-3">
-        Latest Threat Reports
+        {groupBy ? "Grouped Threats" : "Latest Threat Reports"}
       </h2>
 
       {isError ? (
@@ -239,6 +266,13 @@ export default function ThreatIntel() {
             <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
         </div>
+      ) : groupBy ? (
+        <ThreatGroupView
+          groups={groupedData?.groups ?? []}
+          total={groupedData?.total ?? 0}
+          groupBy={groupBy}
+          onItemClick={(item) => setSelectedItem(item)}
+        />
       ) : (data?.items?.length ?? 0) === 0 ? (
         <EmptyState
           title="No threat reports found"

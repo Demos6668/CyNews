@@ -15,7 +15,7 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
   try {
     const res = await fetchWithTimeout(CISA_KEV_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string }> };
+    const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string; requiredAction?: string }> };
     const vulns = data.vulnerabilities ?? [];
     let added = 0;
     const BATCH_SIZE = 50;
@@ -28,6 +28,9 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
       if (existing.length > 0) continue;
       const fullText = `${v.vulnerabilityName ?? ""} ${v.shortDescription ?? ""} ${v.vendorProject ?? ""} ${v.product ?? ""}`;
       const indiaDetails = indiaDetector.getIndiaDetails(fullText);
+      // CISA KEV requiredAction often says "Apply patch" or "Update to version X"
+      const requiredAction = v.requiredAction ?? "";
+      const patchAvailable = /apply|patch|update|upgrade|install|remediat/i.test(requiredAction);
       batch.push({
         cveId,
         title: v.vulnerabilityName ?? cveId,
@@ -36,7 +39,7 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
         severity: "critical",
         affectedProducts: [`${v.vendorProject ?? ""} ${v.product ?? ""}`.trim() || "Unknown"],
         vendor: v.vendorProject ?? "Unknown",
-        patchAvailable: false,
+        patchAvailable,
         patchUrl: `https://nvd.nist.gov/vuln/detail/${cveId}`,
         workarounds: ["Check CISA KEV for mitigation guidance"],
         references: [`https://nvd.nist.gov/vuln/detail/${cveId}`, "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],

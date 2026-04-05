@@ -1,16 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Globe, 
-  MapPin, 
+import {
+  LayoutDashboard,
+  Globe,
+  MapPin,
   Shield,
-  ShieldAlert, 
-  Crosshair, 
+  ShieldAlert,
+  Crosshair,
   Settings,
   Menu,
   ChevronLeft,
-  X
+  X,
+  Wrench,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +22,7 @@ const navItems = [
   { name: "Global News", href: "/news/global", icon: Globe, section: "news" },
   { name: "CERT-In", href: "/cert-in", icon: Shield, section: "intel" },
   { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
+  { name: "Patches", href: "/patches", icon: Wrench, section: "intel" },
   { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
   { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];

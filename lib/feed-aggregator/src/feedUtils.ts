@@ -63,6 +63,16 @@ export function cvssToSeverity(score: number): "critical" | "high" | "medium" | 
   return "info";
 }
 
+export function severityToCvss(severity: string | undefined | null): number {
+  switch ((severity ?? "").toLowerCase()) {
+    case "critical": return 9.0;
+    case "high":     return 7.5;
+    case "medium":   return 5.0;
+    case "low":      return 2.5;
+    default:         return 0.0;
+  }
+}
+
 export function isValidUrl(url: string | undefined | null): boolean {
   if (!url || typeof url !== "string") return false;
   if (!url.startsWith("http://") && !url.startsWith("https://")) return false;

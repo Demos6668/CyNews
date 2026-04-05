@@ -109,6 +109,91 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     res.json(data);
 }));
 
+router.get("/advisories/patches", asyncHandler(async (req: Request, res: Response) => {
+    const rawQuery = req.query as Record<string, string>;
+    const patchStatus = rawQuery.patchStatus; // "available" | "applied" | "pending"
+    const vendor = rawQuery.vendor;
+    const severity = rawQuery.severity;
+    const timeframe = rawQuery.timeframe;
+    const page = Math.max(1, parseInt(rawQuery.page ?? "1", 10));
+    const limit = Math.min(parseInt(rawQuery.limit ?? "20", 10), 100);
+
+    const cacheKey = `patches:${patchStatus ?? ""}:${vendor ?? ""}:${severity ?? ""}:${timeframe ?? ""}:${page}:${limit}`;
+    const cached = apiCache.get<object>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const conditions: SQL[] = [
+      or(eq(advisoriesTable.patchAvailable, true), eq(advisoriesTable.status, "patched")) as SQL,
+    ];
+
+    if (patchStatus === "available") conditions.push(eq(advisoriesTable.patchAvailable, true), sql`${advisoriesTable.status} != 'patched'`);
+    else if (patchStatus === "applied") conditions.push(eq(advisoriesTable.status, "patched"));
+    else if (patchStatus === "pending") conditions.push(eq(advisoriesTable.patchAvailable, false), sql`${advisoriesTable.status} != 'patched'`);
+
+    if (vendor) conditions.push(eq(advisoriesTable.vendor, vendor));
+    if (severity) {
+      const severities = severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
+      if (severities.length === 1) conditions.push(eq(advisoriesTable.severity, severities[0]));
+      else if (severities.length > 1) conditions.push(inArray(advisoriesTable.severity, severities));
+    }
+    if (timeframe) {
+      const fromDate = getTimeframeStartDate(timeframe as Parameters<typeof getTimeframeStartDate>[0]);
+      if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
+    }
+
+    const where = and(...conditions) as SQL;
+    const [totalResult] = await db.select({ count: sql<number>`count(*)::int` }).from(advisoriesTable).where(where);
+    const total = totalResult?.count ?? 0;
+    const offset = (page - 1) * limit;
+
+    const items = await db
+      .select()
+      .from(advisoriesTable)
+      .where(where)
+      .orderBy(sql`${advisoriesTable.publishedAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    const data = {
+      items: items.map(formatAdvisory),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+    apiCache.set(cacheKey, data, CACHE_TTL.LIST);
+    res.json(data);
+}));
+
+router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid advisory ID" }); return; }
+
+    const { patchAvailable, patchUrl, status } = req.body as { patchAvailable?: boolean; patchUrl?: string; status?: string };
+    const validStatuses = ["new", "under_review", "patched", "dismissed"];
+    if (status && !validStatuses.includes(status)) {
+      res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      return;
+    }
+
+    const updateFields: Partial<typeof advisoriesTable.$inferInsert> = {};
+    if (patchAvailable !== undefined) updateFields.patchAvailable = patchAvailable;
+    if (patchUrl !== undefined) updateFields.patchUrl = patchUrl;
+    if (status) updateFields.status = status as "new" | "under_review" | "patched" | "dismissed";
+
+    const [updated] = await db
+      .update(advisoriesTable)
+      .set(updateFields)
+      .where(eq(advisoriesTable.id, id))
+      .returning({ id: advisoriesTable.id, status: advisoriesTable.status, patchAvailable: advisoriesTable.patchAvailable });
+
+    if (!updated) { res.status(404).json({ error: "Advisory not found" }); return; }
+
+    // Invalidate related caches
+    apiCache.invalidate();
+    res.json({ success: true, advisory: updated });
+}));
+
 router.get("/advisories/vendors", asyncHandler(async (req: Request, res: Response) => {
     const cached = apiCache.get<object>("advisories:vendors");
     if (cached) { res.json(cached); return; }
