@@ -150,15 +150,6 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
 const GROUP_BY_FIELDS = ["category", "severity", "threat_actor", "source"] as const;
 type GroupByField = (typeof GROUP_BY_FIELDS)[number];
 
-function resolveGroupByColumn(field: GroupByField): SQL {
-  switch (field) {
-    case "category":     return sql`COALESCE(${threatIntelTable.category}, 'Uncategorized')`;
-    case "severity":     return sql`${threatIntelTable.severity}`;
-    case "threat_actor": return sql`COALESCE(${threatIntelTable.threatActor}, 'Unattributed')`;
-    case "source":       return sql`COALESCE(${threatIntelTable.source}, 'Unknown')`;
-  }
-}
-
 router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = req.query as Record<string, string>;
     const groupBy = GROUP_BY_FIELDS.includes(rawQuery.groupBy as GroupByField)
@@ -192,7 +183,6 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
     const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
     if (groupBy) {
-      const groupCol = resolveGroupByColumn(groupBy);
       const MAX_ITEMS_PER_GROUP = 20;
 
       // Fetch all matching items once, then group in memory (avoids N+1 queries for small-medium datasets)

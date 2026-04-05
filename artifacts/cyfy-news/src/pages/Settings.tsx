@@ -6,6 +6,51 @@ import { Switch } from "@/components/ui/switch";
 
 type SettingsTab = "profile" | "notifications" | "preferences" | "api";
 
+function ApiKeysTab() {
+  const [urlhausKey, setUrlhausKey] = useState(() => localStorage.getItem("cynews-urlhaus-key") ?? "");
+  const [threatfoxKey, setThreatfoxKey] = useState(() => localStorage.getItem("cynews-threatfox-key") ?? "");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem("cynews-urlhaus-key", urlhausKey);
+    localStorage.setItem("cynews-threatfox-key", threatfoxKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <Card className="bg-card/50">
+      <div className="p-6 border-b border-border">
+        <h2 className="text-xl font-semibold">API Configuration</h2>
+      </div>
+      <CardContent className="p-6 space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">URLhaus Auth Key</label>
+          <Input type="password" placeholder="Enter your URLhaus API key" value={urlhausKey} onChange={(e) => setUrlhausKey(e.target.value)} />
+          <p className="text-xs text-muted-foreground">Free at https://auth.abuse.ch/</p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">ThreatFox Auth Key</label>
+          <Input type="password" placeholder="Enter your ThreatFox API key" value={threatfoxKey} onChange={(e) => setThreatfoxKey(e.target.value)} />
+        </div>
+        <div className="p-4 bg-muted/30 rounded-lg">
+          <p className="text-sm text-muted-foreground">
+            <strong>RSS Feed Endpoint:</strong>{" "}
+            <code className="bg-background px-2 py-0.5 rounded text-xs">/api/news/rss</code>
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            <strong>WebSocket:</strong>{" "}
+            <code className="bg-background px-2 py-0.5 rounded text-xs">ws://{"{host}"}/ws</code>
+          </p>
+        </div>
+        <Button className="mt-4" onClick={handleSave}>
+          {saved ? "Saved!" : "Save API Keys"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
@@ -213,33 +258,7 @@ export default function Settings() {
           )}
 
           {activeTab === "api" && (
-            <Card className="bg-card/50">
-              <div className="p-6 border-b border-border">
-                <h2 className="text-xl font-semibold">API Configuration</h2>
-              </div>
-              <CardContent className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">URLhaus Auth Key</label>
-                  <Input type="password" placeholder="Enter your URLhaus API key" />
-                  <p className="text-xs text-muted-foreground">Free at https://auth.abuse.ch/</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">ThreatFox Auth Key</label>
-                  <Input type="password" placeholder="Enter your ThreatFox API key" />
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>RSS Feed Endpoint:</strong>{" "}
-                    <code className="bg-background px-2 py-0.5 rounded text-xs">/api/news/rss</code>
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <strong>WebSocket:</strong>{" "}
-                    <code className="bg-background px-2 py-0.5 rounded text-xs">ws://{"{host}"}/ws</code>
-                  </p>
-                </div>
-                <Button className="mt-4">Save API Keys</Button>
-              </CardContent>
-            </Card>
+            <ApiKeysTab />
           )}
         </div>
       </div>

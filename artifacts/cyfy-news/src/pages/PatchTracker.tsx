@@ -133,6 +133,14 @@ export default function PatchTracker() {
               </button>
             ))}
           </div>
+          {/* Vendor filter */}
+          <input
+            type="text"
+            value={vendor}
+            onChange={(e) => { setVendor(e.target.value); setPage(1); }}
+            placeholder="Vendor..."
+            className="text-xs rounded-md border border-border bg-secondary px-2 py-2 text-foreground placeholder:text-muted-foreground w-28"
+          />
           {/* Severity filter */}
           <select
             value={severity}

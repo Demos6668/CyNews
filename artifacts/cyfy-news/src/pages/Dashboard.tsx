@@ -118,25 +118,15 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-        {statCards.map((stat, i) => {
-          const card = (
-            <StatsCard
-              key={i}
-              title={stat.title}
-              value={stat.value}
-              icon={stat.icon}
-              color={stat.color}
-              bg={stat.bg}
-            />
-          );
-          return stat.href ? (
+        {statCards.map((stat, i) =>
+          stat.href ? (
             <Link key={i} href={stat.href} className="block hover:opacity-90 transition-opacity">
-              {card}
+              <StatsCard title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
             </Link>
           ) : (
-            <div key={i}>{card}</div>
-          );
-        })}
+            <StatsCard key={i} title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
+          )
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
