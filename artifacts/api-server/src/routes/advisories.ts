@@ -166,8 +166,8 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
 }));
 
 router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) { res.status(400).json({ error: "Invalid advisory ID" }); return; }
+    const id = Number(req.params.id);
+    if (isNaN(id) || !Number.isInteger(id)) { res.status(400).json({ error: "Invalid advisory ID" }); return; }
 
     const { patchAvailable, patchUrl, status } = req.body as { patchAvailable?: boolean; patchUrl?: string; status?: string };
     const validStatuses = ["new", "under_review", "patched", "dismissed"];
