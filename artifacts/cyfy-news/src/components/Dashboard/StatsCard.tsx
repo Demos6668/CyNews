@@ -7,7 +7,10 @@ interface StatsCardProps {
   value: number | string;
   icon: LucideIcon;
   color?: string;
+  /** Tailwind class with opacity for icon background, e.g. "bg-primary/10" */
   bg?: string;
+  /** Solid Tailwind class for glow circle (no opacity), e.g. "bg-primary". Defaults to stripping opacity from `bg`. */
+  glowBg?: string;
   className?: string;
   /** e.g. "+12%" or "-3" */
   delta?: string;
@@ -35,10 +38,13 @@ export function StatsCard({
   icon: Icon,
   color = "text-primary",
   bg = "bg-primary/10",
+  glowBg,
   className,
   delta,
   trend = "flat",
 }: StatsCardProps) {
+  // Derive glow class: caller can pass explicit glowBg, otherwise strip /NN opacity suffix
+  const resolvedGlowBg = glowBg ?? bg.replace(/\/\d+$/, "");
   const TIcon = TrendIcon[trend];
   const tColor = trendColor[trend];
 
@@ -52,7 +58,7 @@ export function StatsCard({
       <div
         className={cn(
           "absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full blur-3xl opacity-20 transition-opacity group-hover:opacity-40",
-          bg.replace("/10", "").replace("/15", "")
+          resolvedGlowBg
         )}
       />
       <CardContent className="p-5">

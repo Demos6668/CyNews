@@ -24,11 +24,15 @@ export function Header() {
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Focus search input whenever mobile overlay opens
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [mobileSearchOpen]);
+
   useKeyboardShortcuts({
-    onSearchFocus: () => {
-      setMobileSearchOpen(true);
-      setTimeout(() => searchInputRef.current?.focus(), 50);
-    },
+    onSearchFocus: () => setMobileSearchOpen(true),
   });
 
   useEffect(() => {
@@ -45,8 +49,7 @@ export function Header() {
     <header
       className="h-16 flex items-center justify-between px-4 md:px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
       style={{ backgroundColor: "var(--dark-navy)" }}
-      role="navigation"
-      aria-label="Header navigation"
+      aria-label="Site header"
     >
       {/* Mobile: fullscreen search overlay */}
       {mobileSearchOpen && (
@@ -83,7 +86,7 @@ export function Header() {
         <button
           className="lg:hidden p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
           aria-label="Search"
-          onClick={() => { setMobileSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+          onClick={() => setMobileSearchOpen(true)}
         >
           <Search className="h-5 w-5" />
         </button>

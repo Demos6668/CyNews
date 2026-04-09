@@ -116,7 +116,7 @@ export default function ThreatIntel() {
     if (timeframe) params.set("timeframe", timeframe);
     if (severities.length > 0) params.set("severity", severities.join(","));
     if (categories.length > 0) params.set("category", categories.join(","));
-    window.open(`${apiBase}/threats/export?${params.toString()}`, "_blank");
+    window.open(`${apiBase}/threats/export?${params.toString()}`, "_blank", "noopener,noreferrer");
   };
 
   const handlePageChange = useCallback((newPage: number) => {

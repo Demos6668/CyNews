@@ -52,9 +52,12 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
             <button
               onClick={handleBookmark}
               disabled={toggleBookmarkMutation.isPending}
+              aria-label={item.bookmarked ? "Remove bookmark" : "Bookmark this article"}
+              aria-pressed={item.bookmarked}
               className="text-muted-foreground hover:text-accent transition-colors p-1 rounded-full hover:bg-white/5 shrink-0"
             >
               <Bookmark
+                aria-hidden="true"
                 className={cn("h-5 w-5", item.bookmarked && "fill-accent text-accent")}
               />
             </button>

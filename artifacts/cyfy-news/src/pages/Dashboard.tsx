@@ -202,8 +202,13 @@ export default function Dashboard() {
                 role={activity.sourceUrl ? "button" : undefined}
                 tabIndex={activity.sourceUrl ? 0 : undefined}
                 title={activity.sourceUrl ? "Open source" : "No source link"}
-                onClick={() => activity.sourceUrl && window.open(activity.sourceUrl, "_blank")}
-                onKeyDown={(e) => activity.sourceUrl && (e.key === "Enter" || e.key === " ") && window.open(activity.sourceUrl!, "_blank")}
+                onClick={() => activity.sourceUrl && window.open(activity.sourceUrl, "_blank", "noopener,noreferrer")}
+                onKeyDown={(e) => {
+                  if (activity.sourceUrl && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    window.open(activity.sourceUrl, "_blank", "noopener,noreferrer");
+                  }
+                }}
                 className={`p-4 transition-colors flex items-center gap-4 ${
                   activity.sourceUrl
                     ? "cursor-pointer hover:bg-white/5"

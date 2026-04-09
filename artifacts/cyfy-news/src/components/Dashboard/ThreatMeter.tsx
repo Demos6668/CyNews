@@ -8,11 +8,10 @@ interface ThreatMeterProps {
   level: string;
   criticalAlerts?: number;
   highAlerts?: number;
-  mediumAlerts?: number;
   className?: string;
 }
 
-export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, mediumAlerts = 0, className }: ThreatMeterProps) {
+export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, className }: ThreatMeterProps) {
   const idx = LEVELS.indexOf(level as (typeof LEVELS)[number]);
   const effectiveIdx = idx >= 0 ? idx : 0;
   const angle = -90 + (effectiveIdx / (LEVELS.length - 1)) * 180;
@@ -26,21 +25,6 @@ export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, mediumA
         </h3>
         <div className="relative w-48 h-28 overflow-hidden">
           <svg viewBox="0 0 200 110" className="w-full h-full">
-            {/* Background arc */}
-            <defs>
-              <linearGradient
-                id="threatGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="0%"
-              >
-                <stop offset="0%" stopColor="#0095AF" />
-                <stop offset="33%" stopColor="#FFB74B" />
-                <stop offset="66%" stopColor="#F0C000" />
-                <stop offset="100%" stopColor="#F85149" />
-              </linearGradient>
-            </defs>
             <path
               d="M 20 100 A 80 80 0 0 1 180 100"
               fill="none"
@@ -93,7 +77,7 @@ export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, mediumA
         <div className="flex gap-4 mt-4 pt-4 border-t border-white/5 text-xs text-muted-foreground w-full justify-center">
           <span><span className="font-semibold text-num text-destructive">{criticalAlerts}</span> Crit</span>
           <span><span className="font-semibold text-num text-accent">{highAlerts}</span> High</span>
-          <span><span className="font-semibold text-num text-warning">{mediumAlerts}</span> Med</span>
+          <span><span className="font-semibold text-num">{criticalAlerts + highAlerts}</span> Total</span>
         </div>
       </CardContent>
     </Card>
