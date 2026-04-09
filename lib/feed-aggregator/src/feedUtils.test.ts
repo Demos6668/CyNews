@@ -4,6 +4,7 @@ import {
   extractItemContent,
   inferSeverity,
   cvssToSeverity,
+  severityToCvss,
   isValidUrl,
   detectScopeFromCountry,
   THREAT_CATEGORY_SOURCES,
@@ -95,6 +96,25 @@ describe("cvssToSeverity", () => {
 
   it("returns info for 0", () => {
     expect(cvssToSeverity(0)).toBe("info");
+  });
+});
+
+describe("severityToCvss", () => {
+  it("returns 9.0 for critical", () => expect(severityToCvss("critical")).toBe(9.0));
+  it("returns 7.5 for high", () => expect(severityToCvss("high")).toBe(7.5));
+  it("returns 5.0 for medium", () => expect(severityToCvss("medium")).toBe(5.0));
+  it("returns 2.5 for low", () => expect(severityToCvss("low")).toBe(2.5));
+  it("returns 0.0 for info", () => expect(severityToCvss("info")).toBe(0.0));
+  it("returns 0.0 for undefined", () => expect(severityToCvss(undefined)).toBe(0.0));
+  it("returns 0.0 for null", () => expect(severityToCvss(null)).toBe(0.0));
+  it("is case-insensitive", () => {
+    expect(severityToCvss("CRITICAL")).toBe(9.0);
+    expect(severityToCvss("High")).toBe(7.5);
+  });
+  it("is inverse of cvssToSeverity for representative scores", () => {
+    expect(cvssToSeverity(severityToCvss("critical"))).toBe("critical");
+    expect(cvssToSeverity(severityToCvss("high"))).toBe("high");
+    expect(cvssToSeverity(severityToCvss("medium"))).toBe("medium");
   });
 });
 

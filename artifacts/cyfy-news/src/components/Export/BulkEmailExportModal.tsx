@@ -3,6 +3,7 @@ import { X, Mail, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
 import { getEmailTemplates, exportEmailBatch } from "@/lib/exportApi";
+import { toast } from "sonner";
 
 interface TemplateListEntry {
   id: string;
@@ -50,7 +51,7 @@ export function BulkEmailExportModal({
           const defaultT = data.find((t) => (t as TemplateListEntry).isDefault) ?? data[0];
           if (defaultT) setSelectedTemplateId(defaultT.id);
         })
-        .catch(console.error);
+        .catch(() => toast.error("Failed to load email templates"));
     }
   }, [isOpen, isCertIn]);
 
@@ -64,8 +65,8 @@ export function BulkEmailExportModal({
         format: "html",
       });
       setExports(data.exports ?? []);
-    } catch (e) {
-      console.error("Batch export error:", e);
+    } catch {
+      toast.error("Batch export failed");
     } finally {
       setLoading(false);
     }

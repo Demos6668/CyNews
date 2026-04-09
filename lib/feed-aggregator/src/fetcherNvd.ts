@@ -27,6 +27,7 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
           id: string;
           descriptions?: Array<{ lang: string; value: string }>;
           metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }>; cvssMetricV30?: Array<{ cvssData: { baseScore: number } }> };
+          references?: Array<{ url: string; tags?: string[] }>;
           published?: string;
           vulnStatus?: string;
         };
@@ -50,6 +51,10 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       const sourceUrl = `https://nvd.nist.gov/vuln/detail/${cveId}`;
       const summary = description.slice(0, 2000);
       const content = description || `Vulnerability ${cveId}. See NVD for details.`;
+      const refs = cve.references ?? [];
+      const patchRef = refs.find((r) => r.tags?.some((t) => /patch|fix|update|vendor advisory/i.test(t)));
+      const patchAvailable = patchRef !== undefined;
+      const patchUrl = patchRef?.url && patchRef.url !== sourceUrl ? patchRef.url : null;
       const existing = await db
         .select({
           id: advisoriesTable.id,
@@ -97,10 +102,10 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
         severity,
         affectedProducts: [],
         vendor: "Unknown",
-        patchAvailable: false,
-        patchUrl: null,
+        patchAvailable,
+        patchUrl,
         workarounds: [],
-        references: [],
+        references: refs.map((r) => r.url).filter((url) => url && url !== sourceUrl).slice(0, 10),
         status: "new",
         publishedAt: cve.published ? new Date(cve.published) : new Date(),
         scope: indiaDetails.isIndia ? "local" : "global",
@@ -118,7 +123,6 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
     }
     result.nvd += added;
     if (added > 0) logger.info(`[NVD] ${added} new advisories`);
-    await new Promise((r) => setTimeout(r, 6000));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "NVD", error: msg });

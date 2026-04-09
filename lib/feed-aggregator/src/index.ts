@@ -110,6 +110,8 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
               category: a.category,
               cveIds: a.cveIds ?? [],
               cvssScore,
+              patchAvailable: a.patchAvailable ?? false,
+              patchUrl: a.patchUrl ?? null,
             })
             .where(eq(advisoriesTable.id, existing.id));
           added++;
@@ -125,8 +127,8 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         severity: a.severity,
         affectedProducts: a.affectedProducts ?? [],
         vendor: "CERT-In",
-        patchAvailable: false,
-        patchUrl: null,
+        patchAvailable: a.patchAvailable ?? false,
+        patchUrl: a.patchUrl ?? null,
         workarounds: a.recommendations ?? [],
         references: a.references ?? [],
         status: "new",

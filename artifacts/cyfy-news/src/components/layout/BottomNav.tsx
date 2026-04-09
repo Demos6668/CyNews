@@ -6,6 +6,7 @@ import {
   Shield,
   ShieldAlert,
   Crosshair,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const navItems = [
   { name: "Global", href: "/news/global", icon: Globe },
   { name: "CERT-In", href: "/cert-in", icon: Shield },
   { name: "Advisories", href: "/advisories", icon: ShieldAlert },
+  { name: "Patches", href: "/patches", icon: Wrench },
   { name: "Threats", href: "/threat-intel", icon: Crosshair },
 ];
 

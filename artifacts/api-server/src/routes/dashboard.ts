@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable, advisoriesTable, threatIntelTable } from "@workspace/db";
-import { eq, sql, and, gte, isNotNull } from "drizzle-orm";
+import { eq, sql, and, gte, isNotNull, ne } from "drizzle-orm";
 
 import { GetDashboardStatsResponse, GetDashboardStatsQueryParams } from "@workspace/api-zod";
 import { validate } from "../middlewares/validate";
@@ -30,7 +30,7 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
     // Consolidated count queries using COUNT FILTER — 3 queries instead of 14
     const scopeFilter = scope ? sql`AND scope = ${scope}` : sql``;
 
-    const [newsStats, threatStats, [activeAdv], recentNewsItems, recentThreats] = await Promise.all([
+    const [newsStats, threatStats, [activeAdv], [patchesAvailableResult], recentNewsItems, recentThreats] = await Promise.all([
       db.execute<{
         total: number; local_count: number; global_count: number;
         critical_active: number; high_active: number; resolved: number;
@@ -64,6 +64,9 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
           ? and(sql`${advisoriesTable.status} IN ('new', 'under_review')`, gte(advisoriesTable.publishedAt, dateFilter), eq(advisoriesTable.scope, scope as "local" | "global"))
           : and(sql`${advisoriesTable.status} IN ('new', 'under_review')`, gte(advisoriesTable.publishedAt, dateFilter))
       ),
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(advisoriesTable)
+        .where(and(eq(advisoriesTable.patchAvailable, true), ne(advisoriesTable.status, "patched"))),
       db.select({
         id: newsItemsTable.id,
         title: newsItemsTable.title,
@@ -158,6 +161,7 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
       localThreatsToday,
       globalThreatsToday,
       activeAdvisories: activeAdv?.count ?? 0,
+      patchesAvailable: patchesAvailableResult?.count ?? 0,
       criticalAlerts,
       highAlerts,
       resolvedIncidents,

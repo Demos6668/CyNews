@@ -61,13 +61,20 @@ export function useWebSocket() {
             setIsRefreshing(true);
             window.dispatchEvent(new CustomEvent("cyfy:refresh-started", { detail: msg.data ?? null }));
             break;
-          case "REFRESH_COMPLETE":
+          case "REFRESH_COMPLETE": {
             setIsRefreshing(false);
             setLastUpdate(msg.timestamp ?? new Date().toISOString());
-            setNextUpdate(null);
+            // Compute next 15-min boundary client-side (mirrors server logic)
+            const now = new Date();
+            const nextMin = Math.ceil((now.getMinutes() + 1) / 15) * 15;
+            const next = new Date(now);
+            next.setMinutes(nextMin, 0, 0);
+            if (next <= now) next.setMinutes(next.getMinutes() + 15);
+            setNextUpdate(next.toISOString());
             void invalidateLiveQueries();
             window.dispatchEvent(new CustomEvent("cyfy:refresh-complete", { detail: msg.data ?? null }));
             break;
+          }
           case "STATS_UPDATE":
             void invalidateLiveQueries();
             window.dispatchEvent(new CustomEvent("cyfy:stats-update", { detail: msg.data ?? null }));

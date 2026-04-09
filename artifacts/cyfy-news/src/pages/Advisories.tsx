@@ -128,7 +128,7 @@ export default function Advisories() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cyfy-advisories-${new Date().toISOString().slice(0, 10)}.html`;
+    a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
     a.click();
     window.URL.revokeObjectURL(url);
     setSelectedIds(new Set());
@@ -153,7 +153,7 @@ export default function Advisories() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cyfy-advisories-${new Date().toISOString().slice(0, 10)}.html`;
+    a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

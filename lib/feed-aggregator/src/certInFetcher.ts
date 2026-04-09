@@ -48,6 +48,8 @@ export interface CertInAdvisory {
   recommendations: string[];
   references: string[];
   cvssScore?: number;
+  patchAvailable?: boolean;
+  patchUrl?: string;
 }
 
 const parser = new Parser({
@@ -253,6 +255,23 @@ export function parseCertInDetailHtml(html: string): Partial<CertInAdvisory> {
     details.cveIds = moreCVEs;
   }
 
+  const patchSignals = [
+    /patch(?:es)?\s+(?:available|released|issued)/i,
+    /update\s+available/i,
+    /fixed\s+in\s+version/i,
+    /upgrade\s+to/i,
+    /apply\s+(?:the\s+)?(?:patch|update|fix)/i,
+    /security\s+(?:patch|update|fix)\s+(?:has\s+been\s+)?released/i,
+    /(?:vendor|microsoft|google|apple|adobe|oracle|cisco)\s+has\s+released/i,
+  ];
+  if (patchSignals.some((re) => re.test(bodyText))) {
+    details.patchAvailable = true;
+    const patchLink = $('a[href*="download"], a[href*="patch"], a[href*="update"], a[href*="security"]').first().attr("href");
+    if (patchLink) {
+      details.patchUrl = patchLink;
+    }
+  }
+
   const productPattern = /(?:Microsoft|Google|Apple|Adobe|Oracle|Cisco|Linux|Android|iOS|Windows|Chrome|Firefox|Safari|Java|PHP|Python|Apache|nginx)[\w\s.]+/gi;
   const products = bodyText.match(productPattern);
   if (products) {
@@ -324,7 +343,8 @@ async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory
     if (!res.ok) return {};
     const html = await res.text();
     return parseCertInDetailHtml(html);
-  } catch {
+  } catch (err) {
+    logger.warn({ url, error: err instanceof Error ? err.message : String(err) }, "[CERT-In] Failed to enrich advisory");
     return {};
   }
 }

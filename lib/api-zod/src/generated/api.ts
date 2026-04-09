@@ -56,6 +56,7 @@ export const GetDashboardStatsResponse = zod.object({
         .describe("news or threat - for routing"),
     }),
   ),
+  patchesAvailable: zod.number().optional().describe("Advisories with patches available but not yet applied"),
   indiaStats: zod
     .object({
       byState: zod

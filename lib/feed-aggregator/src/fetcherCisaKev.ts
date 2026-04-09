@@ -15,7 +15,7 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
   try {
     const res = await fetchWithTimeout(CISA_KEV_URL, { headers: { "User-Agent": "CYFY-News-Board/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string }> };
+    const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string; requiredAction?: string }> };
     const vulns = data.vulnerabilities ?? [];
     let added = 0;
     for (const v of vulns.slice(0, 50)) {
@@ -26,7 +26,9 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
       const sourceUrl = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog";
       const description = v.shortDescription ?? `Known Exploited Vulnerability: ${cveId}. See CISA KEV catalog.`;
       const affectedProducts = [`${v.vendorProject ?? ""} ${v.product ?? ""}`.trim() || "Unknown"];
-      const recommendations = ["Review CISA KEV remediation guidance and prioritize patching or mitigation."];
+      const requiredAction = v.requiredAction ?? "";
+      const patchAvailable = /apply|patch|update|upgrade|install|remediat/i.test(requiredAction);
+      const recommendations = [requiredAction || "Review CISA KEV remediation guidance and prioritize patching or mitigation."];
       const existing = await db
         .select({
           id: advisoriesTable.id,
@@ -74,7 +76,7 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
         severity: "critical",
         affectedProducts,
         vendor: v.vendorProject ?? "Unknown",
-        patchAvailable: false,
+        patchAvailable,
         patchUrl: null,
         workarounds: ["Check CISA KEV for mitigation guidance"],
         references: [`https://nvd.nist.gov/vuln/detail/${cveId}`, sourceUrl],

@@ -13,6 +13,7 @@ const CertInAdvisories = lazy(() => import("@/pages/CertInAdvisories"));
 const ThreatIntel = lazy(() => import("@/pages/ThreatIntel"));
 const Search = lazy(() => import("@/pages/Search"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const PatchTracker = lazy(() => import("@/pages/PatchTracker"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ function Router() {
             </Route>
             <Route path="/cert-in" component={CertInAdvisories} />
             <Route path="/advisories" component={Advisories} />
+            <Route path="/patches" component={PatchTracker} />
             <Route path="/threat-intel" component={ThreatIntel} />
             <Route path="/search" component={Search} />
             <Route path="/settings" component={Settings} />

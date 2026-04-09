@@ -156,10 +156,18 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
     res.json(data);
 }));
 
+const GROUP_BY_FIELDS = ["category", "severity", "threat_actor", "source"] as const;
+type GroupByField = (typeof GROUP_BY_FIELDS)[number];
+
 router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
+    const rawQuery = req.query as Record<string, string>;
+    const groupBy = GROUP_BY_FIELDS.includes(rawQuery.groupBy as GroupByField)
+      ? (rawQuery.groupBy as GroupByField)
+      : undefined;
+
     const query = GetThreatsQueryParams.parse(req.query);
 
-    const cacheKey = `threats:${query.scope ?? ""}:${query.severity ?? ""}:${query.category ?? ""}:${query.state ?? ""}:${query.sector ?? ""}:${query.status ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
+    const cacheKey = `threats:${query.scope ?? ""}:${query.severity ?? ""}:${query.category ?? ""}:${query.state ?? ""}:${query.sector ?? ""}:${query.status ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}:${groupBy ?? ""}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
     const conditions: SQL[] = [displayableThreatSql];
@@ -182,6 +190,52 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
     if (fromDate) conditions.push(gte(threatIntelTable.publishedAt, fromDate));
 
     const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
+
+    if (groupBy) {
+      const MAX_ITEMS_PER_GROUP = 20;
+
+      // Fetch all matching items once, then group in memory (avoids N+1 queries for small-medium datasets)
+      const allItems = await db
+        .select()
+        .from(threatIntelTable)
+        .where(where as SQL)
+        .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
+
+      const groupMap = new Map<string, typeof allItems>();
+      for (const item of allItems) {
+        let key: string;
+        switch (groupBy) {
+          case "category":     key = item.category ?? "Uncategorized"; break;
+          case "severity":     key = item.severity; break;
+          case "threat_actor": key = item.threatActor ?? "Unattributed"; break;
+          case "source":       key = item.source ?? "Unknown"; break;
+        }
+        if (!groupMap.has(key)) groupMap.set(key, []);
+        groupMap.get(key)!.push(item);
+      }
+
+      const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"];
+      const groups = [...groupMap.entries()]
+        .sort(([, a], [, b]) => b.length - a.length)
+        .map(([key, items]) => ({
+          key,
+          count: items.length,
+          // Sort items within group by severity then date, cap preview at MAX_ITEMS_PER_GROUP
+          items: items
+            .sort((a, b) => {
+              const sa = SEVERITY_ORDER.indexOf(a.severity);
+              const sb = SEVERITY_ORDER.indexOf(b.severity);
+              return sa !== sb ? sa - sb : b.publishedAt.getTime() - a.publishedAt.getTime();
+            })
+            .slice(0, MAX_ITEMS_PER_GROUP)
+            .map(formatThreatIntel),
+        }));
+
+      const data = { groups, total: allItems.length, groupBy };
+      apiCache.set(cacheKey, data, CACHE_TTL.LIST);
+      res.json(data);
+      return;
+    }
 
     const [totalResult] = await db
       .select({ count: sql<number>`count(*)::int` })

@@ -1,4 +1,5 @@
-import { Target, Calendar, ShieldAlert, Download, Check } from "lucide-react";
+import { Target, Calendar, ShieldAlert, Wrench, Download, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Card, Badge } from "@/components/ui/shared";
 import { formatDate } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
@@ -98,7 +99,7 @@ export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showChec
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleExportAdvisory(item.id).catch(console.error);
+                  handleExportAdvisory(item.id).catch(() => toast.error("Export failed"));
                 }}
                 className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-primary"
                 title="Export as HTML"
@@ -136,10 +137,10 @@ export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showChec
               </div>
               {item.patchAvailable ? (
                 <span className="text-success flex items-center gap-1 font-medium">
-                  <ShieldAlert className="h-3.5 w-3.5" /> Patch Avail
+                  <Wrench className="h-3.5 w-3.5" /> Patch Avail
                 </span>
               ) : (
-                <span className="text-warning flex items-center gap-1 font-medium">
+                <span className="text-muted-foreground flex items-center gap-1">
                   <ShieldAlert className="h-3.5 w-3.5" /> No Patch
                 </span>
               )}

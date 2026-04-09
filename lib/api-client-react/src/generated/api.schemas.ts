@@ -59,6 +59,8 @@ export interface DashboardStats {
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];
+  /** Advisories with patches available but not yet applied */
+  patchesAvailable?: number;
   /** India-specific stats when scope=local */
   indiaStats?: DashboardStatsIndiaStats;
 }

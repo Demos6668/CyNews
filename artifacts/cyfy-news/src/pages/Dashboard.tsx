@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useGetDashboardStats, useGetNews, getGetDashboardStatsQueryKey, getGetNewsQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
 import { Card, CardContent, Skeleton, Badge } from "@/components/ui/shared";
-import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
+import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, ExternalLink, Loader2, Wrench } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatRelative } from "@/lib/utils";
 import { NewsCard, NewsDetail } from "@/components/News";
@@ -64,11 +65,13 @@ export default function Dashboard() {
   ];
 
   const timeframeLabel = getTimeframeLabel(timeframe);
+  const patchesAvailable = (stats as typeof stats & { patchesAvailable?: number }).patchesAvailable ?? 0;
   const statCards = [
-    { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10" },
-    { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10" },
-    { title: "Critical Alerts", value: stats.criticalAlerts, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-    { title: "Resolved Incidents", value: stats.resolvedIncidents, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10", href: undefined },
+    { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10", href: undefined },
+    { title: "Patches Available", value: patchesAvailable, icon: Wrench, color: "text-warning", bg: "bg-warning/10", href: "/patches" },
+    { title: "Critical Alerts", value: stats.criticalAlerts, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", href: undefined },
+    { title: "Resolved Incidents", value: stats.resolvedIncidents, icon: CheckCircle2, color: "text-success", bg: "bg-success/10", href: undefined },
   ];
 
   return (
@@ -115,17 +118,16 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {statCards.map((stat, i) => (
-          <StatsCard
-            key={i}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            bg={stat.bg}
-          />
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+        {statCards.map((stat, i) =>
+          stat.href ? (
+            <Link key={i} href={stat.href} className="block hover:opacity-90 transition-opacity">
+              <StatsCard title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
+            </Link>
+          ) : (
+            <StatsCard key={i} title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
+          )
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
