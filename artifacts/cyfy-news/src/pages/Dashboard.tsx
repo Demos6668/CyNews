@@ -2,25 +2,28 @@ import { useState } from "react";
 import { useGetDashboardStats, useGetNews, getGetDashboardStatsQueryKey, getGetNewsQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
 import { Card, CardContent, Skeleton, Badge } from "@/components/ui/shared";
-import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, ExternalLink, LayoutDashboard } from "lucide-react";
+import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, LayoutDashboard } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { formatRelative } from "@/lib/utils";
 import { NewsCard, NewsDetail } from "@/components/News";
-import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip } from "@/components/Dashboard";
+import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream } from "@/components/Dashboard";
 import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { usePreference } from "@/hooks/usePreferences";
 
 export default function Dashboard() {
   const { isConnected, isRefreshing, lastUpdate, nextUpdate } = useWebSocket();
+  const [autoRefresh] = usePreference("autoRefresh");
+  const [refreshInterval] = usePreference("refreshInterval");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const pollMs = autoRefresh ? refreshInterval * 1000 : false;
   const statsParams = { timeframe };
   const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
-    query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: 60000 },
+    query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: pollMs },
   });
   const newsParams = { limit: 3, timeframe };
   const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews(newsParams, {
-    query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: 60000 },
+    query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: pollMs },
   });
 
   if (statsLoading) {
@@ -190,52 +193,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Card className="glass-panel">
-        <div className="p-6 border-b border-white/5">
-          <h3 className="font-bold">Recent Activity Stream</h3>
-        </div>
-        <div className="p-0">
-          <div className="divide-y divide-border/50">
-            {(stats?.recentActivity ?? []).map((activity) => (
-              <div
-                key={activity.id}
-                role={activity.sourceUrl ? "button" : undefined}
-                tabIndex={activity.sourceUrl ? 0 : undefined}
-                title={activity.sourceUrl ? "Open source" : "No source link"}
-                onClick={() => activity.sourceUrl && window.open(activity.sourceUrl, "_blank", "noopener,noreferrer")}
-                onKeyDown={(e) => {
-                  if (activity.sourceUrl && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    window.open(activity.sourceUrl, "_blank", "noopener,noreferrer");
-                  }
-                }}
-                className={`p-4 transition-colors flex items-center gap-4 ${
-                  activity.sourceUrl
-                    ? "cursor-pointer hover:bg-white/5"
-                    : "cursor-default opacity-80"
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  activity.severity === 'critical' ? 'bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]' : 
-                  activity.severity === 'high' ? 'bg-accent shadow-[0_0_8px_hsl(var(--accent))]' : 'bg-primary'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground">{activity.type.toUpperCase()}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                    {formatRelative(activity.timestamp)}
-                  </span>
-                  {activity.sourceUrl && (
-                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
+      <ActivityStream items={stats?.recentActivity ?? []} />
 
       <NewsDetail
         item={selectedNews}

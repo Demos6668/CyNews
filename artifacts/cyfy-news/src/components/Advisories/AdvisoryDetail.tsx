@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
@@ -24,13 +24,8 @@ import {
 import { SeverityBadge, AccordionSection } from "@/components/Common";
 import type { Advisory } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
-
-function getCvssColor(score: number): string {
-  if (score >= 9.0) return "var(--danger-red)";
-  if (score >= 7.0) return "var(--accent-amber)";
-  if (score >= 4.0) return "var(--warning-yellow)";
-  return "var(--success-green)";
-}
+import { getCvssHex, getSeverityToken } from "@/lib/design-tokens";
+import { addRecentItem } from "@/lib/recentlyViewed";
 
 interface AdvisoryDetailProps {
   item: Advisory | null;
@@ -41,6 +36,14 @@ interface AdvisoryDetailProps {
 export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
   useBodyScrollLock(isOpen);
   useEscapeKey(isOpen, onClose);
+
+  // Track this item as recently viewed when the panel opens
+  useEffect(() => {
+    if (isOpen && item) {
+      addRecentItem({ id: item.id, type: "advisory", title: item.title, severity: item.severity });
+      window.dispatchEvent(new Event("cyfy:history-updated"));
+    }
+  }, [isOpen, item?.id]);
 
   const [emailExportOpen, setEmailExportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<
@@ -59,18 +62,8 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const severityBg =
-    item.severity === "critical"
-      ? "var(--danger-red)"
-      : item.severity === "high"
-        ? "var(--accent-amber)"
-        : item.severity === "medium"
-          ? "var(--warning-yellow)"
-          : item.severity === "low"
-            ? "var(--success-green)"
-            : "var(--primary-teal)";
-
-  const cvssColor = getCvssColor(item.cvssScore);
+  const severityBg = getSeverityToken(item.severity).hex;
+  const cvssColor = getCvssHex(item.cvssScore);
   const isCertIn = item.isCertIn ?? false;
   const links = normalizeAdvisoryLinks(item);
   const primaryLinkLabel = getPrimaryAdvisoryLinkLabel(item);

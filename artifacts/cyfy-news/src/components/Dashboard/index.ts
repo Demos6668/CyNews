@@ -1,4 +1,5 @@
 export { StatsCard } from "./StatsCard";
+export { ActivityStream } from "./ActivityStream";
 export { StatusStrip } from "./StatusStrip";
 export { ThreatMeter } from "./ThreatMeter";
 export { QuickActions } from "./QuickActions";

@@ -1,4 +1,4 @@
-import { Bell, User, ChevronDown, LogOut, Settings, Search, X } from "lucide-react";
+import { Bell, User, ChevronDown, LogOut, Settings, Search, X, History } from "lucide-react";
 import { SearchBar } from "@/components/Common";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useGetDashboardStats, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePreference } from "@/hooks/usePreferences";
 
 export function Header() {
   const [, setLocation] = useLocation();
@@ -23,6 +24,7 @@ export function Header() {
     query: { queryKey: getGetDashboardStatsQueryKey(), refetchInterval: 60000 },
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [profileName] = usePreference("profileName");
 
   // Focus search input whenever mobile overlay opens
   useEffect(() => {
@@ -91,6 +93,14 @@ export function Header() {
           <Search className="h-5 w-5" />
         </button>
         <button
+          className="p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+          aria-label="Recently viewed"
+          title="Recently viewed"
+          onClick={() => window.dispatchEvent(new Event("cyfy:open-history"))}
+        >
+          <History className="h-5 w-5" />
+        </button>
+        <button
           className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
           aria-label="Notifications"
           title={criticalCount > 0 ? `${criticalCount} critical alert${criticalCount > 1 ? "s" : ""} — click to view` : "Notifications — coming soon"}
@@ -116,8 +126,8 @@ export function Header() {
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-secondary font-bold text-sm">
                 <User className="h-4 w-4" />
               </div>
-              <span className="text-sm font-medium hidden sm:inline-block">
-                Analyst
+              <span className="text-sm font-medium hidden sm:inline-block truncate max-w-[120px]">
+                {profileName}
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
             </button>

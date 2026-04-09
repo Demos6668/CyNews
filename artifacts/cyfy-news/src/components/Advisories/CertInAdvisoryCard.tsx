@@ -3,16 +3,7 @@ import { Card } from "@/components/ui/shared";
 import { formatDate } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { Advisory } from "@workspace/api-client-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-
-const SEVERITY_BORDER: Record<string, string> = {
-  critical: "border-l-destructive",
-  high: "border-l-orange-500",
-  medium: "border-l-amber-500",
-  low: "border-l-green-500",
-  info: "border-l-muted-foreground",
-};
 
 interface CertInAdvisoryCardProps {
   advisory: Advisory;
@@ -23,24 +14,16 @@ interface CertInAdvisoryCardProps {
 }
 
 export function CertInAdvisoryCard({ advisory, onClick, selected, onToggleSelect, showCheckbox }: CertInAdvisoryCardProps) {
-  const severityBorder = SEVERITY_BORDER[advisory.severity] ?? "border-l-orange-500";
   const cveCount = advisory.cveIds?.length ?? 0;
   const cveIds = advisory.cveIds ?? [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.2 }}
-      className="h-full"
-    >
+    <div className="h-full">
       <Card
         onClick={onClick}
         className={cn(
-          "h-full overflow-hidden flex flex-col cursor-pointer group",
-          "bg-card/80 border border-orange-500/20 rounded-xl border-l-4",
-          severityBorder
+          "h-full overflow-hidden flex flex-col cursor-pointer group card-spec",
+          `severity-${advisory.severity}`
         )}
       >
         <div className="p-5 flex flex-col h-full">
@@ -166,6 +149,6 @@ export function CertInAdvisoryCard({ advisory, onClick, selected, onToggleSelect
           </div>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }

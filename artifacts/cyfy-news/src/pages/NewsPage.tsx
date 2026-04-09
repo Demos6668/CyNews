@@ -58,6 +58,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     }
   }, [searchString]);
 
+
   useFilterParamsSync(
     `/news/${scope}`,
     {
@@ -103,6 +104,15 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     page,
     limit,
   });
+
+  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
+  useEffect(() => {
+    const openId = new URLSearchParams(searchString).get("open");
+    if (!openId || !data?.items?.length) return;
+    const id = parseInt(openId, 10);
+    const match = data.items.find((n) => n.id === id);
+    if (match) setSelectedItem(match);
+  }, [data?.items, searchString]);
 
   const activeFilterCount =
     severities.length + categories.length + (dateFrom || dateTo ? 1 : 0);

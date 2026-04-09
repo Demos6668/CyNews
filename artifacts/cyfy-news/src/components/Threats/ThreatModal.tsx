@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
@@ -14,6 +14,8 @@ import { SeverityBadge, AccordionSection } from "@/components/Common";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { normalizeThreatLinks } from "@/lib/threatLinks";
+import { getSeverityToken } from "@/lib/design-tokens";
+import { addRecentItem } from "@/lib/recentlyViewed";
 
 interface ThreatModalProps {
   item: ThreatIntelItem | null;
@@ -24,6 +26,13 @@ interface ThreatModalProps {
 export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
   useBodyScrollLock(isOpen);
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen && item) {
+      addRecentItem({ id: item.id, type: "threat", title: item.title, severity: item.severity });
+      window.dispatchEvent(new Event("cyfy:history-updated"));
+    }
+  }, [isOpen, item?.id]);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     ttps: true,
@@ -39,16 +48,7 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const severityBg =
-    item.severity === "critical"
-      ? "var(--danger-red)"
-      : item.severity === "high"
-        ? "var(--accent-amber)"
-        : item.severity === "medium"
-          ? "var(--warning-yellow)"
-        : item.severity === "low"
-          ? "var(--success-green)"
-          : "var(--primary-teal)";
+  const severityBg = getSeverityToken(item.severity).hex;
   const links = normalizeThreatLinks(item);
 
   return (

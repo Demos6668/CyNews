@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Calendar, ExternalLink, Target } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";
 import { formatDate, stripHtml } from "@/lib/utils";
@@ -6,6 +7,8 @@ import type { NewsItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { getSeverityToken } from "@/lib/design-tokens";
+import { addRecentItem } from "@/lib/recentlyViewed";
 
 interface NewsDetailProps {
   item: NewsItem | null;
@@ -17,7 +20,16 @@ export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
   useBodyScrollLock(isOpen);
   useEscapeKey(isOpen, onClose);
 
+  useEffect(() => {
+    if (isOpen && item) {
+      addRecentItem({ id: item.id, type: "news", title: item.title, severity: item.severity });
+      window.dispatchEvent(new Event("cyfy:history-updated"));
+    }
+  }, [isOpen, item?.id]);
+
   if (!item) return null;
+
+  const severityBg = getSeverityToken(item.severity).hex;
 
   return (
     <div
@@ -41,18 +53,7 @@ export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
       >
         <div
           className="h-2 w-full"
-          style={{
-            backgroundColor:
-              item.severity === "critical"
-                ? "var(--danger-red)"
-                : item.severity === "high"
-                  ? "var(--accent-amber)"
-                  : item.severity === "medium"
-                    ? "var(--warning-yellow)"
-                    : item.severity === "low"
-                      ? "var(--success-green)"
-                      : "var(--primary-teal)",
-          }}
+          style={{ backgroundColor: severityBg }}
         />
 
         <div className="p-8">

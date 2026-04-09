@@ -3,10 +3,14 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { BottomNav } from "./BottomNav";
+import { RecentlyViewedDrawer } from "./RecentlyViewedDrawer";
 import { WorkspaceSidebar, CreateWorkspaceModal, WorkspaceFeed } from "@/components/Workspace";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useDesktopNotifications } from "@/hooks/useDesktopNotifications";
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { ReactNode } from "react";
 import type { Workspace as SidebarWorkspace, WorkspaceSectionCounts, WorkspaceSectionKey } from "@/components/Workspace/WorkspaceSidebar";
+import { useLocation } from "wouter";
 
 const emptySectionCounts: WorkspaceSectionCounts = {
   high: 0,
@@ -17,8 +21,29 @@ const emptySectionCounts: WorkspaceSectionCounts = {
 };
 
 export function AppLayout({ children }: { children: ReactNode }) {
+  useDesktopNotifications();
+  const [, setLocation] = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const { items: recentItems, remove: removeRecent, clear: clearRecent } = useRecentlyViewed();
+
+  // Open the drawer when Header dispatches this event
+  useEffect(() => {
+    const handler = () => setHistoryOpen(true);
+    window.addEventListener("cyfy:open-history", handler);
+    return () => window.removeEventListener("cyfy:open-history", handler);
+  }, []);
+
+  const handleSelectRecent = (item: { id: number; type: string }) => {
+    const routes: Record<string, string> = {
+      advisory: `/advisories?open=${item.id}`,
+      threat: `/threats?open=${item.id}`,
+      news: `/news?open=${item.id}`,
+    };
+    const route = routes[item.type];
+    if (route) setLocation(route);
+  };
   const [activeWorkspaceSection, setActiveWorkspaceSection] = useState<WorkspaceSectionKey | null>(null);
   const [workspaceSectionCounts, setWorkspaceSectionCounts] = useState<WorkspaceSectionCounts>(emptySectionCounts);
   const {
@@ -96,6 +121,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
       <BottomNav />
+      <RecentlyViewedDrawer
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        items={recentItems}
+        onSelect={handleSelectRecent}
+        onRemove={removeRecent}
+        onClear={clearRecent}
+      />
       <CreateWorkspaceModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

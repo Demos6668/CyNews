@@ -3,7 +3,9 @@ import { Activity, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
-const STATUS_POLL_INTERVAL_MS = 60_000;
+// Primary: event-driven via cyfy:refresh-complete / cyfy:stats-update
+// Fallback: 5-min heartbeat so the status stays fresh even when WebSocket is idle
+const STATUS_POLL_INTERVAL_MS = 5 * 60_000;
 
 interface SchedulerStatus {
   isRunning: boolean;

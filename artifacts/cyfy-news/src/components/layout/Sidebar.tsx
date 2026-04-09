@@ -1,12 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Globe, 
-  MapPin, 
+import {
+  LayoutDashboard,
+  Globe,
+  MapPin,
   Shield,
-  ShieldAlert, 
-  Crosshair, 
+  ShieldAlert,
+  Crosshair,
+  Bookmark,
   Settings,
   Menu,
   ChevronLeft,
@@ -22,6 +23,7 @@ const navItems = [
   { name: "CERT-In", href: "/cert-in", icon: Shield, section: "intel" },
   { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
   { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
+  { name: "Bookmarks", href: "/bookmarks", icon: Bookmark, section: "intel" },
   { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];
 
