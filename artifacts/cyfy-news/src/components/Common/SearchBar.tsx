@@ -8,6 +8,7 @@ interface SearchBarProps {
   placeholder?: string;
   className?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  autoFocus?: boolean;
 }
 
 export function SearchBar({
@@ -16,6 +17,7 @@ export function SearchBar({
   placeholder = "Search global threats, CVEs, news...",
   className,
   inputRef,
+  autoFocus,
 }: SearchBarProps) {
   return (
     <div className={cn("relative group flex-1 max-w-xl", className)} role="search">
@@ -24,6 +26,7 @@ export function SearchBar({
         ref={inputRef}
         placeholder={placeholder}
         aria-label="Search"
+        autoFocus={autoFocus}
         className="pl-10 bg-secondary/50 border-white/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:border-accent rounded-full h-10 w-full"
         value={value}
         onChange={(e) => onChange(e.target.value)}

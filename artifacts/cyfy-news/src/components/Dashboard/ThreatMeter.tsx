@@ -8,10 +8,11 @@ interface ThreatMeterProps {
   level: string;
   criticalAlerts?: number;
   highAlerts?: number;
+  mediumAlerts?: number;
   className?: string;
 }
 
-export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, className }: ThreatMeterProps) {
+export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, mediumAlerts = 0, className }: ThreatMeterProps) {
   const idx = LEVELS.indexOf(level as (typeof LEVELS)[number]);
   const effectiveIdx = idx >= 0 ? idx : 0;
   const angle = -90 + (effectiveIdx / (LEVELS.length - 1)) * 180;
@@ -89,13 +90,11 @@ export function ThreatMeter({ level, criticalAlerts = 0, highAlerts = 0, classNa
             {level}
           </span>
         </div>
-        {(criticalAlerts > 0 || highAlerts > 0) && (
-          <div className="flex gap-4 mt-4 pt-4 border-t border-white/5 text-xs text-muted-foreground">
-            <span><span className="font-semibold text-destructive">{criticalAlerts}</span> Critical</span>
-            <span><span className="font-semibold text-accent">{highAlerts}</span> High</span>
-            <span><span className="font-semibold">{criticalAlerts + highAlerts}</span> Total</span>
-          </div>
-        )}
+        <div className="flex gap-4 mt-4 pt-4 border-t border-white/5 text-xs text-muted-foreground w-full justify-center">
+          <span><span className="font-semibold text-num text-destructive">{criticalAlerts}</span> Crit</span>
+          <span><span className="font-semibold text-num text-accent">{highAlerts}</span> High</span>
+          <span><span className="font-semibold text-num text-warning">{mediumAlerts}</span> Med</span>
+        </div>
       </CardContent>
     </Card>
   );

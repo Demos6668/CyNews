@@ -1,7 +1,7 @@
 import { useGetAdvisories } from "@workspace/api-client-react";
 import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { ShieldAlert, AlertTriangle, Download, ChevronDown, Mail, FileDown } from "lucide-react";
@@ -222,6 +222,17 @@ export default function Advisories() {
         onShowFiltersToggle={() => setShowFilters(!showFilters)}
         activeCount={activeFilterCount}
       />
+
+      {hasActiveFilters && (
+        <ActiveFilterBar
+          filters={[
+            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+            ...statuses.map((s): ActiveFilter => ({ key: `status-${s}`, label: s.replace("_", " "), color: "status", onRemove: () => toggleStatus(s) })),
+            ...vendors.map((v): ActiveFilter => ({ key: `vendor-${v}`, label: v, color: "vendor", onRemove: () => toggleVendor(v) })),
+          ]}
+          onClearAll={clearFilters}
+        />
+      )}
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">

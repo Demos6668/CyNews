@@ -4,7 +4,6 @@ import { formatRelative, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import { IndiaBadge } from "./IndiaBadge";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { normalizeThreatLinks } from "@/lib/threatLinks";
 
@@ -17,13 +16,7 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
   const links = normalizeThreatLinks(item);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
-      className="h-full"
-    >
+    <div className="h-full">
       <Card
         onClick={onClick}
         className={cn(
@@ -127,6 +120,6 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
           </div>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }

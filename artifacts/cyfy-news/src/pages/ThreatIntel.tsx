@@ -1,6 +1,6 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import {
@@ -228,6 +228,16 @@ export default function ThreatIntel() {
         onShowFiltersToggle={() => setShowFilters(!showFilters)}
         activeCount={activeFilterCount}
       />
+
+      {hasActiveFilters && (
+        <ActiveFilterBar
+          filters={[
+            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+            ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
+          ]}
+          onClearAll={clearFilters}
+        />
+      )}
 
       <h2 className="text-xl font-bold mt-8 mb-4 border-l-4 border-primary pl-3">
         Latest Threat Reports

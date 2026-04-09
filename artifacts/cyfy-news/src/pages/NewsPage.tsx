@@ -1,8 +1,7 @@
 import { useGetNews } from "@workspace/api-client-react";
 import { NewsList, NewsDetail } from "@/components/News";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { Skeleton } from "@/components/ui/shared";
-import { EmptyState } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { AlertTriangle, FileQuestion } from "lucide-react";
@@ -176,6 +175,18 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
         onShowFiltersToggle={() => setShowFilters(!showFilters)}
         activeCount={activeFilterCount}
       />
+
+      {hasActiveFilters && (
+        <ActiveFilterBar
+          filters={[
+            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+            ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
+            ...(dateFrom ? [{ key: "dateFrom", label: `From ${dateFrom}`, color: "status" as const, onRemove: () => setDateFrom(undefined) }] : []),
+            ...(dateTo ? [{ key: "dateTo", label: `To ${dateTo}`, color: "status" as const, onRemove: () => setDateTo(undefined) }] : []),
+          ]}
+          onClearAll={clearFilters}
+        />
+      )}
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">

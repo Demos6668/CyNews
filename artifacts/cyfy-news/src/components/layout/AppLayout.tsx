@@ -77,7 +77,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <Header />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 sm:pb-4 custom-scrollbar">
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 lg:pb-8 custom-scrollbar">
             <div className="max-w-7xl mx-auto">
               {activeWorkspace?.isDefault ? (
                 children

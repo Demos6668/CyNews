@@ -1,4 +1,4 @@
-import { Bell, User, ChevronDown, LogOut, Settings } from "lucide-react";
+import { Bell, User, ChevronDown, LogOut, Settings, Search, X } from "lucide-react";
 import { SearchBar } from "@/components/Common";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 export function Header() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const { data: stats } = useGetDashboardStats(undefined, {
     query: { queryKey: getGetDashboardStatsQueryKey(), refetchInterval: 60000 },
@@ -24,13 +25,17 @@ export function Header() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useKeyboardShortcuts({
-    onSearchFocus: () => searchInputRef.current?.focus(),
+    onSearchFocus: () => {
+      setMobileSearchOpen(true);
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    },
   });
 
   useEffect(() => {
     if (debouncedSearch) {
       setLocation(`/search?q=${encodeURIComponent(debouncedSearch)}`);
       setSearchQuery("");
+      setMobileSearchOpen(false);
     }
   }, [debouncedSearch, setLocation]);
 
@@ -38,19 +43,50 @@ export function Header() {
 
   return (
     <header
-      className="h-16 flex items-center justify-between px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
+      className="h-16 flex items-center justify-between px-4 md:px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
       style={{ backgroundColor: "var(--dark-navy)" }}
       role="navigation"
       aria-label="Header navigation"
     >
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search global threats, CVEs, news..."
-        inputRef={searchInputRef}
-      />
+      {/* Mobile: fullscreen search overlay */}
+      {mobileSearchOpen && (
+        <div className="lg:hidden absolute inset-0 z-50 flex items-center gap-2 px-4 bg-[var(--dark-navy)] border-b border-border">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search threats, CVEs, news..."
+            inputRef={searchInputRef}
+            autoFocus
+          />
+          <button
+            onClick={() => { setMobileSearchOpen(false); setSearchQuery(""); }}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close search"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
-      <div className="flex items-center gap-4 ml-4">
+      {/* Desktop search — always visible on lg+ */}
+      <div className="hidden lg:block flex-1 max-w-xl">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search global threats, CVEs, news..."
+          inputRef={searchInputRef}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 ml-auto lg:ml-4">
+        {/* Mobile search toggle */}
+        <button
+          className="lg:hidden p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+          aria-label="Search"
+          onClick={() => { setMobileSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+        >
+          <Search className="h-5 w-5" />
+        </button>
         <button
           className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
           aria-label="Notifications"
