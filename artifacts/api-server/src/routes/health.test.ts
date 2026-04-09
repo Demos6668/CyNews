@@ -3,11 +3,23 @@ import request from "supertest";
 import app from "../app";
 import { setScheduler } from "./scheduler";
 
-vi.mock("@workspace/db", () => {
+const mockCheckPerformanceIndexes = vi.fn().mockResolvedValue({
+  ready: true,
+  missing: [],
+  checkedAt: "2024-01-15T12:00:00.000Z",
+});
+
+vi.mock("../services/performanceIndexes", () => ({
+  checkPerformanceIndexes: (...args: unknown[]) => mockCheckPerformanceIndexes(...args),
+}));
+
+vi.mock("@workspace/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@workspace/db")>();
   const mockQuery = vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] });
   const mockRelease = vi.fn();
   const mockConnect = vi.fn().mockResolvedValue({ query: mockQuery, release: mockRelease });
   return {
+    ...actual,
     pool: { connect: mockConnect },
     db: {},
     __mockConnect: mockConnect,
@@ -59,6 +71,7 @@ describe("Health routes", () => {
       const res = await request(app).get("/api/readyz").expect(200);
       expect(res.body.ready).toBe(true);
       expect(res.body.checks.db.ready).toBe(true);
+      expect(res.body.checks.indexes.ready).toBe(true);
       expect(res.body.checks.scheduler.ready).toBe(true);
     });
 
@@ -82,6 +95,19 @@ describe("Health routes", () => {
       const res = await request(app).get("/api/readyz").expect(503);
       expect(res.body.ready).toBe(false);
       expect(res.body.checks.scheduler.ready).toBe(false);
+    });
+
+    it("returns 503 when required DB indexes are missing", async () => {
+      mockCheckPerformanceIndexes.mockResolvedValueOnce({
+        ready: false,
+        missing: ["idx_news_items_published_at"],
+        checkedAt: "2024-01-15T12:00:00.000Z",
+      });
+
+      const res = await request(app).get("/api/readyz").expect(503);
+      expect(res.body.ready).toBe(false);
+      expect(res.body.checks.indexes.ready).toBe(false);
+      expect(res.body.checks.indexes.detail).toContain("idx_news_items_published_at");
     });
   });
 });

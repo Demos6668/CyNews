@@ -16,6 +16,11 @@ import { Badge, Button } from "@/components/ui/shared";
 import { EmailExportModal } from "@/components/Export";
 import { exportAdvisoryHtml } from "@/lib/exportApi";
 import { formatDate, stripHtml } from "@/lib/utils";
+import {
+  getPatchAdvisoryLinkLabel,
+  getPrimaryAdvisoryLinkLabel,
+  normalizeAdvisoryLinks,
+} from "@/lib/advisoryLinks";
 import { SeverityBadge, AccordionSection } from "@/components/Common";
 import type { Advisory } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +72,9 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
 
   const cvssColor = getCvssColor(item.cvssScore);
   const isCertIn = item.isCertIn ?? false;
+  const links = normalizeAdvisoryLinks(item);
+  const primaryLinkLabel = getPrimaryAdvisoryLinkLabel(item);
+  const patchLinkLabel = getPatchAdvisoryLinkLabel();
 
   return (
     <div
@@ -221,14 +229,24 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
             <span className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4" /> {formatDate(item.publishedAt)}
             </span>
-            {item.patchUrl && (
+            {links.sourceUrl && (
               <a
-                href={item.patchUrl}
+                href={links.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-primary hover:underline"
               >
-                <ExternalLink className="h-4 w-4" /> Patch Link
+                <ExternalLink className="h-4 w-4" /> {primaryLinkLabel}
+              </a>
+            )}
+            {links.patchUrl && (
+              <a
+                href={links.patchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-primary hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" /> {patchLinkLabel}
               </a>
             )}
           </div>
@@ -327,9 +345,9 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </AccordionSection>
             )}
 
-            {(item.references?.length ?? 0) > 0 && (
+            {links.references.length > 0 && (
               <AccordionSection
-                title={`References (${item.references.length})`}
+                title={`References (${links.references.length})`}
                 sectionKey="refs"
                 expanded={expandedSections.refs}
                 onToggle={() => toggleSection("refs")}
@@ -337,7 +355,7 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
                 color="text-blue-400"
               >
                 <ul className="space-y-1.5">
-                  {item.references.map((ref: string, i: number) => (
+                  {links.references.map((ref: string, i: number) => (
                     <li key={i}>
                       <a
                         href={ref}
@@ -354,17 +372,37 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
             )}
           </div>
 
-          {isCertIn && item.sourceUrl && (
+          {(links.sourceUrl || links.patchUrl) && (
             <div className="mt-8 pt-6 border-t border-border">
-              <a
-                href={item.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors border border-orange-500/30"
-              >
-                <ExternalLink className="h-4 w-4" />
-                View on CERT-In
-              </a>
+              <div className="flex flex-wrap gap-3">
+                {links.sourceUrl && (
+                  <a
+                    href={links.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors border",
+                      isCertIn
+                        ? "bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30"
+                        : "bg-primary/10 text-primary hover:bg-primary/15 border-primary/20"
+                    )}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {primaryLinkLabel}
+                  </a>
+                )}
+                {links.patchUrl && (
+                  <a
+                    href={links.patchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors border bg-background/60 text-foreground hover:bg-background border-border"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {patchLinkLabel}
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>

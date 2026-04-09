@@ -2795,7 +2795,7 @@ export const useMatchWorkspaceThreats = <
 };
 
 /**
- * @summary Update a threat match (review/dismiss)
+ * @summary Update a threat match (review/resolve/dismiss)
  */
 export const getUpdateMatchUrl = (id: string, matchId: string) => {
   return `/api/workspaces/${id}/matches/${matchId}`;
@@ -2860,7 +2860,7 @@ export type UpdateMatchMutationBody = BodyType<UpdateMatchBody>;
 export type UpdateMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Update a threat match (review/dismiss)
+ * @summary Update a threat match (review/resolve/dismiss)
  */
 export const useUpdateMatch = <
   TError = ErrorType<ErrorResponse>,

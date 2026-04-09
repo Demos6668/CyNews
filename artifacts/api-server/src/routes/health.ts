@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { getScheduler } from "./scheduler";
+import { checkPerformanceIndexes } from "../services/performanceIndexes";
 
 const DB_CHECK_TIMEOUT_MS = 3_000;
 
@@ -37,8 +38,26 @@ router.get("/healthz", async (_req, res) => {
 router.get("/readyz", async (_req, res) => {
   const checks: Record<string, { ready: boolean; detail?: string }> = {};
 
-  const db = await checkDb();
+  const [db, indexStatus] = await Promise.all([
+    checkDb(),
+    checkPerformanceIndexes().catch((error: unknown) => ({
+      ready: false,
+      missing: [],
+      checkedAt: null,
+      error: error instanceof Error ? error.message : String(error),
+    })),
+  ]);
+
   checks.db = db.ok ? { ready: true } : { ready: false, detail: db.error };
+  checks.indexes = indexStatus.ready
+    ? { ready: true }
+    : {
+        ready: false,
+        detail:
+          "error" in indexStatus
+            ? indexStatus.error
+            : `missing indexes: ${indexStatus.missing.join(", ")}`,
+      };
 
   const scheduler = getScheduler();
   if (!scheduler) {

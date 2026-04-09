@@ -11,6 +11,15 @@ import type { AdvisoryForExport } from "../services/exportService";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { validate } from "../middlewares/validate";
 import { z } from "zod";
+import {
+  displayableAdvisorySql,
+  isDisplayableAdvisory,
+  normalizeAdvisoryLinks,
+} from "../lib/advisoryLinks";
+import {
+  isDisplayableThreat,
+  normalizeThreatLinks,
+} from "../lib/threatLinks";
 
 const router: IRouter = Router();
 
@@ -74,24 +83,26 @@ async function findExportItemById(
       .select()
       .from(advisoriesTable)
       .where(eq(advisoriesTable.id, numId));
-    if (adv) return { type: "advisory", row: adv };
+    if (adv && isDisplayableAdvisory(adv)) return { type: "advisory", row: adv };
 
     const [threat] = await db
       .select()
       .from(threatIntelTable)
       .where(eq(threatIntelTable.id, numId));
-    if (threat) return { type: "threat", row: threat };
+    if (threat && isDisplayableThreat(threat)) return { type: "threat", row: threat };
   }
   const [adv] = await db
     .select()
     .from(advisoriesTable)
     .where(eq(advisoriesTable.certInId, String(idParam)))
     .limit(1);
-  if (adv) return { type: "advisory", row: adv };
+  if (adv && isDisplayableAdvisory(adv)) return { type: "advisory", row: adv };
   return null;
 }
 
 function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
+  const links = normalizeAdvisoryLinks(row);
+
   return {
     id: row.id,
     cveId: row.cveId,
@@ -102,15 +113,15 @@ function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
     affectedProducts: (row.affectedProducts as string[]) ?? [],
     vendor: row.vendor,
     patchAvailable: row.patchAvailable,
-    patchUrl: row.patchUrl,
+    patchUrl: links.patchUrl,
     workarounds: (row.workarounds as string[]) ?? [],
-    references: (row.references as string[]) ?? [],
+    references: links.references,
     status: row.status,
     publishedAt: row.publishedAt.toISOString(),
     scope: row.scope,
     isIndiaRelated: row.isIndiaRelated ?? undefined,
     indiaConfidence: row.indiaConfidence ?? undefined,
-    sourceUrl: row.sourceUrl ?? undefined,
+    sourceUrl: links.sourceUrl ?? undefined,
     source: row.source ?? undefined,
     summary: row.summary ?? undefined,
     content: row.content ?? undefined,
@@ -123,6 +134,8 @@ function toAdvisoryForExport(row: typeof advisoriesTable.$inferSelect) {
 }
 
 function toThreatForExport(row: typeof threatIntelTable.$inferSelect): AdvisoryWithCustomizations {
+  const links = normalizeThreatLinks(row);
+
   return {
     id: row.id,
     cveId: "",
@@ -135,12 +148,12 @@ function toThreatForExport(row: typeof threatIntelTable.$inferSelect): AdvisoryW
     patchAvailable: false,
     patchUrl: null,
     workarounds: [],
-    references: (row.references as string[]) ?? [],
+    references: links.references,
     status: row.status,
     publishedAt: row.publishedAt.toISOString(),
     scope: row.scope,
     isIndiaRelated: row.isIndiaRelated ?? false,
-    sourceUrl: row.sourceUrl ?? undefined,
+    sourceUrl: links.sourceUrl ?? undefined,
     source: row.source,
     summary: row.summary,
     content: row.description,
@@ -164,7 +177,7 @@ router.get("/export/advisory/:id", asyncHandler(async (req: Request, res: Respon
       .from(advisoriesTable)
       .where(eq(advisoriesTable.id, id));
 
-    if (!item) {
+    if (!item || !isDisplayableAdvisory(item)) {
       throw new NotFoundError("Advisory not found");
     }
 
@@ -206,7 +219,7 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
           : getTimeframeStartDate(tf as TimeframeValue);
       const scopeFilter = body.scope === "local" || body.scope === "global" ? body.scope : undefined;
       const vendorFilter = body.vendor && typeof body.vendor === "string" ? body.vendor.trim() : undefined;
-      const conditions = [];
+      const conditions = [displayableAdvisorySql];
       if (fromDate) conditions.push(gte(advisoriesTable.publishedAt, fromDate));
       if (scopeFilter) conditions.push(eq(advisoriesTable.scope, scopeFilter));
       if (vendorFilter) conditions.push(eq(advisoriesTable.vendor, vendorFilter));
@@ -222,6 +235,8 @@ router.post("/export/advisories/bulk", validate({ body: BulkAdvisoriesBody }), a
       res.status(400).json({ error: "Provide ids or timeframe in request body" });
       return;
     }
+
+    items = items.filter(isDisplayableAdvisory);
 
     if (items.length === 0) {
       throw new NotFoundError("No advisories found");

@@ -13,6 +13,7 @@ import { formatDate, stripHtml } from "@/lib/utils";
 import { SeverityBadge, AccordionSection } from "@/components/Common";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { normalizeThreatLinks } from "@/lib/threatLinks";
 
 interface ThreatModalProps {
   item: ThreatIntelItem | null;
@@ -45,9 +46,10 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
         ? "var(--accent-amber)"
         : item.severity === "medium"
           ? "var(--warning-yellow)"
-          : item.severity === "low"
-            ? "var(--success-green)"
-            : "var(--primary-teal)";
+        : item.severity === "low"
+          ? "var(--success-green)"
+          : "var(--primary-teal)";
+  const links = normalizeThreatLinks(item);
 
   return (
     <div
@@ -282,9 +284,35 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
               </AccordionSection>
             )}
 
-            {item.sourceUrl && (
+            {links.references.length > 0 && (
+              <AccordionSection
+                title={`References (${links.references.length})`}
+                sectionKey="references"
+                expanded={expandedSections.references ?? false}
+                onToggle={() => toggleSection("references")}
+                icon={ExternalLink}
+                color="text-blue-400"
+              >
+                <ul className="space-y-1.5">
+                  {links.references.map((ref: string) => (
+                    <li key={ref}>
+                      <a
+                        href={ref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline break-all"
+                      >
+                        {ref}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionSection>
+            )}
+
+            {links.sourceUrl && (
               <a
-                href={item.sourceUrl}
+                href={links.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 mt-6 px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors w-fit"

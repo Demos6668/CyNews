@@ -27,10 +27,13 @@ vi.mock("@workspace/db", async (importOriginal) => {
     type: "news",
     severity: "high",
     source: "CyberWire",
+    source_url: "https://example.com/advisory",
     vendor: "TestVendor",
     published_at: new Date("2024-06-14T10:00:00Z"),
     rank: 0.5,
   };
+
+  const execute = vi.fn(() => p({ rows: [universalFtsRow] }));
 
   return {
     ...actual,
@@ -47,7 +50,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
           if (table === threatIntelTable) {
             return selectChain([{
               id: 2, title: "APT29 Campaign Detected", summary: "New campaign targeting government.",
-              severity: "critical", source: "CISA",
+              severity: "critical", source: "CISA", sourceUrl: "https://cisa.gov/advisory/apt29",
+              publishedAt: new Date("2024-06-14T09:00:00Z"),
+            }, {
+              id: 5, title: "Hidden Threat", summary: "Threat without canonical source.",
+              severity: "medium", source: "", sourceUrl: null,
               publishedAt: new Date("2024-06-14T09:00:00Z"),
             }]);
           }
@@ -55,18 +62,28 @@ vi.mock("@workspace/db", async (importOriginal) => {
             return selectChain([{
               id: 3, title: "CVE-2024-5678 Buffer Overflow", description: "A critical buffer overflow vulnerability.",
               severity: "critical", vendor: "TestVendor", cveId: "CVE-2024-5678",
+              source: "Vendor Feed", sourceUrl: "https://example.com/advisory",
+              publishedAt: new Date("2024-06-14T08:00:00Z"),
+            }, {
+              id: 4, title: "Legacy Advisory", description: "Legacy advisory without source.",
+              severity: "high", vendor: "LegacyVendor", cveId: "CVE-2024-9999",
+              source: null, sourceUrl: null,
               publishedAt: new Date("2024-06-14T08:00:00Z"),
             }]);
           }
           return selectChain([]);
         },
       }),
-      execute: vi.fn(() => p({ rows: [universalFtsRow] })),
+      execute,
+      transaction: vi.fn(async (cb: (tx: { execute: typeof execute }) => Promise<unknown>) =>
+        cb({ execute })
+      ),
     },
   };
 });
 
 import app from "../app";
+import { db } from "@workspace/db";
 
 describe("Search routes", () => {
   beforeEach(() => {
@@ -127,6 +144,15 @@ describe("Search routes", () => {
       }
     });
 
+    it("excludes threat results that do not have a canonical source", async () => {
+      const res = await request(app)
+        .get("/api/search?q=ab&type=threat")
+        .expect(200);
+
+      expect(res.body.results).toHaveLength(1);
+      expect(res.body.results[0].title).toBe("APT29 Campaign Detected");
+    });
+
     it("filters by type=advisory and only returns advisory items", async () => {
       const res = await request(app)
         .get("/api/search?q=overflow&type=advisory")
@@ -136,6 +162,15 @@ describe("Search routes", () => {
       for (const item of res.body.results) {
         expect(item.type).toBe("advisory");
       }
+    });
+
+    it("excludes advisory results that do not have a canonical source", async () => {
+      const res = await request(app)
+        .get("/api/search?q=ab&type=advisory")
+        .expect(200);
+
+      expect(res.body.results).toHaveLength(1);
+      expect(res.body.results[0].title).toBe("CVE-2024-5678 Buffer Overflow");
     });
 
     it("returns all types when no type filter is specified", async () => {
@@ -183,6 +218,19 @@ describe("Search routes", () => {
       for (const item of res.body.results) {
         expect(item.type).toBe("news");
       }
+    });
+
+    it("falls back to ILIKE when FTS hits a statement timeout", async () => {
+      vi.mocked(db.execute).mockRejectedValueOnce(Object.assign(new Error("canceling statement due to statement timeout"), {
+        code: "57014",
+      }));
+
+      const res = await request(app)
+        .get("/api/search?q=malware&type=news")
+        .expect(200);
+
+      expect(res.body.results.length).toBeGreaterThan(0);
+      expect(res.body.results[0].type).toBe("news");
     });
 
     it("uses ILIKE fallback for 2-character queries", async () => {

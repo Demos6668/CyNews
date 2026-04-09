@@ -5,18 +5,24 @@ import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
+import {
+  displayableThreatSql,
+  isDisplayableThreat,
+  normalizeThreatLinks,
+} from "../lib/threatLinks";
 
 import {
   GetThreatsQueryParams,
   GetThreatsResponse,
   GetThreatByIdParams,
   GetThreatByIdResponse,
-  ExportThreatsQueryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
+  const links = normalizeThreatLinks(item);
+
   return {
     id: item.id,
     title: item.title,
@@ -41,8 +47,8 @@ function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
     affectedSystems: (item.affectedSystems as string[]) ?? [],
     mitigations: (item.mitigations as string[]) ?? [],
     source: item.source,
-    sourceUrl: item.sourceUrl,
-    references: (item.references as string[]) ?? [],
+    sourceUrl: links.sourceUrl,
+    references: links.references,
     campaignName: item.campaignName,
     status: item.status,
     confidenceLevel: item.confidenceLevel,
@@ -56,8 +62,8 @@ function formatThreatIntel(item: typeof threatIntelTable.$inferSelect) {
 router.get("/threats/export", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = req.query as Record<string, string>;
     const format = rawQuery.format === "json" ? "json" : "csv";
-    const query = ExportThreatsQueryParams.parse(req.query);
-    const conditions: SQL[] = [];
+    const query = GetThreatsQueryParams.parse(req.query);
+    const conditions: SQL[] = [displayableThreatSql];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
     if (query.severity) {
@@ -73,6 +79,9 @@ router.get("/threats/export", asyncHandler(async (req: Request, res: Response) =
     }
     if (query.state) conditions.push(eq(threatIntelTable.indianState, query.state.toUpperCase()));
     if (query.sector) conditions.push(eq(threatIntelTable.indianSector, query.sector));
+    if (query.status) conditions.push(eq(threatIntelTable.status, query.status));
+    const fromDate = query.timeframe ? getTimeframeStartDate(query.timeframe) : undefined;
+    if (fromDate) conditions.push(gte(threatIntelTable.publishedAt, fromDate));
 
     const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
@@ -85,7 +94,7 @@ router.get("/threats/export", asyncHandler(async (req: Request, res: Response) =
       .limit(MAX_EXPORT_ROWS);
 
     if (format === "json") {
-      const jsonData = items.map((item) => formatThreatIntel(item));
+      const jsonData = items.filter(isDisplayableThreat).map((item) => formatThreatIntel(item));
       res.setHeader("Content-Type", "application/json");
       res.setHeader("Content-Disposition", "attachment; filename=threats-export.json");
       res.json(jsonData);
@@ -139,7 +148,7 @@ router.get("/threats/:id", asyncHandler(async (req: Request, res: Response) => {
       .from(threatIntelTable)
       .where(eq(threatIntelTable.id, params.id));
 
-    if (!item) {
+    if (!item || !isDisplayableThreat(item)) {
       throw new NotFoundError("Threat not found");
     }
 
@@ -153,7 +162,7 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
     const cacheKey = `threats:${query.scope ?? ""}:${query.severity ?? ""}:${query.category ?? ""}:${query.state ?? ""}:${query.sector ?? ""}:${query.status ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-    const conditions: SQL[] = [];
+    const conditions: SQL[] = [displayableThreatSql];
 
     if (query.scope) conditions.push(eq(threatIntelTable.scope, query.scope));
     if (query.severity) {
@@ -193,7 +202,7 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
       .offset(offset);
 
     const data = GetThreatsResponse.parse({
-      items: items.map(formatThreatIntel),
+      items: items.filter(isDisplayableThreat).map(formatThreatIntel),
       total,
       page,
       limit,

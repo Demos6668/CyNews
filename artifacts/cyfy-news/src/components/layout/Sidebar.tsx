@@ -73,7 +73,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
               onCollapsedChange?.(!collapsed);
             }
           }}
-          className={cn("p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors", collapsed ? "mx-auto" : "ml-auto")}
+          className={cn("p-2 text-muted-foreground hover:text-white transition-colors", collapsed ? "mx-auto" : "ml-auto")}
         >
           {window.innerWidth < 1024 ? <X size={20} /> : collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -95,10 +95,10 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
               <Link href={item.href} className="block" aria-current={isActive ? "page" : undefined}>
                 <div
                   className={cn(
-                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer",
+                    "flex items-center gap-3 px-3 py-3 border-l-2 transition-all duration-200 group cursor-pointer",
                     isActive
-                      ? "bg-primary text-white border border-primary shadow-[0_0_15px_rgba(0,149,175,0.3)]"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-white hover:shadow-[0_0_12px_rgba(0,149,175,0.15)] border border-transparent"
+                      ? "text-white border-l-primary"
+                      : "text-muted-foreground hover:text-white border-l-transparent"
                   )}
                   title={collapsed ? item.name : undefined}
                 >
@@ -125,7 +125,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-2 z-50 p-2 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-white transition-colors"
+        className="lg:hidden fixed top-4 left-2 z-50 p-2 text-muted-foreground hover:text-white transition-colors"
         aria-label="Open menu"
       >
         <Menu size={20} />
@@ -140,7 +140,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
 
       <aside
         className={cn(
-          "lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[260px] bg-secondary border-r border-border flex flex-col shadow-2xl transition-transform duration-300 ease-out",
+          "lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[260px] bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -149,7 +149,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
 
       <motion.aside 
         animate={{ width: collapsed ? 80 : 260 }}
-        className="hidden lg:flex fixed top-0 left-0 h-screen bg-secondary border-r border-border flex-col z-40 shadow-2xl"
+        className="hidden lg:flex fixed top-0 left-0 h-screen bg-background border-r border-border/50 flex-col z-40"
       >
         {sidebarContent}
       </motion.aside>

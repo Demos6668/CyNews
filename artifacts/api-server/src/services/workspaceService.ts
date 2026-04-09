@@ -13,6 +13,7 @@ import {
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 import type { ThreatIntel } from "@workspace/db";
 import { AppError, NotFoundError } from "../middlewares/errorHandler";
+import { logger } from "../lib/logger";
 
 /** Escape LIKE wildcard characters to prevent injection */
 function escapeLike(value: string): string {
@@ -134,6 +135,7 @@ function calculateRelevance(
 }
 
 export async function matchThreatsToWorkspace(workspaceId: string): Promise<ThreatIntel[]> {
+  const startedAt = Date.now();
   const products = await db
     .select()
     .from(workspaceProductsTable)
@@ -177,25 +179,55 @@ export async function matchThreatsToWorkspace(workspaceId: string): Promise<Thre
 
   const existingIds = new Set(existingMatches.map((m) => m.threatId));
 
-  for (const threat of threats) {
-    if (existingIds.has(threat.id)) continue;
+  const newMatches = threats
+    .filter((threat) => !existingIds.has(threat.id))
+    .map((threat) => {
+      const matchedProduct = products.find(
+        (p) =>
+          threat.title?.toLowerCase().includes(p.productName.toLowerCase()) ||
+          threat.summary?.toLowerCase().includes(p.productName.toLowerCase()) ||
+          threat.description?.toLowerCase().includes(p.productName.toLowerCase())
+      );
 
-    const matchedProduct = products.find(
-      (p) =>
-        threat.title?.toLowerCase().includes(p.productName.toLowerCase()) ||
-        threat.summary?.toLowerCase().includes(p.productName.toLowerCase()) ||
-        threat.description?.toLowerCase().includes(p.productName.toLowerCase())
-    );
-
-    const relevanceScore = calculateRelevance(threat, products);
-
-    await db.insert(workspaceThreatMatchesTable).values({
-      workspaceId,
-      threatId: threat.id,
-      matchedProduct: matchedProduct?.productName ?? null,
-      relevanceScore,
+      return {
+        workspaceId,
+        threatId: threat.id,
+        matchedProduct: matchedProduct?.productName ?? null,
+        relevanceScore: calculateRelevance(threat, products),
+      };
     });
-    existingIds.add(threat.id);
+
+  const INSERT_CHUNK_SIZE = 50;
+  for (let index = 0; index < newMatches.length; index += INSERT_CHUNK_SIZE) {
+    const chunk = newMatches.slice(index, index + INSERT_CHUNK_SIZE);
+    await db.insert(workspaceThreatMatchesTable).values(chunk);
+  }
+
+  const durationMs = Date.now() - startedAt;
+  if (durationMs > 500) {
+    logger.info(
+      {
+        workspaceId,
+        productCount: products.length,
+        keywordCount: uniqueKeywords.length,
+        candidateThreats: threats.length,
+        newMatches: newMatches.length,
+        durationMs,
+      },
+      "workspace threat matching complete",
+    );
+  } else {
+    logger.debug(
+      {
+        workspaceId,
+        productCount: products.length,
+        keywordCount: uniqueKeywords.length,
+        candidateThreats: threats.length,
+        newMatches: newMatches.length,
+        durationMs,
+      },
+      "workspace threat matching complete",
+    );
   }
 
   return threats;
@@ -207,11 +239,27 @@ export interface WorkspaceFeedOptions {
   limit?: number;
 }
 
+export interface UpdateWorkspaceMatchInput {
+  reviewed?: boolean;
+  dismissed?: boolean;
+  matchStatus?: "active" | "resolved";
+}
+
+type WorkspaceFeedItem = ThreatIntel & {
+  matchId?: string;
+  matchedProduct?: string;
+  relevanceScore?: number;
+  reviewed?: boolean;
+  matchStatus?: "active" | "resolved";
+  resolvedSeverity?: "critical" | "high" | "medium" | "low" | "info" | null;
+  resolvedAt?: Date | null;
+};
+
 export async function getWorkspaceFeed(
   workspaceId: string,
   options: WorkspaceFeedOptions = {}
 ): Promise<{
-  items: Array<ThreatIntel & { matchId?: string; matchedProduct?: string; relevanceScore?: number; reviewed?: boolean }>;
+  items: WorkspaceFeedItem[];
   total: number;
 }> {
   const { page = 1, limit = 20 } = options;
@@ -237,7 +285,15 @@ export async function getWorkspaceFeed(
       .from(threatIntelTable);
 
     return {
-      items: items.map((t) => ({ ...t, matchedProduct: undefined, relevanceScore: undefined, reviewed: undefined })),
+      items: items.map((t) => ({
+        ...t,
+        matchedProduct: undefined,
+        relevanceScore: undefined,
+        reviewed: undefined,
+        matchStatus: undefined,
+        resolvedSeverity: undefined,
+        resolvedAt: undefined,
+      })),
       total: countRow?.count ?? items.length,
     };
   }
@@ -249,6 +305,9 @@ export async function getWorkspaceFeed(
       matchedProduct: workspaceThreatMatchesTable.matchedProduct,
       relevanceScore: workspaceThreatMatchesTable.relevanceScore,
       reviewed: workspaceThreatMatchesTable.reviewed,
+      matchStatus: workspaceThreatMatchesTable.status,
+      resolvedSeverity: workspaceThreatMatchesTable.resolvedSeverity,
+      resolvedAt: workspaceThreatMatchesTable.resolvedAt,
     })
     .from(workspaceThreatMatchesTable)
     .innerJoin(threatIntelTable, eq(workspaceThreatMatchesTable.threatId, threatIntelTable.id))
@@ -258,7 +317,10 @@ export async function getWorkspaceFeed(
         eq(workspaceThreatMatchesTable.dismissed, false)
       )
     )
-    .orderBy(desc(workspaceThreatMatchesTable.createdAt))
+    .orderBy(
+      sql`case when ${workspaceThreatMatchesTable.status} = 'active' then 0 else 1 end`,
+      desc(workspaceThreatMatchesTable.createdAt)
+    )
     .limit(limit)
     .offset((page - 1) * limit);
 
@@ -278,10 +340,80 @@ export async function getWorkspaceFeed(
     matchedProduct: m.matchedProduct ?? undefined,
     relevanceScore: m.relevanceScore ?? undefined,
     reviewed: m.reviewed ?? false,
+    matchStatus: m.matchStatus ?? "active",
+    resolvedSeverity: m.resolvedSeverity ?? null,
+    resolvedAt: m.resolvedAt ?? null,
   }));
 
   return {
     items,
     total: totalRow?.count ?? items.length,
   };
+}
+
+export async function updateWorkspaceMatch(
+  workspaceId: string,
+  matchId: string,
+  input: UpdateWorkspaceMatchInput
+) {
+  const [existing] = await db
+    .select({
+      id: workspaceThreatMatchesTable.id,
+      threatSeverity: threatIntelTable.severity,
+    })
+    .from(workspaceThreatMatchesTable)
+    .innerJoin(threatIntelTable, eq(workspaceThreatMatchesTable.threatId, threatIntelTable.id))
+    .where(
+      and(
+        eq(workspaceThreatMatchesTable.workspaceId, workspaceId),
+        eq(workspaceThreatMatchesTable.id, matchId)
+      )
+    )
+    .limit(1);
+
+  if (!existing) {
+    throw new NotFoundError("Match not found");
+  }
+
+  const updates: Record<string, unknown> = {};
+
+  if (input.reviewed !== undefined) {
+    updates.reviewed = input.reviewed;
+  }
+
+  if (input.dismissed !== undefined) {
+    updates.dismissed = input.dismissed;
+  }
+
+  if (input.matchStatus !== undefined) {
+    updates.status = input.matchStatus;
+
+    if (input.matchStatus === "resolved") {
+      updates.resolvedAt = new Date();
+      updates.resolvedSeverity = existing.threatSeverity;
+      if (input.reviewed === undefined) {
+        updates.reviewed = true;
+      }
+    } else {
+      updates.resolvedAt = null;
+      updates.resolvedSeverity = null;
+    }
+  }
+
+  const [updated] = await db
+    .update(workspaceThreatMatchesTable)
+    .set(updates)
+    .where(
+      and(
+        eq(workspaceThreatMatchesTable.workspaceId, workspaceId),
+        eq(workspaceThreatMatchesTable.id, matchId)
+      )
+    )
+    .returning();
+
+  if (!updated) {
+    throw new NotFoundError("Match not found");
+  }
+
+  return updated;
 }

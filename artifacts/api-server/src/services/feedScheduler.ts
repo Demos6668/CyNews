@@ -6,12 +6,21 @@ import cron from "node-cron";
 import { runFeedUpdate, type OnBroadcast } from "@workspace/feed-aggregator";
 import { logger } from "../lib/logger";
 import { apiCache } from "../lib/cache";
-import { purgeOldRecords } from "./dataRetention";
+import {
+  getRetentionMaintenanceStatus,
+  hydrateRetentionMaintenanceStatus,
+  runRetentionMaintenance,
+} from "./dataRetention";
 
 export interface SchedulerStatus {
   isRunning: boolean;
   lastRun: string | null;
   nextUpdate: string;
+  lastArchiveRun?: string | null;
+  lastPurgeRun?: string | null;
+  archivedRows?: number;
+  purgedRows?: number;
+  maintenanceState?: "idle" | "running" | "skipped" | "failed";
   stats: {
     totalRuns: number;
     successfulRuns: number;
@@ -73,10 +82,16 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
   }
 
   function getStatus(): SchedulerStatus {
+    const maintenance = getRetentionMaintenanceStatus();
     return {
       isRunning,
       lastRun: lastRun?.toISOString() ?? null,
       nextUpdate: getNextUpdateTime(),
+      lastArchiveRun: maintenance.lastArchiveRun,
+      lastPurgeRun: maintenance.lastPurgeRun,
+      archivedRows: maintenance.archivedRows,
+      purgedRows: maintenance.purgedRows,
+      maintenanceState: maintenance.maintenanceState,
       stats: { ...stats },
     };
   }
@@ -86,10 +101,15 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
 
   function start(): void {
     logger.info("Scheduler starting - feed updates every 15 minutes, retention daily at 03:00");
+    hydrateRetentionMaintenanceStatus().catch((err) =>
+      logger.warn({ err }, "Unable to hydrate retention maintenance status"),
+    );
     runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed"));
     feedCron = cron.schedule("*/15 * * * *", () => runFeedUpdateTask().catch((err) => logger.error({ err }, "Feed update task failed")));
     retentionCron = cron.schedule("0 3 * * *", () =>
-      purgeOldRecords().catch((err) => logger.error({ err }, "Data retention task failed")),
+      runRetentionMaintenance({ feedUpdateRunning: isRunning }).catch((err) =>
+        logger.error({ err }, "Data retention task failed"),
+      ),
     );
     logger.info("Scheduler started");
   }

@@ -8,6 +8,7 @@ config({ path: resolve(import.meta.dirname, "../../../.env") });
 import app from "./app";
 import { ensureMasterWorkspace } from "./services/workspaceService";
 import { createFeedScheduler } from "./services/feedScheduler";
+import { ensurePerformanceIndexes } from "./services/performanceIndexes";
 import { setScheduler } from "./routes/scheduler";
 import { pool } from "@workspace/db";
 import { logger } from "./lib/logger";
@@ -73,8 +74,6 @@ wss.on("connection", (ws: any, req: import("http").IncomingMessage) => {
   );
 });
 
-scheduler.start();
-
 // Graceful shutdown
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Shutting down gracefully");
@@ -101,7 +100,15 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 ensureMasterWorkspace()
   .catch((err) => logger.error({ err }, "Failed to ensure master workspace"))
-  .then(() => {
+  .then(async () => {
+    try {
+      await ensurePerformanceIndexes();
+    } catch (err) {
+      logger.error({ err }, "Failed to ensure performance indexes");
+    }
+
+    scheduler.start();
+
     const isProd = process.env.NODE_ENV === "production";
     if (isProd && !process.env.API_KEY) {
       logger.warn("API_KEY not set — all write operations are unprotected");

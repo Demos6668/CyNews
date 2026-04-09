@@ -11,6 +11,7 @@ import {
   addProduct,
   matchThreatsToWorkspace,
   getWorkspaceFeed,
+  updateWorkspaceMatch,
 } from "../services/workspaceService";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { validate } from "../middlewares/validate";
@@ -199,7 +200,7 @@ router.delete("/workspaces/:id/products/:productId", validate({ params: RemovePr
 router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, query: GetWorkspaceFeedQueryParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
 
     const { items, total } = await getWorkspaceFeed(id, { page, limit });
 
@@ -234,6 +235,9 @@ router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, qu
       relevanceScore: (t as { relevanceScore?: number }).relevanceScore,
       reviewed: (t as { reviewed?: boolean }).reviewed,
       matchId: (t as { matchId?: string }).matchId,
+      matchStatus: (t as { matchStatus?: "active" | "resolved" }).matchStatus,
+      resolvedSeverity: (t as { resolvedSeverity?: "critical" | "high" | "medium" | "low" | "info" | null }).resolvedSeverity,
+      resolvedAt: (t as { resolvedAt?: Date | null }).resolvedAt?.toISOString() ?? null,
     }));
 
     res.json({ items: formatted, total, page, limit });
@@ -250,25 +254,13 @@ router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchPar
     const id = req.params.id as string;
     const matchId = req.params.matchId as string;
 
-    const { reviewed, dismissed } = req.body;
-    const updates: Record<string, unknown> = {};
-    if (reviewed !== undefined) updates.reviewed = reviewed;
-    if (dismissed !== undefined) updates.dismissed = dismissed;
+    const { reviewed, dismissed, matchStatus } = req.body;
 
-    const [updated] = await db
-      .update(workspaceThreatMatchesTable)
-      .set(updates as Record<string, unknown>)
-      .where(
-        and(
-          eq(workspaceThreatMatchesTable.workspaceId, id),
-          eq(workspaceThreatMatchesTable.id, matchId)
-        )
-      )
-      .returning();
-
-    if (!updated) {
-      throw new NotFoundError("Match not found");
-    }
+    const updated = await updateWorkspaceMatch(id, matchId, {
+      reviewed,
+      dismissed,
+      matchStatus,
+    });
 
     res.json(updated);
 }));

@@ -3,6 +3,7 @@ import { Activity, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+const STATUS_POLL_INTERVAL_MS = 60_000;
 
 interface SchedulerStatus {
   isRunning: boolean;
@@ -32,9 +33,26 @@ export function FeedStatus() {
         if (active) setError(true);
       }
     }
+
+    const handleRefreshEvent = () => {
+      void fetchStatus();
+    };
+
     fetchStatus();
-    const id = setInterval(fetchStatus, 30_000);
-    return () => { active = false; clearInterval(id); };
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchStatus();
+      }
+    }, STATUS_POLL_INTERVAL_MS);
+    window.addEventListener("cyfy:refresh-complete", handleRefreshEvent);
+    window.addEventListener("cyfy:stats-update", handleRefreshEvent);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+      window.removeEventListener("cyfy:refresh-complete", handleRefreshEvent);
+      window.removeEventListener("cyfy:stats-update", handleRefreshEvent);
+    };
   }, []);
 
   if (error || !status) {
@@ -46,9 +64,13 @@ export function FeedStatus() {
     );
   }
 
-  const successRate = status.stats.totalRuns > 0
-    ? Math.round((status.stats.successfulRuns / status.stats.totalRuns) * 100)
-    : 0;
+  const completedRuns = status.stats.successfulRuns + status.stats.failedRuns;
+  const hasPendingRun = status.isRunning && status.stats.totalRuns > completedRuns;
+  const successRate = completedRuns > 0
+    ? Math.round((status.stats.successfulRuns / completedRuns) * 100)
+    : status.stats.lastError
+      ? 0
+      : 100;
   const healthy = successRate >= 80 && !status.stats.lastError;
 
   return (
@@ -65,6 +87,12 @@ export function FeedStatus() {
           Feeds {successRate}%
         </span>
       </div>
+      {hasPendingRun && (
+        <span className="flex items-center gap-1 text-sky-300">
+          <Activity className="h-3 w-3 animate-pulse" />
+          Syncing
+        </span>
+      )}
       <span className="flex items-center gap-1">
         <Activity className="h-3 w-3" />
         {status.stats.totalRuns} runs

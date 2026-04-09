@@ -558,11 +558,34 @@ export interface UpdateWorkspace {
   description?: string;
 }
 
+export type WorkspaceFeedResponseItemsItemMatchStatus =
+  (typeof WorkspaceFeedResponseItemsItemMatchStatus)[keyof typeof WorkspaceFeedResponseItemsItemMatchStatus];
+
+export const WorkspaceFeedResponseItemsItemMatchStatus = {
+  active: "active",
+  resolved: "resolved",
+} as const;
+
+export type WorkspaceFeedResponseItemsItemResolvedSeverity =
+  | (typeof WorkspaceFeedResponseItemsItemResolvedSeverity)[keyof typeof WorkspaceFeedResponseItemsItemResolvedSeverity]
+  | null;
+
+export const WorkspaceFeedResponseItemsItemResolvedSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  info: "info",
+} as const;
+
 export type WorkspaceFeedResponseItemsItem = ThreatIntelItem & {
   matchId?: string;
   matchedProduct?: string;
   relevanceScore?: number;
   reviewed?: boolean;
+  matchStatus?: WorkspaceFeedResponseItemsItemMatchStatus;
+  resolvedSeverity?: WorkspaceFeedResponseItemsItemResolvedSeverity;
+  resolvedAt?: string | null;
 };
 
 export interface WorkspaceFeedResponse {
@@ -877,9 +900,18 @@ export type MatchWorkspaceThreats200 = {
   matchedCount: number;
 };
 
+export type UpdateMatchBodyMatchStatus =
+  (typeof UpdateMatchBodyMatchStatus)[keyof typeof UpdateMatchBodyMatchStatus];
+
+export const UpdateMatchBodyMatchStatus = {
+  active: "active",
+  resolved: "resolved",
+} as const;
+
 export type UpdateMatchBody = {
   reviewed?: boolean;
   dismissed?: boolean;
+  matchStatus?: UpdateMatchBodyMatchStatus;
 };
 
 export type UpdateMatch200 = { [key: string]: unknown };

@@ -156,6 +156,9 @@ describe("emailTemplateService", () => {
       const result = emailTemplateService.processTemplate(template, baseAdvisory);
 
       expect(result.subject).toContain("Security Brief");
+      expect(result.body).toContain("Source Advisory");
+      expect(result.body).not.toContain("View Full Advisory");
+      expect(result.body).not.toContain("View on CERT-In");
     });
 
     it("handles advisory with minimal fields", () => {
@@ -239,6 +242,12 @@ describe("emailTemplateService", () => {
       expect(data.hasCves).toBe(true);
       expect(data.hasProducts).toBe(true);
       expect(data.cveIds).toEqual(["CVE-2024-1234", "CVE-2024-5678"]);
+    });
+
+    it("keeps CERT-In source labeling for CERT-In advisories", () => {
+      const template = emailTemplateService.getTemplate("cert-in-executive")!;
+      const result = emailTemplateService.processTemplate(template, certInAdvisory);
+      expect(result.body).toContain("View on CERT-In");
     });
 
     it("falls back to cveId when certInId is absent", () => {

@@ -16,10 +16,21 @@ const RSS_FEEDS = {
 } as const;
 
 const currentYear = new Date().getFullYear();
-const VLNLIST_PAGES = [
-  `${CERT_IN_BASE}/s2cMainServlet?pageid=VLNLIST02&year=${currentYear}`,
-  `${CERT_IN_BASE}/s2cMainServlet?pageid=VLNLIST02&year=${currentYear - 1}`,
-];
+
+const LIST_ROOTS = {
+  vulnerability: `${CERT_IN_BASE}/s2cMainServlet?pageid=VLNLIST`,
+  advisory: `${CERT_IN_BASE}/s2cMainServlet?pageid=PUBADVLIST`,
+} as const;
+
+const LIST_YEAR_PAGE_IDS = {
+  vulnerability: "VLNLIST02",
+  advisory: "PUBADVLIST02",
+} as const;
+
+const DETAIL_PAGE_IDS = {
+  vulnerability: "PUBVLNOTES01",
+  advisory: "PUBVLNOTES02",
+} as const;
 
 export interface CertInAdvisory {
   advisoryId: string;
@@ -83,7 +94,18 @@ function detectSeverity(title: string, description: string): "critical" | "high"
   if (text.includes("medium") || text.includes("moderate") || text.includes("information disclosure")) return "medium";
   if (text.includes("low") || text.includes("minor")) return "low";
 
-  return "medium";
+  return "high";
+}
+
+function normalizeSeverityLabel(value: string | undefined): "critical" | "high" | "medium" | "low" | "info" | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("critical")) return "critical";
+  if (normalized.includes("high")) return "high";
+  if (normalized.includes("medium") || normalized.includes("moderate")) return "medium";
+  if (normalized.includes("low")) return "low";
+  if (normalized.includes("info") || normalized.includes("informational")) return "info";
+  return undefined;
 }
 
 function extractCVEs(text: string): string[] {
@@ -91,16 +113,204 @@ function extractCVEs(text: string): string[] {
   return [...new Set(matches.map((c) => c.toUpperCase()))];
 }
 
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function parseListPageDate(text: string): Date | undefined {
-  const cleaned = text.replace(/[()]/g, "").trim();
+  const cleaned = normalizeWhitespace(text.replace(/[()]/g, ""));
   if (!cleaned) return undefined;
   const d = new Date(cleaned);
   return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function isXmlDocument(text: string): boolean {
+  const trimmed = text.trim();
+  return /^<\?xml\b/i.test(trimmed) || /^<rss\b/i.test(trimmed) || /^<rdf:RDF\b/i.test(trimmed) || /^<feed\b/i.test(trimmed);
+}
+
+export async function parseCertInRssXml(xml: string, type: "vulnerability" | "advisory"): Promise<CertInAdvisory[]> {
+  const trimmed = xml.trim();
+  if (!trimmed || !isXmlDocument(trimmed)) {
+    return [];
+  }
+
+  const feed = await parser.parseString(trimmed);
+  const items: CertInAdvisory[] = [];
+
+  for (const item of feed.items ?? []) {
+    const link = (item.link ?? (item as { guid?: string }).guid ?? "").toString().trim();
+    if (!link) continue;
+
+    const advisoryId = extractAdvisoryId(link, item.title);
+    const summary = normalizeWhitespace(item.description ?? (item as { contentSnippet?: string }).contentSnippet ?? "");
+    const severity = detectSeverity(item.title ?? "", summary);
+
+    items.push({
+      advisoryId,
+      title: normalizeWhitespace(item.title ?? ""),
+      summary,
+      sourceUrl: link,
+      source: "CERT-In",
+      type,
+      category: categorizeAdvisory(advisoryId, item.title),
+      publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+      severity,
+      affectedProducts: [],
+      cveIds: extractCVEs(`${item.title ?? ""} ${summary}`),
+      recommendations: [],
+      references: [],
+    });
+  }
+
+  return items;
+}
+
+export function parseCertInListingPage(html: string, type: "vulnerability" | "advisory"): CertInAdvisory[] {
+  const $ = load(html);
+  const detailPageId = DETAIL_PAGE_IDS[type];
+  const items: CertInAdvisory[] = [];
+
+  $(`a[href*="${detailPageId}"][href*="VLCODE="]`).each((_i, el) => {
+    const $el = $(el as Parameters<typeof $>[0]);
+    const href = $el.attr("href");
+    if (!href) return;
+
+    const linkText = normalizeWhitespace($el.text());
+    if (!linkText) return;
+
+    const fullUrl = href.startsWith("http") ? href : `${CERT_IN_BASE}${href.startsWith("/") ? "" : "/"}${href}`;
+    const advisoryId = extractAdvisoryId(fullUrl, linkText);
+    const $table = $el.closest("table");
+    const dateText = normalizeWhitespace($table.find(".DateContent, [class*='DateContent']").first().text());
+    const detailTitle = normalizeWhitespace($table.find("div").first().text());
+    const title = detailTitle || linkText;
+
+    items.push({
+      advisoryId,
+      title,
+      summary: title,
+      sourceUrl: fullUrl,
+      source: "CERT-In",
+      type,
+      category: categorizeAdvisory(advisoryId, title),
+      publishedAt: parseListPageDate(dateText) ?? new Date(),
+      severity: detectSeverity(title, linkText),
+      affectedProducts: [],
+      cveIds: extractCVEs(`${linkText} ${title}`),
+      recommendations: [],
+      references: [],
+    });
+  });
+
+  return items;
+}
+
+export function parseCertInDetailHtml(html: string): Partial<CertInAdvisory> {
+  const $ = load(html);
+  const bodyText = normalizeWhitespace($("body").text());
+
+  const details: Partial<CertInAdvisory> = {
+    content: "",
+    affectedProducts: [],
+    recommendations: [],
+    references: [],
+  };
+
+  const contentSelectors = [".content-area", ".advisory-content", "#main-content", ".vulnerability-details", "article", ".post-content"];
+  for (const sel of contentSelectors) {
+    const content = $(sel).text().trim();
+    if (content && content.length > 100) {
+      details.content = normalizeWhitespace(content);
+      break;
+    }
+  }
+
+  if (!details.content) {
+    details.content = normalizeWhitespace($("p")
+      .map((_i, el) => $(el as Parameters<typeof $>[0]).text().trim())
+      .get()
+      .filter((t: string) => t)
+      .join("\n\n"));
+  }
+
+  const severityMatch = bodyText.match(/Severity Rating:\s*(Critical|High|Medium|Moderate|Low|Info(?:rmational)?)/i);
+  if (severityMatch) {
+    details.severity = normalizeSeverityLabel(severityMatch[1]);
+  }
+
+  const cvssMatch = bodyText.match(/CVSS(?:\s+v\d(?:\.\d+)?)?(?:\s+Base)?(?:\s+Score)?[:\s]+(\d+(?:\.\d+)?)/i);
+  if (cvssMatch) {
+    details.cvssScore = parseFloat(cvssMatch[1]);
+  }
+
+  const moreCVEs = extractCVEs(bodyText);
+  if (moreCVEs.length > 0) {
+    details.cveIds = moreCVEs;
+  }
+
+  const productPattern = /(?:Microsoft|Google|Apple|Adobe|Oracle|Cisco|Linux|Android|iOS|Windows|Chrome|Firefox|Safari|Java|PHP|Python|Apache|nginx)[\w\s.]+/gi;
+  const products = bodyText.match(productPattern);
+  if (products) {
+    details.affectedProducts = [...new Set(products.map((p: string) => p.trim()))].slice(0, 10) as string[];
+  }
+
+  $('a[href*="cve"], a[href*="nvd"], a[href*="microsoft"], a[href*="vendor"]').each((_i, el) => {
+    const href = $(el as Parameters<typeof $>[0]).attr("href");
+    if (href && !details.references!.includes(href)) {
+      details.references!.push(href);
+    }
+  });
+
+  return details;
+}
+
+async function fetchListingYearPages(type: "vulnerability" | "advisory"): Promise<string[]> {
+  const rootUrl = LIST_ROOTS[type];
+  const pageId = LIST_YEAR_PAGE_IDS[type];
+
+  try {
+    const res = await fetchWithTimeout(rootUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; CYFY-SOC/1.0; Security Research)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    if (!res.ok) {
+      return [
+        `${CERT_IN_BASE}/s2cMainServlet?pageid=${pageId}&year=${currentYear}`,
+        `${CERT_IN_BASE}/s2cMainServlet?pageid=${pageId}&year=${currentYear - 1}`,
+      ];
+    }
+
+    const html = await res.text();
+    const $ = load(html);
+    const pages = new Set<string>();
+
+    $(`a[href*="pageid=${pageId}"][href*="year="]`).each((_i, el) => {
+      const href = $(el as Parameters<typeof $>[0]).attr("href");
+      if (!href) return;
+      const fullUrl = href.startsWith("http") ? href : `${CERT_IN_BASE}${href.startsWith("/") ? "" : "/"}${href}`;
+      pages.add(fullUrl);
+    });
+
+    const discovered = Array.from(pages).slice(0, 2);
+    if (discovered.length > 0) {
+      return discovered;
+    }
+  } catch (err) {
+    logger.warn(`[CERT-In] failed to discover ${type} year pages: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  return [
+    `${CERT_IN_BASE}/s2cMainServlet?pageid=${pageId}&year=${currentYear}`,
+    `${CERT_IN_BASE}/s2cMainServlet?pageid=${pageId}&year=${currentYear - 1}`,
+  ];
 }
 
 async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory>> {
@@ -113,93 +323,38 @@ async function fetchAdvisoryDetails(url: string): Promise<Partial<CertInAdvisory
     });
     if (!res.ok) return {};
     const html = await res.text();
-    const $ = load(html);
-
-    const details: Partial<CertInAdvisory> = {
-      content: "",
-      affectedProducts: [],
-      recommendations: [],
-      references: [],
-    };
-
-    const contentSelectors = [".content-area", ".advisory-content", "#main-content", ".vulnerability-details", "article", ".post-content"];
-    for (const sel of contentSelectors) {
-      const content = $(sel).text().trim();
-      if (content && content.length > 100) {
-        details.content = content;
-        break;
-      }
-    }
-
-    if (!details.content) {
-      details.content = $("p")
-        .map((_i, el) => $(el as Parameters<typeof $>[0]).text().trim())
-        .get()
-        .filter((t: string) => t)
-        .join("\n\n");
-    }
-
-    const cvssMatch = $("body").text().match(/CVSS[:\s]+(\d+\.?\d*)/i);
-    if (cvssMatch) {
-      details.cvssScore = parseFloat(cvssMatch[1]);
-    }
-
-    const moreCVEs = extractCVEs($("body").text());
-    if (moreCVEs.length > 0) {
-      details.cveIds = moreCVEs;
-    }
-
-    const productPattern = /(?:Microsoft|Google|Apple|Adobe|Oracle|Cisco|Linux|Android|iOS|Windows|Chrome|Firefox|Safari|Java|PHP|Python|Apache|nginx)[\w\s.]+/gi;
-    const products = $("body").text().match(productPattern);
-    if (products) {
-      details.affectedProducts = [...new Set(products.map((p: string) => p.trim()))].slice(0, 10) as string[];
-    }
-
-    $('a[href*="cve"], a[href*="nvd"], a[href*="microsoft"], a[href*="vendor"]').each((_i, el) => {
-      const href = $(el as Parameters<typeof $>[0]).attr("href");
-      if (href && !details.references!.includes(href)) {
-        details.references!.push(href);
-      }
-    });
-
-    return details;
-  } catch (err) {
-    logger.warn({ url, error: err instanceof Error ? err.message : String(err) }, "[CERT-In] Failed to enrich advisory");
+    return parseCertInDetailHtml(html);
+  } catch {
     return {};
   }
 }
 
 async function fetchRSSFeed(url: string, type: "vulnerability" | "advisory"): Promise<CertInAdvisory[]> {
   try {
-    const feed = await parser.parseURL(url);
-    const items: CertInAdvisory[] = [];
+    const res = await fetchWithTimeout(url, {
+      headers: {
+        "User-Agent": "CYFY-News-Board/1.0 (Security Feed Aggregator)",
+        Accept: "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1",
+      },
+    });
 
-    for (const item of feed.items ?? []) {
-      const link = (item.link ?? (item as { guid?: string }).guid ?? "").toString().trim();
-      if (!link) continue;
-
-      const advisoryId = extractAdvisoryId(link, item.title);
-      const summary = (item.description ?? (item as { contentSnippet?: string }).contentSnippet ?? "").trim();
-      const severity = detectSeverity(item.title ?? "", summary);
-
-      items.push({
-        advisoryId,
-        title: (item.title ?? "").trim(),
-        summary,
-        sourceUrl: link,
-        source: "CERT-In",
-        type,
-        category: categorizeAdvisory(advisoryId, item.title),
-        publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-        severity,
-        affectedProducts: [],
-        cveIds: extractCVEs(item.title + " " + summary),
-        recommendations: [],
-        references: [],
-      });
+    if (!res.ok) {
+      logger.warn(`[CERT-In] RSS unavailable (${type}): HTTP ${res.status}`);
+      return [];
     }
 
-    return items;
+    const xml = await res.text();
+    if (!xml.trim()) {
+      logger.info(`[CERT-In] RSS empty (${type})`);
+      return [];
+    }
+
+    if (!isXmlDocument(xml)) {
+      logger.warn(`[CERT-In] RSS returned non-XML content (${type})`);
+      return [];
+    }
+
+    return await parseCertInRssXml(xml, type);
   } catch (err) {
     logger.error(`[CERT-In] RSS error (${type}): ${err instanceof Error ? err.message : String(err)}`);
     return [];
@@ -209,42 +364,18 @@ async function fetchRSSFeed(url: string, type: "vulnerability" | "advisory"): Pr
 async function scrapeAdvisoriesPage(): Promise<CertInAdvisory[]> {
   const advisories: CertInAdvisory[] = [];
   const fetchOpts = { headers: { "User-Agent": "Mozilla/5.0 (compatible; CYFY-SOC/1.0; Security Research)" } };
+  const pageUrls = [
+    ...(await fetchListingYearPages("vulnerability")),
+    ...(await fetchListingYearPages("advisory")),
+  ];
 
-  for (const pageUrl of VLNLIST_PAGES) {
+  for (const pageUrl of pageUrls) {
     try {
       const res = await fetchWithTimeout(pageUrl, fetchOpts);
       if (!res.ok) continue;
       const html = await res.text();
-      const $ = load(html);
-
-      $('a[href*="VLCODE"]').each((_i, el) => {
-        const $el = $(el as Parameters<typeof $>[0]);
-        const href = $el.attr("href");
-        const linkText = $el.text().trim();
-        if (href && linkText) {
-          const fullUrl = href.startsWith("http") ? href : `${CERT_IN_BASE}${href.startsWith("/") ? "" : "/"}${href}`;
-          const $tr = $el.closest("tr");
-          const dateText = $tr.next("tr").find(".DateContent").text().trim();
-          const humanTitle = $tr.next("tr").next("tr").find("span").first().text().trim();
-          const title = humanTitle && humanTitle.length > 3 ? humanTitle : linkText;
-          const publishedAt = parseListPageDate(dateText) ?? new Date();
-          advisories.push({
-            advisoryId: extractAdvisoryId(href, linkText),
-            title,
-            summary: "",
-            sourceUrl: fullUrl,
-            source: "CERT-In",
-            type: "vulnerability",
-            category: categorizeAdvisory(extractAdvisoryId(href, linkText), title),
-            publishedAt,
-            severity: detectSeverity(title, ""),
-            affectedProducts: [],
-            cveIds: [],
-            recommendations: [],
-            references: [],
-          });
-        }
-      });
+      const type = pageUrl.includes("PUBADVLIST02") ? "advisory" : "vulnerability";
+      advisories.push(...parseCertInListingPage(html, type));
     } catch (err) {
       logger.error(`[CERT-In] Scraping error (${pageUrl}): ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -253,24 +384,26 @@ async function scrapeAdvisoriesPage(): Promise<CertInAdvisory[]> {
   return advisories;
 }
 
-async function enrichAdvisories(advisories: CertInAdvisory[]): Promise<CertInAdvisory[]> {
+async function enrichAdvisories(advisories: CertInAdvisory[], limit = 20): Promise<CertInAdvisory[]> {
   const enriched: CertInAdvisory[] = [];
 
-  for (const advisory of advisories) {
+  for (const [index, advisory] of advisories.entries()) {
     try {
-      if (advisory.sourceUrl && advisory.sourceUrl.includes("cert-in.org.in")) {
+      if (index < limit && advisory.sourceUrl && advisory.sourceUrl.includes("cert-in.org.in")) {
         const details = await fetchAdvisoryDetails(advisory.sourceUrl);
         enriched.push({
           ...advisory,
           ...details,
-          content: details.content ?? advisory.summary,
+          content: details.content ?? advisory.content ?? advisory.summary,
         });
       } else {
-        enriched.push(advisory);
+        enriched.push({
+          ...advisory,
+          content: advisory.content ?? advisory.summary,
+        });
       }
-      await delay(500);
-    } catch (err) {
-      logger.warn({ advisoryId: advisory.advisoryId, error: err instanceof Error ? err.message : String(err) }, "[CERT-In] Enrichment failed");
+      await delay(100);
+    } catch {
       enriched.push(advisory);
     }
   }
@@ -302,7 +435,7 @@ export async function fetchCertInAdvisories(): Promise<CertInAdvisory[]> {
       seen.set(key, item);
     }
   }
-  allItems = Array.from(seen.values());
+  allItems = Array.from(seen.values()).sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 
   const enriched = await enrichAdvisories(allItems);
   logger.info(`[CERT-In] Fetched ${enriched.length} advisories`);

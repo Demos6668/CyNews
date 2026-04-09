@@ -405,7 +405,8 @@ async function seed() {
     },
   ]);
 
-  await db.insert(threatIntelTable).values([
+  if (process.env.SEED_SYNTHETIC_THREATS === "true") {
+    await db.insert(threatIntelTable).values([
     {
       title: "LockBit 4.0 Ransomware Campaign",
       summary: "Advanced ransomware campaign targeting financial institutions with polymorphic LockBit 4.0 variant.",
@@ -645,7 +646,8 @@ async function seed() {
       publishedAt: hoursAgo(4),
       updatedAt: hoursAgo(3),
     },
-  ]);
+    ]);
+  }
 
   console.log("Seed data inserted successfully!");
   process.exit(0);

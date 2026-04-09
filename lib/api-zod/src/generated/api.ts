@@ -947,6 +947,11 @@ export const GetWorkspaceFeedResponse = zod.object({
           matchedProduct: zod.string().optional(),
           relevanceScore: zod.number().optional(),
           reviewed: zod.boolean().optional(),
+          matchStatus: zod.enum(["active", "resolved"]).optional(),
+          resolvedSeverity: zod
+            .enum(["critical", "high", "medium", "low", "info"])
+            .nullish(),
+          resolvedAt: zod.string().nullish(),
         }),
       ),
   ),
@@ -967,7 +972,7 @@ export const MatchWorkspaceThreatsResponse = zod.object({
 });
 
 /**
- * @summary Update a threat match (review/dismiss)
+ * @summary Update a threat match (review/resolve/dismiss)
  */
 export const UpdateMatchParams = zod.object({
   id: zod.coerce.string().uuid(),
@@ -977,6 +982,7 @@ export const UpdateMatchParams = zod.object({
 export const UpdateMatchBody = zod.object({
   reviewed: zod.boolean().optional(),
   dismissed: zod.boolean().optional(),
+  matchStatus: zod.enum(["active", "resolved"]).optional(),
 });
 
 export const UpdateMatchResponse = zod.object({}).passthrough();

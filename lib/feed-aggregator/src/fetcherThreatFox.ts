@@ -46,7 +46,7 @@ export async function fetchThreatFox(result: FeedUpdateResult): Promise<void> {
         source: "ThreatFox",
         sourceUrl,
         iocs: [i.ioc],
-        references: [sourceUrl],
+        references: [],
         status: "active",
         publishedAt: i.first_seen ? new Date(i.first_seen) : new Date(),
       });

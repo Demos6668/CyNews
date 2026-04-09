@@ -5,8 +5,10 @@
  * CYFY News Board API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateMatchBodyMatchStatus } from "./updateMatchBodyMatchStatus";
 
 export type UpdateMatchBody = {
   reviewed?: boolean;
   dismissed?: boolean;
+  matchStatus?: UpdateMatchBodyMatchStatus;
 };

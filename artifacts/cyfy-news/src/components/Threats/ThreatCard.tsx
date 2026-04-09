@@ -6,6 +6,7 @@ import { IndiaBadge } from "./IndiaBadge";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { normalizeThreatLinks } from "@/lib/threatLinks";
 
 interface ThreatCardProps {
   item: ThreatIntelItem;
@@ -13,6 +14,8 @@ interface ThreatCardProps {
 }
 
 export function ThreatCard({ item, onClick }: ThreatCardProps) {
+  const links = normalizeThreatLinks(item);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -24,12 +27,11 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
       <Card
         onClick={onClick}
         className={cn(
-          "h-full overflow-hidden flex flex-col cursor-pointer card-spec group",
-          "bg-[var(--background-card)] border border-[rgba(0,149,175,0.2)] rounded-xl",
+          "h-full overflow-hidden flex flex-col cursor-pointer card-spec group border-0 bg-transparent shadow-none rounded-none pl-5",
           `severity-${item.severity}`
         )}
       >
-        <div className="p-5 flex flex-col h-full">
+        <div className="pr-5 py-5 flex flex-col h-full">
           <div className="flex justify-between items-start mb-3 gap-2">
             <div className="flex flex-wrap gap-2">
               <SeverityBadge severity={item.severity} />
@@ -101,24 +103,24 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border/50">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border/40">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               <span>{formatRelative(item.publishedAt)}</span>
             </div>
-            {item.sourceUrl ? (
+            {links.sourceUrl ? (
               <a
-                href={item.sourceUrl}
+                href={links.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="font-mono text-[10px] opacity-70 bg-background px-2 py-0.5 rounded hover:text-primary hover:opacity-100 flex items-center gap-1 transition-colors"
+                className="font-mono text-[10px] opacity-70 px-2 py-0.5 hover:text-primary hover:opacity-100 flex items-center gap-1 transition-colors"
               >
                 {item.source}
                 <ExternalLink className="h-3 w-3" />
               </a>
             ) : (
-              <span className="font-mono text-[10px] opacity-70 bg-background px-2 py-0.5 rounded">
+              <span className="font-mono text-[10px] opacity-70 px-2 py-0.5">
                 {item.source}
               </span>
             )}

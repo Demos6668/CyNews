@@ -20,6 +20,8 @@ const sampleAdvisory: AdvisoryForExport = {
   references: ["https://nvd.nist.gov/vuln/detail/CVE-2024-1234"],
   status: "new",
   publishedAt: "2024-01-15T00:00:00.000Z",
+  source: "TestVendor Security",
+  sourceUrl: "https://example.com/advisory/CVE-2024-1234",
 };
 
 describe("exportService", () => {
@@ -88,6 +90,25 @@ describe("exportService", () => {
       expect(html).toContain("NVD Entry");
     });
 
+    it("uses generic advisory labels for non-CERT-In advisories", () => {
+      const html = generateAdvisoryHTML(sampleAdvisory);
+      expect(html).toContain("Source Advisory");
+      expect(html).toContain("Vendor Update");
+      expect(html).not.toContain("View on CERT-In");
+      expect(html).not.toContain("Patch/Update");
+    });
+
+    it("uses CERT-In label only for CERT-In advisories", () => {
+      const certIn: AdvisoryForExport = {
+        ...sampleAdvisory,
+        source: "CERT-In",
+        sourceUrl: "https://www.cert-in.org.in/s2cMainServlet?pageid=PUBVLNOTES01&VLCODE=CIVN-2026-0001",
+        certInId: "CIVN-2026-0001",
+      };
+      const html = generateAdvisoryHTML(certIn);
+      expect(html).toContain("View on CERT-In");
+    });
+
     it("escapes patchUrl and references", () => {
       const withQuotes: AdvisoryForExport = {
         ...sampleAdvisory,
@@ -95,7 +116,7 @@ describe("exportService", () => {
         references: ['https://evil.com/" onload="alert(1)'],
       };
       const html = generateAdvisoryHTML(withQuotes);
-      expect(html).toContain("&quot;");
+      expect(html).toContain("%22");
       expect(html).not.toContain('onload="alert');
     });
 
@@ -148,6 +169,12 @@ describe("exportService", () => {
       const html = generateBulkAdvisoryHTML([local, global]);
       expect(html).toContain("Scope: India (Local)");
       expect(html).toContain("Scope: Global");
+    });
+
+    it("uses generic advisory labels in bulk exports for non-CERT-In advisories", () => {
+      const html = generateBulkAdvisoryHTML([sampleAdvisory]);
+      expect(html).toContain("Source Advisory");
+      expect(html).not.toContain("View on CERT-In");
     });
   });
 });

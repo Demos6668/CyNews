@@ -7,17 +7,20 @@ import { validate } from "../middlewares/validate";
 import { asyncHandler } from "../middlewares/errorHandler";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { apiCache, CACHE_TTL } from "../lib/cache";
+import { logger } from "../lib/logger";
 import type { TimeframeValue } from "../lib/timeframe";
 
 const router: IRouter = Router();
 
 router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams }), asyncHandler(async (req: Request, res: Response) => {
+    const startedAt = Date.now();
     const timeframe = (req.query.timeframe ?? "24h") as TimeframeValue;
     const scope = req.query.scope as string | undefined;
 
     const cacheKey = `dashboard:${timeframe}:${scope ?? "all"}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) {
+      logger.debug({ timeframe, scope, durationMs: Date.now() - startedAt }, "dashboard stats cache hit");
       res.json(cached);
       return;
     }
@@ -172,6 +175,12 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
     });
 
     apiCache.set(cacheKey, data, CACHE_TTL.DASHBOARD);
+    const durationMs = Date.now() - startedAt;
+    if (durationMs > 500) {
+      logger.info({ timeframe, scope, durationMs }, "dashboard stats served");
+    } else {
+      logger.debug({ timeframe, scope, durationMs }, "dashboard stats served");
+    }
     res.json(data);
 }));
 

@@ -23,6 +23,18 @@ vi.mock("../services/workspaceService", () => ({
   getWorkspaceFeed: vi.fn().mockImplementation(() =>
     Promise.resolve({ items: mockFeedItems, total: mockFeedItems.length })
   ),
+  updateWorkspaceMatch: vi.fn().mockImplementation((_workspaceId, matchId, body) =>
+    Promise.resolve({
+      id: matchId,
+      workspaceId: mockWorkspace.id,
+      threatId: 1,
+      reviewed: body?.reviewed ?? false,
+      dismissed: body?.dismissed ?? false,
+      status: body?.matchStatus ?? "active",
+      resolvedSeverity: body?.matchStatus === "resolved" ? "critical" : null,
+      resolvedAt: body?.matchStatus === "resolved" ? new Date() : null,
+    })
+  ),
 }));
 
 vi.mock("@workspace/db", async (importOriginal) => {
@@ -148,7 +160,37 @@ describe("Workspace routes", () => {
     });
 
     it("returns feed when workspace exists", async () => {
-      mockFeedItems = [{ id: 1, title: "Threat 1", publishedAt: new Date(), updatedAt: new Date() }];
+      mockFeedItems = [
+        {
+          id: 1,
+          title: "Threat 1",
+          summary: "summary",
+          description: "description",
+          scope: "global",
+          severity: "critical",
+          category: "malware",
+          threatActorAliases: [],
+          targetSectors: [],
+          targetRegions: [],
+          ttps: [],
+          iocs: [],
+          malwareFamilies: [],
+          affectedSystems: [],
+          mitigations: [],
+          source: "Example Feed",
+          sourceUrl: "https://example.com/threat-1",
+          references: [],
+          status: "active",
+          confidenceLevel: "high",
+          publishedAt: new Date(),
+          updatedAt: new Date(),
+          matchId: "11111111-1111-4111-8111-111111111111",
+          reviewed: true,
+          matchStatus: "resolved",
+          resolvedSeverity: "critical",
+          resolvedAt: new Date(),
+        },
+      ];
       const res = await request(app)
         .get(`/api/workspaces/${mockWorkspace.id}/feed`)
         .expect(200);
@@ -156,6 +198,9 @@ describe("Workspace routes", () => {
       expect(res.body).toHaveProperty("total");
       expect(res.body).toHaveProperty("page");
       expect(res.body).toHaveProperty("limit");
+      expect(res.body.items[0]).toHaveProperty("matchStatus", "resolved");
+      expect(res.body.items[0]).toHaveProperty("resolvedSeverity", "critical");
+      expect(typeof res.body.items[0].resolvedAt).toBe("string");
     });
   });
 
@@ -173,6 +218,27 @@ describe("Workspace routes", () => {
         .post(`/api/workspaces/${mockWorkspace.id}/match`)
         .expect(200);
       expect(res.body).toHaveProperty("matchedCount", 1);
+    });
+  });
+
+  describe("PUT /api/workspaces/:id/matches/:matchId", () => {
+    it("returns 400 for invalid UUIDs", async () => {
+      await request(app)
+        .put("/api/workspaces/invalid/matches/invalid")
+        .send({ matchStatus: "resolved" })
+        .expect(400);
+    });
+
+    it("updates a match to resolved status", async () => {
+      const matchId = "11111111-1111-4111-8111-111111111111";
+      const res = await request(app)
+        .put(`/api/workspaces/${mockWorkspace.id}/matches/${matchId}`)
+        .send({ matchStatus: "resolved" })
+        .expect(200);
+
+      expect(res.body).toHaveProperty("id", matchId);
+      expect(res.body).toHaveProperty("status", "resolved");
+      expect(res.body).toHaveProperty("resolvedSeverity", "critical");
     });
   });
 });

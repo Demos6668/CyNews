@@ -22,6 +22,7 @@ const mockAdvisory = {
   isCertIn: true,
   certInId: "CIAD-2024-001",
   source: "CERT-In",
+  sourceUrl: "https://cert-in.org.in/advisory/CIAD-2024-001",
 };
 
 let mockSelectResult: typeof mockAdvisory[] = [];

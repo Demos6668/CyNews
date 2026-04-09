@@ -148,23 +148,24 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-md shadow-xl;
-    background-color: var(--background-card);
-    border: 1px solid rgba(0, 149, 175, 0.2);
-    border-radius: 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .card-spec {
-    background-color: var(--background-card);
-    border: 1px solid rgba(0, 149, 175, 0.2);
-    border-radius: 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     transition: all 0.3s ease;
   }
 
   .card-spec:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(0, 149, 175, 0.2);
-    border-color: rgba(0, 149, 175, 0.4);
+    box-shadow: none;
+    border-color: transparent;
   }
 
   .severity-critical {

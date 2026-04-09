@@ -93,7 +93,7 @@ export class CyberSecurityRelevanceDetector {
 
     const lowerText = text.toLowerCase();
     let relevanceScore = 0;
-    let category: string | null = null;
+    const category: string | null = null;
     const matches: Array<{ type: string; value: string }> = [];
 
     // Step 1: Check non-relevant content first

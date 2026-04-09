@@ -3,6 +3,12 @@
  * Generates professional HTML reports for security advisories.
  */
 
+import {
+  getPatchAdvisoryLinkLabel,
+  getPrimaryAdvisoryLinkLabel,
+  normalizeAdvisoryLinks,
+} from "../lib/advisoryLinks";
+
 const SEVERITY_COLORS: Record<string, string> = {
   critical: "#F85149",
   high: "#FFB74B",
@@ -66,6 +72,9 @@ function escapeHtml(str: string): string {
 }
 
 export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
+  const links = normalizeAdvisoryLinks(advisory);
+  const primaryLinkLabel = getPrimaryAdvisoryLinkLabel(advisory);
+  const patchLinkLabel = getPatchAdvisoryLinkLabel();
   const severityColor = SEVERITY_COLORS[advisory.severity] ?? SEVERITY_COLORS.info;
   const publishedDate = new Date(advisory.publishedAt).toLocaleDateString();
   const generatedAt = new Date().toLocaleString();
@@ -267,9 +276,9 @@ export function generateAdvisoryHTML(advisory: AdvisoryForExport): string {
     <h2>References</h2>
     <div class="references">
       ${cveIds.length > 0 ? cveIds.slice(0, 3).map((cve) => `<p><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">NVD: ${escapeHtml(cve)}</a></p>`).join("") : `<p><a href="https://nvd.nist.gov/vuln/detail/${advisory.cveId}" target="_blank" rel="noopener">NVD Entry</a></p>`}
-      ${advisory.patchUrl ? `<p><a href="${escapeHtml(advisory.patchUrl)}" target="_blank" rel="noopener">Patch/Update</a></p>` : ""}
-      ${advisory.sourceUrl ? `<p><a href="${escapeHtml(advisory.sourceUrl)}" target="_blank" rel="noopener">View on CERT-In</a></p>` : ""}
-      ${(advisory.references ?? []).slice(0, 5).map((ref) => `<p><a href="${escapeHtml(ref)}" target="_blank" rel="noopener">${escapeHtml(ref)}</a></p>`).join("")}
+      ${links.patchUrl ? `<p><a href="${escapeHtml(links.patchUrl)}" target="_blank" rel="noopener">${patchLinkLabel}</a></p>` : ""}
+      ${links.sourceUrl ? `<p><a href="${escapeHtml(links.sourceUrl)}" target="_blank" rel="noopener">${primaryLinkLabel}</a></p>` : ""}
+      ${links.references.slice(0, 5).map((ref) => `<p><a href="${escapeHtml(ref)}" target="_blank" rel="noopener">${escapeHtml(ref)}</a></p>`).join("")}
     </div>
   </div>
 
@@ -291,6 +300,8 @@ export function generateBulkAdvisoryHTML(
   );
 
   const advisorySections = advisories.map((advisory, index) => {
+    const links = normalizeAdvisoryLinks(advisory);
+    const primaryLinkLabel = getPrimaryAdvisoryLinkLabel(advisory);
     const severityColor = SEVERITY_COLORS[advisory.severity] ?? SEVERITY_COLORS.info;
     const publishedDate = new Date(advisory.publishedAt).toLocaleDateString();
     const title = escapeHtml(advisory.title);
@@ -309,7 +320,7 @@ export function generateBulkAdvisoryHTML(
     const refLinks = cveIds.length > 0
       ? cveIds.slice(0, 3).map((cve) => `<a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(cve)}" target="_blank" rel="noopener">NVD: ${escapeHtml(cve)}</a>`).join(" | ")
       : `<a href="https://nvd.nist.gov/vuln/detail/${advisory.cveId}" target="_blank" rel="noopener">View NVD Entry</a>`;
-    const certInLink = advisory.sourceUrl ? ` | <a href="${escapeHtml(advisory.sourceUrl)}" target="_blank" rel="noopener">View on CERT-In</a>` : "";
+    const primaryLink = links.sourceUrl ? ` | <a href="${escapeHtml(links.sourceUrl)}" target="_blank" rel="noopener">${primaryLinkLabel}</a>` : "";
 
     return `
   <div id="advisory-${index}" class="advisory-section">
@@ -327,7 +338,7 @@ export function generateBulkAdvisoryHTML(
     ${certInCves}
     ${affectedProducts.length > 0 ? `<div class="section"><h3>Affected Products</h3><ul>${affectedProducts.map((p) => `<li>${p}</li>`).join("")}</ul></div>` : ""}
     ${(workarounds.length > 0 || recommendations.length > 0) ? `<div class="section"><h3>Workarounds &amp; Recommendations</h3><ul>${workarounds.map((w) => `<li>${w}</li>`).join("")}${recommendations.map((r) => `<li>${r}</li>`).join("")}</ul></div>` : ""}
-    <p>${refLinks}${certInLink}</p>
+    <p>${refLinks}${primaryLink}</p>
     <hr class="section-divider" />
   </div>`;
   });

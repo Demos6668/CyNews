@@ -1,18 +1,30 @@
-import { useEffect, useState, useCallback } from "react";
-import { Target, AlertTriangle, CheckCircle, XCircle, RefreshCw, Plus, Trash2 } from "lucide-react";
-import { ThreatCard } from "@/components/Threats/ThreatCard";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Target,
+  CheckCircle,
+  RefreshCw,
+  Plus,
+  Trash2,
+  Wrench,
+  RotateCcw,
+  Calendar,
+  ExternalLink,
+} from "lucide-react";
 import { ThreatModal } from "@/components/Threats/ThreatModal";
 import { AddProductModal } from "./AddProductModal";
-import { Button, Skeleton } from "@/components/ui/shared";
-import { cn } from "@/lib/utils";
+import { Badge, Button, Skeleton } from "@/components/ui/shared";
+import { cn, formatRelative, getSeverityBadgeColors, stripHtml } from "@/lib/utils";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import {
   getWorkspace,
   getWorkspaceFeed,
-  removeProduct as apiRemoveProduct,
   matchWorkspaceThreats,
+  removeProduct as apiRemoveProduct,
   updateMatch,
 } from "@workspace/api-client-react";
+import type { WorkspaceSectionCounts, WorkspaceSectionKey } from "./WorkspaceSidebar";
+import { SeverityBadge } from "@/components/Common";
+import { normalizeThreatLinks } from "@/lib/threatLinks";
 
 interface WorkspaceProduct {
   id: string;
@@ -30,22 +42,70 @@ interface Workspace {
   products?: WorkspaceProduct[];
 }
 
+type FeedSeverity = "critical" | "high" | "medium" | "low" | "info";
+type MatchStatus = "active" | "resolved";
+
 interface FeedItem extends ThreatIntelItem {
   matchId?: string;
   matchedProduct?: string;
   relevanceScore?: number;
   reviewed?: boolean;
+  matchStatus?: MatchStatus;
+  resolvedAt?: string | null;
+  resolvedSeverity?: FeedSeverity | null;
 }
 
 interface WorkspaceFeedProps {
   workspace: Workspace;
-  onReview?: (matchId: string) => void;
-  onDismiss?: (matchId: string) => void;
+  selectedSection: WorkspaceSectionKey | null;
+  onSectionCountsChange: (counts: WorkspaceSectionCounts) => void;
 }
 
-export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedProps) {
+const sectionMeta: Record<WorkspaceSectionKey, { title: string; description: string; empty: string }> = {
+  high: {
+    title: "High Alerts",
+    description: "Critical and high-severity alerts matched to this workspace.",
+    empty: "No critical or high alerts are currently matched to this workspace.",
+  },
+  medium: {
+    title: "Medium Alerts",
+    description: "Medium-severity items that still need attention.",
+    empty: "No medium alerts are currently matched to this workspace.",
+  },
+  low: {
+    title: "Low Alerts",
+    description: "Lower-severity items that are still associated with this workspace.",
+    empty: "No low alerts are currently matched to this workspace.",
+  },
+  info: {
+    title: "Info Cards",
+    description: "Informational cards relevant to the products in this workspace.",
+    empty: "No informational cards are currently matched to this workspace.",
+  },
+  resolved: {
+    title: "Patch Visibility",
+    description: "Resolved or patched items remain visible here for tracking and history.",
+    empty: "No resolved or patched alerts are being tracked for this workspace yet.",
+  },
+};
+
+function getBucketForSeverity(severity: FeedSeverity): Exclude<WorkspaceSectionKey, "resolved"> {
+  if (severity === "critical" || severity === "high") return "high";
+  if (severity === "medium") return "medium";
+  if (severity === "low") return "low";
+  return "info";
+}
+
+function getResolvedSeverity(item: FeedItem): FeedSeverity {
+  return item.resolvedSeverity ?? item.severity;
+}
+
+export function WorkspaceFeed({
+  workspace,
+  selectedSection,
+  onSectionCountsChange,
+}: WorkspaceFeedProps) {
   const [items, setItems] = useState<FeedItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [matching, setMatching] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -60,10 +120,9 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
 
   const fetchFeed = useCallback(() => {
     setLoading(true);
-    getWorkspaceFeed(workspace.id, { limit: 50 })
+    getWorkspaceFeed(workspace.id, { limit: 100 })
       .then((data) => {
         setItems((data.items ?? []) as FeedItem[]);
-        setTotal(data.total ?? 0);
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -77,13 +136,48 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
     fetchFeed();
   }, [fetchFeed]);
 
+  const activeItems = items.filter((item) => item.matchStatus !== "resolved");
+  const resolvedItems = items.filter((item) => item.matchStatus === "resolved");
+
+  const groupedActiveItems: Record<Exclude<WorkspaceSectionKey, "resolved">, FeedItem[]> = {
+    high: [],
+    medium: [],
+    low: [],
+    info: [],
+  };
+
+  for (const item of activeItems) {
+    groupedActiveItems[getBucketForSeverity(item.severity)].push(item);
+  }
+
+  const counts: WorkspaceSectionCounts = {
+    high: groupedActiveItems.high.length,
+    medium: groupedActiveItems.medium.length,
+    low: groupedActiveItems.low.length,
+    info: groupedActiveItems.info.length,
+    resolved: resolvedItems.length,
+  };
+
+  useEffect(() => {
+    onSectionCountsChange(counts);
+  }, [counts.high, counts.info, counts.low, counts.medium, counts.resolved, onSectionCountsChange]);
+
+  const effectiveSection: WorkspaceSectionKey = selectedSection ?? "high";
+  const displayedItems = effectiveSection === "resolved"
+    ? resolvedItems
+    : groupedActiveItems[effectiveSection];
+
+  const matchedProducts = [
+    ...new Set(activeItems.map((item) => item.matchedProduct).filter(Boolean)),
+  ] as string[];
+
   const handleRemoveProduct = async (productId: string) => {
     try {
       await apiRemoveProduct(workspace.id, productId);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setProducts((prev) => prev.filter((product) => product.id !== productId));
       fetchFeed();
-    } catch (e) {
-      // silently fail — UI already reflects optimistic state
+    } catch {
+      // keep the UI stable; the next refresh can recover
     }
   };
 
@@ -92,48 +186,196 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
     try {
       await matchWorkspaceThreats(workspace.id);
       fetchFeed();
-    } catch (e) {
+    } catch {
       // silently fail
     } finally {
       setMatching(false);
     }
   };
 
-  const criticalCount = items.filter((t) => t.severity === "critical").length;
-  const matchedProducts = [...new Set(items.map((t) => t.matchedProduct).filter(Boolean))] as string[];
-
   const handleReview = async (matchId: string) => {
     try {
       await updateMatch(workspace.id, matchId, { reviewed: true });
       setItems((prev) =>
-        prev.map((t) => (t.matchId === matchId ? { ...t, reviewed: true } : t))
+        prev.map((item) => (item.matchId === matchId ? { ...item, reviewed: true } : item))
       );
-      onReview?.(matchId);
-    } catch (e) {
+    } catch {
       // silently fail
     }
   };
 
-  const handleDismiss = async (matchId: string) => {
+  const handleResolve = async (item: FeedItem, nextStatus: MatchStatus) => {
+    if (!item.matchId) return;
+
     try {
-      await updateMatch(workspace.id, matchId, { dismissed: true });
-      setItems((prev) => prev.filter((t) => t.matchId !== matchId));
-      setTotal((t) => Math.max(0, t - 1));
-      onDismiss?.(matchId);
-    } catch (e) {
+      await updateMatch(workspace.id, item.matchId, { matchStatus: nextStatus });
+      setItems((prev) =>
+        prev.map((current) =>
+          current.matchId === item.matchId
+            ? {
+                ...current,
+                reviewed: nextStatus === "resolved" ? true : current.reviewed,
+                matchStatus: nextStatus,
+                resolvedAt: nextStatus === "resolved" ? new Date().toISOString() : null,
+                resolvedSeverity:
+                  nextStatus === "resolved"
+                    ? (current.resolvedSeverity ?? current.severity)
+                    : null,
+              }
+            : current
+        )
+      );
+    } catch {
       // silently fail
     }
   };
+
+  const renderTimelineItem = (item: FeedItem, status: MatchStatus) => {
+    const resolvedSeverity = getResolvedSeverity(item);
+    const links = normalizeThreatLinks(item);
+
+    return (
+      <div
+        key={`${status}-${item.matchId ?? item.id}`}
+        className={cn(
+          "relative pl-12 py-5 border-b border-border/40 last:border-b-0 transition-colors",
+          "hover:bg-white/[0.02]"
+        )}
+      >
+        <div
+          className={cn(
+            "absolute left-2 top-7 h-4 w-4 rounded-full border-2 border-background",
+            resolvedSeverity === "critical" && "bg-destructive",
+            resolvedSeverity === "high" && "bg-accent",
+            resolvedSeverity === "medium" && "bg-warning",
+            resolvedSeverity === "low" && "bg-success",
+            resolvedSeverity === "info" && "bg-primary"
+          )}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setSelectedItem(item)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedItem(item);
+            }
+          }}
+          className="space-y-3 cursor-pointer"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <SeverityBadge severity={resolvedSeverity} />
+            <Badge variant="outline" className="border-white/10 text-muted-foreground bg-transparent">
+              {item.category}
+            </Badge>
+            {item.matchedProduct && (
+              <Badge
+                variant="outline"
+                className="border-amber-400/30 bg-amber-500/10 text-amber-300"
+              >
+                {item.matchedProduct}
+              </Badge>
+            )}
+            {status === "resolved" ? (
+              <Badge
+                variant="outline"
+                className={cn("border-transparent", getSeverityBadgeColors(resolvedSeverity))}
+              >
+                Resolved {resolvedSeverity === "critical"
+                  ? "Critical"
+                  : resolvedSeverity.charAt(0).toUpperCase() + resolvedSeverity.slice(1)}
+              </Badge>
+            ) : item.reviewed ? (
+              <Badge
+                variant="outline"
+                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              >
+                Reviewed
+              </Badge>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatRelative(item.publishedAt)}
+            </span>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold leading-tight text-foreground">
+              {item.title}
+            </h3>
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {stripHtml(item.summary ?? "")}
+            </p>
+          </div>
+        </div>
+        {(item.matchId || links.sourceUrl || (status === "resolved" && item.resolvedAt)) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {item.matchId && status === "active" && !item.reviewed && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 text-success border-success/30"
+                onClick={() => handleReview(item.matchId!)}
+              >
+                <CheckCircle className="w-3 h-3" />
+                Reviewed
+              </Button>
+            )}
+            {item.matchId && status === "active" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 border-primary/30 text-primary"
+                onClick={() => handleResolve(item, "resolved")}
+              >
+                <Wrench className="w-3 h-3" />
+                Mark resolved
+              </Button>
+            ) : item.matchId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 border-border/70"
+                onClick={() => handleResolve(item, "active")}
+              >
+                <RotateCcw className="w-3 h-3" />
+                Restore active
+              </Button>
+            ) : null}
+            {links.sourceUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 border-border/60"
+                onClick={() => window.open(links.sourceUrl!, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink className="w-3 h-3" />
+                Source
+              </Button>
+            )}
+            {status === "resolved" && item.resolvedAt && (
+              <span className="text-xs text-muted-foreground">
+                Resolved {formatRelative(item.resolvedAt)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const criticalCount = activeItems.filter((item) => item.severity === "critical").length;
+  const sectionDetails = sectionMeta[effectiveSection];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-card border border-border rounded-xl p-6">
-        <div className="flex items-start justify-between">
+    <div className="space-y-4">
+      <div className="p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{workspace.name}</h1>
             <p className="text-muted-foreground mt-1">{workspace.domain}</p>
             {workspace.description && (
-              <p className="text-sm text-muted-foreground mt-2">{workspace.description}</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-3xl line-clamp-2">{workspace.description}</p>
             )}
           </div>
           <div className="text-right flex flex-col items-end gap-2">
@@ -159,12 +401,11 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
               </Button>
             </div>
             <div>
-              <div className="text-3xl font-bold">{total}</div>
-              <div className="text-sm text-muted-foreground">Relevant Threats</div>
+              <div className="text-3xl font-bold">{activeItems.length}</div>
+              <div className="text-sm text-muted-foreground">Active matches</div>
               {criticalCount > 0 && (
-                <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-destructive/20 text-destructive rounded-full text-xs">
-                  <AlertTriangle className="w-3 h-3" />
-                  {criticalCount} Critical
+                <div className="mt-2 text-xs text-destructive">
+                  {criticalCount} critical in active tracking
                 </div>
               )}
             </div>
@@ -172,20 +413,22 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
         </div>
 
         {(products.length > 0 || matchedProducts.length > 0) && (
-          <div className="mt-4 pt-4 border-t border-border space-y-4">
+          <div className="pt-3 border-t border-border/50 space-y-2">
             {products.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Monitored products:</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Products
+                </span>
                 <div className="flex flex-wrap gap-2">
-                  {products.map((p) => (
+                  {products.map((product) => (
                     <span
-                      key={p.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-background/80 border border-border rounded-full text-sm group"
+                      key={product.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm group"
                     >
-                      {p.vendor ? `${p.productName} (${p.vendor})` : p.productName}
+                      {product.vendor ? `${product.productName} (${product.vendor})` : product.productName}
                       <button
                         type="button"
-                        onClick={() => handleRemoveProduct(p.id)}
+                        onClick={() => handleRemoveProduct(product.id)}
                         className="opacity-60 hover:opacity-100 hover:text-destructive transition-opacity"
                         title="Remove product"
                       >
@@ -197,13 +440,15 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
               </div>
             )}
             {matchedProducts.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Threats affecting your products:</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Matches
+                </span>
                 <div className="flex flex-wrap gap-2">
-                  {matchedProducts.map((product, i) => (
+                  {matchedProducts.map((product) => (
                     <span
-                      key={i}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm"
+                      key={product}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-amber-400 text-sm"
                     >
                       <Target className="w-3 h-3" />
                       {product}
@@ -214,99 +459,71 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
             )}
           </div>
         )}
-      </div>
 
-      <div className="space-y-4">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-64 rounded-xl" />
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-xl border border-border">
-            {products.length === 0 ? (
-              <>
-                <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold">Add products to get started</h3>
-                <p className="text-muted-foreground mt-2 mb-4">
-                  Add the products and technologies you use to see relevant threat intelligence.
-                </p>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowAddProduct(true)}
-                >
-                  <Plus className="w-4 h-4" />
-                  Add product
-                </Button>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
-                <h3 className="text-lg font-semibold">All Clear!</h3>
-                <p className="text-muted-foreground mt-2">
-                  No threats currently match your monitored products.
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((threat) => (
-              <div key={threat.id} className="relative">
-                {threat.relevanceScore != null && (
-                  <div
-                    className="absolute -left-2 top-4 w-1 h-12 rounded-full z-10"
-                    style={{
-                      background:
-                        threat.relevanceScore >= 70
-                          ? "var(--danger-red)"
-                          : threat.relevanceScore >= 40
-                            ? "var(--accent-amber)"
-                            : "var(--primary-teal)",
-                    }}
-                  />
-                )}
-                <div className="space-y-2">
-                  <ThreatCard
-                    item={threat}
-                    onClick={() => setSelectedItem(threat)}
-                  />
-                  {threat.matchedProduct && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded">
-                        {threat.matchedProduct}
-                      </span>
-                    </div>
-                  )}
-                  {threat.matchId && (
-                    <div className="flex gap-2">
-                      {!threat.reviewed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 text-success border-success/30"
-                          onClick={() => handleReview(threat.matchId!)}
-                        >
-                          <CheckCircle className="w-3 h-3" />
-                          Reviewed
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1 text-destructive border-destructive/30"
-                        onClick={() => handleDismiss(threat.matchId!)}
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Dismiss
-                      </Button>
-                    </div>
-                  )}
-                </div>
+        {(loading || items.length > 0) && (
+          <div className="pt-3 border-t border-border/50 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold">{sectionDetails.title}</h2>
+                <Badge variant="outline" className="border-border/40 bg-transparent">
+                  {counts[effectiveSection]}
+                </Badge>
               </div>
-            ))}
+              <p className="text-sm text-muted-foreground mt-1">{sectionDetails.description}</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              {[1, 2, 3, 4].map((index) => (
+                <Skeleton key={index} className="h-72 rounded-xl" />
+              ))}
+            </div>
+          ) : displayedItems.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{sectionDetails.empty}</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/60" />
+              <div>
+                {displayedItems.map((item) =>
+                  renderTimelineItem(item, effectiveSection === "resolved" ? "resolved" : "active")
+                )}
+              </div>
+            </div>
+          )}
+          </div>
+        )}
+
+        {!loading && items.length === 0 && (
+          <div className="pt-6 border-t border-border/50 text-center py-12">
+          {products.length === 0 ? (
+            <>
+              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">Add products to get started</h3>
+              <p className="text-muted-foreground mt-2 mb-4">
+                Add the products and technologies you use to see relevant threat intelligence.
+              </p>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowAddProduct(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Add product
+              </Button>
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">All Clear!</h3>
+              <p className="text-muted-foreground mt-2">
+                No threats currently match your monitored products.
+              </p>
+            </>
+          )}
           </div>
         )}
       </div>
@@ -328,3 +545,5 @@ export function WorkspaceFeed({ workspace, onReview, onDismiss }: WorkspaceFeedP
     </div>
   );
 }
+
+export { WorkspaceFeed as workspaceFeed };

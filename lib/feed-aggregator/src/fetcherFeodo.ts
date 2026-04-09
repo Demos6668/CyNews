@@ -48,7 +48,7 @@ export async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void>
         source: "Feodo Tracker",
         sourceUrl,
         iocs: [e.ip_address],
-        references: [sourceUrl],
+        references: [],
         status: "active",
         publishedAt: e.first_seen ? new Date(e.first_seen) : new Date(),
       });

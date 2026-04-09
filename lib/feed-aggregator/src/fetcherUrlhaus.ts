@@ -47,7 +47,7 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
         source: "URLhaus",
         sourceUrl,
         iocs: [u.url],
-        references: [sourceUrl],
+        references: [],
         status: "active",
         publishedAt: u.date_added ? new Date(u.date_added) : new Date(),
       });

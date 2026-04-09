@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ThreatIntelItem } from "./threatIntelItem";
+import type { WorkspaceFeedResponseItemsItemMatchStatus } from "./workspaceFeedResponseItemsItemMatchStatus";
+import type { WorkspaceFeedResponseItemsItemResolvedSeverity } from "./workspaceFeedResponseItemsItemResolvedSeverity";
 
 export type WorkspaceFeedResponseItemsItem = ThreatIntelItem & {
   matchId?: string;
   matchedProduct?: string;
   relevanceScore?: number;
   reviewed?: boolean;
+  matchStatus?: WorkspaceFeedResponseItemsItemMatchStatus;
+  resolvedSeverity?: WorkspaceFeedResponseItemsItemResolvedSeverity;
+  resolvedAt?: string | null;
 };

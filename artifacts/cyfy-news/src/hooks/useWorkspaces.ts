@@ -62,10 +62,10 @@ export function useWorkspaces() {
       })),
     });
     const updated = await fetchWorkspaces();
-    setWorkspaces(updated.length > 0 ? updated : [...workspaces, created]);
+    setWorkspaces((current) => updated.length > 0 ? updated : [...current, created]);
     setActiveWorkspace(created);
     return created;
-  }, [fetchWorkspaces, workspaces]);
+  }, [fetchWorkspaces]);
 
   return {
     workspaces,

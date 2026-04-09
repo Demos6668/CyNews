@@ -40,7 +40,15 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
 
   useEffect(() => {
     const initial = getInitialFiltersFromUrl(searchString);
-    if (initial.severities.length || initial.categories.length || initial.dateFrom || initial.dateTo || initial.page || initial.limit) {
+    if (
+      initial.severities.length ||
+      initial.categories.length ||
+      initial.dateFrom ||
+      initial.dateTo ||
+      initial.timeframe ||
+      initial.page ||
+      initial.limit
+    ) {
       setSeverities(initial.severities);
       setCategories(initial.categories);
       setDateFrom(initial.dateFrom);

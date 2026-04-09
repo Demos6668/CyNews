@@ -57,7 +57,7 @@ export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<voi
         category: "Ransomware",
         source: "Ransomware.live",
         sourceUrl,
-        references: [sourceUrl],
+        references: [],
         status: "active",
         publishedAt: pubDate,
       });

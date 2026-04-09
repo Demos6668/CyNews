@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, integer, real, timestamp, boolean, text } from "drizzle-orm/pg-core";
 import { workspacesTable } from "./workspaces";
 import { threatIntelTable } from "./threatIntel";
 
@@ -14,6 +14,9 @@ export const workspaceThreatMatchesTable = pgTable("workspace_threat_matches", {
   matchedKeyword: varchar("matched_keyword", { length: 255 }),
   relevanceScore: real("relevance_score"),
   reviewed: boolean("reviewed").default(false),
+  status: text("status").notNull().$type<"active" | "resolved">().default("active"),
+  resolvedSeverity: text("resolved_severity").$type<"critical" | "high" | "medium" | "low" | "info">(),
+  resolvedAt: timestamp("resolved_at"),
   dismissed: boolean("dismissed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });

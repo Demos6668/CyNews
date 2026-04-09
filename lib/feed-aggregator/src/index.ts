@@ -5,7 +5,7 @@
 
 import { logger } from "./logger";
 import { db, advisoriesTable } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { eq, or, inArray, type SQL } from "drizzle-orm";
 import { fetchCertInAdvisories } from "./certInFetcher";
 import { fetchRssFeeds } from "./fetcherRss";
 import { fetchCisaKev } from "./fetcherCisaKev";
@@ -24,39 +24,100 @@ export { cyberRelevanceDetector } from "./cyberRelevanceDetector";
 export type { FeedUpdateResult, OnBroadcast } from "./feedUtils";
 export { createEmptyResult } from "./feedUtils";
 
+async function runTimedSource(
+  name: string,
+  task: () => Promise<void>,
+): Promise<void> {
+  const startedAt = Date.now();
+  await task();
+  const durationMs = Date.now() - startedAt;
+  logger.info({ source: name, durationMs }, "feed source complete");
+}
+
 async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
   try {
     const advisories = await fetchCertInAdvisories();
+    const advisoryIds = advisories
+      .map((advisory) => advisory.advisoryId)
+      .filter((value): value is string => Boolean(value));
+    const sourceUrls = advisories
+      .map((advisory) => advisory.sourceUrl)
+      .filter((value): value is string => Boolean(value));
+    const existingConditions: SQL[] = [];
+    if (advisoryIds.length > 0) {
+      existingConditions.push(inArray(advisoriesTable.certInId, advisoryIds));
+    }
+    if (sourceUrls.length > 0) {
+      existingConditions.push(inArray(advisoriesTable.sourceUrl, sourceUrls));
+    }
+
+    const existingRows = existingConditions.length > 0
+      ? await db
+          .select({
+            id: advisoriesTable.id,
+            certInId: advisoriesTable.certInId,
+            sourceUrl: advisoriesTable.sourceUrl,
+            content: advisoriesTable.content,
+            summary: advisoriesTable.summary,
+            description: advisoriesTable.description,
+            cvssScore: advisoriesTable.cvssScore,
+            severity: advisoriesTable.severity,
+          })
+          .from(advisoriesTable)
+          .where(or(...existingConditions))
+      : [];
+    const existingByCertInId = new Map(
+      existingRows
+        .filter((row) => Boolean(row.certInId))
+        .map((row) => [row.certInId!, row]),
+    );
+    const existingBySourceUrl = new Map(
+      existingRows
+        .filter((row) => Boolean(row.sourceUrl))
+        .map((row) => [row.sourceUrl!, row]),
+    );
     let added = 0;
+    const inserts: Array<typeof advisoriesTable.$inferInsert> = [];
     for (const a of advisories) {
-      const existing = await db
-        .select({ id: advisoriesTable.id, content: advisoriesTable.content })
-        .from(advisoriesTable)
-        .where(or(eq(advisoriesTable.certInId, a.advisoryId), eq(advisoriesTable.sourceUrl, a.sourceUrl)))
-        .limit(1);
+      const summary = a.summary?.trim() || (a.content ?? "").trim().slice(0, 2000) || a.title;
+      const content = a.content?.trim() || summary;
+      const description = summary.slice(0, 500) || a.title;
+      const existing = existingByCertInId.get(a.advisoryId) ?? existingBySourceUrl.get(a.sourceUrl);
       const cveId = a.cveIds?.[0] ?? a.advisoryId;
-      const description = a.summary || (a.content ?? "").slice(0, 500) || a.title;
       const cvssScore = a.cvssScore ?? 0;
 
-      if (existing.length > 0) {
-        const ex = existing[0];
-        if (a.content && a.content !== ex.content) {
+      if (existing) {
+        const needsUpdate =
+          content !== existing.content ||
+          !existing.summary ||
+          existing.summary.trim().length === 0 ||
+          !existing.description ||
+          existing.description.trim().length === 0 ||
+          existing.cvssScore !== cvssScore ||
+          existing.severity !== a.severity;
+
+        if (needsUpdate) {
           await db
             .update(advisoriesTable)
             .set({
-              content: a.content,
+              summary,
+              description,
+              content,
+              severity: a.severity,
               affectedProducts: a.affectedProducts ?? [],
               recommendations: a.recommendations ?? [],
               references: a.references ?? [],
+              category: a.category,
+              cveIds: a.cveIds ?? [],
               cvssScore,
             })
-            .where(eq(advisoriesTable.id, ex.id));
+            .where(eq(advisoriesTable.id, existing.id));
           added++;
         }
         continue;
       }
 
-      await db.insert(advisoriesTable).values({
+      inserts.push({
         cveId,
         title: a.title,
         description,
@@ -65,9 +126,9 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         affectedProducts: a.affectedProducts ?? [],
         vendor: "CERT-In",
         patchAvailable: false,
-        patchUrl: a.sourceUrl,
+        patchUrl: null,
         workarounds: a.recommendations ?? [],
-        references: a.references?.length ? a.references : [a.sourceUrl],
+        references: a.references ?? [],
         status: "new",
         publishedAt: a.publishedAt,
         scope: "local",
@@ -75,8 +136,8 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         indiaConfidence: 100,
         sourceUrl: a.sourceUrl,
         source: a.source,
-        summary: a.summary,
-        content: a.content,
+        summary,
+        content,
         category: a.category,
         isCertIn: true,
         certInId: a.advisoryId,
@@ -84,7 +145,11 @@ async function fetchCertIn(result: FeedUpdateResult): Promise<void> {
         cveIds: a.cveIds ?? [],
         recommendations: a.recommendations ?? [],
       });
-      added++;
+    }
+
+    if (inserts.length > 0) {
+      await db.insert(advisoriesTable).values(inserts);
+      added += inserts.length;
     }
     result.certIn = added;
     if (added > 0) logger.info(`[CERT-In] ${added} advisories`);
@@ -100,15 +165,16 @@ export async function runFeedUpdate(onBroadcast?: OnBroadcast): Promise<FeedUpda
   const result = createEmptyResult();
   onBroadcast?.("REFRESH_STARTED", { timestamp: new Date().toISOString() });
   logger.info("[Feed] Fetching all sources...");
-
-  await fetchCertIn(result);
-  await fetchRssFeeds(onBroadcast, result);
-  await fetchCisaKev(result);
-  await fetchNVD(result);
-  await fetchURLhaus(result);
-  await fetchThreatFox(result);
-  await fetchFeodoTracker(result);
-  await fetchRansomwareLive(result);
+  await Promise.all([
+    runTimedSource("CERT-In", () => fetchCertIn(result)),
+    runTimedSource("RSS", () => fetchRssFeeds(onBroadcast, result)),
+    runTimedSource("CISA KEV", () => fetchCisaKev(result)),
+    runTimedSource("NVD", () => fetchNVD(result)),
+    runTimedSource("URLhaus", () => fetchURLhaus(result)),
+    runTimedSource("ThreatFox", () => fetchThreatFox(result)),
+    runTimedSource("Feodo", () => fetchFeodoTracker(result)),
+    runTimedSource("Ransomware.live", () => fetchRansomwareLive(result)),
+  ]);
 
   const total = result.rssNews + result.rssThreats + result.advisories + result.certIn + result.urlhaus + result.threatFox + result.ransomwareLive + result.nvd + result.feodo;
   const { errors: _err, ...rest } = result;

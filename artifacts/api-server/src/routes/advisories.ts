@@ -5,6 +5,11 @@ import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
+import {
+  displayableAdvisorySql,
+  isDisplayableAdvisory,
+  normalizeAdvisoryLinks,
+} from "../lib/advisoryLinks";
 
 import {
   GetAdvisoriesQueryParams,
@@ -18,6 +23,8 @@ import {
 const router: IRouter = Router();
 
 function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
+  const links = normalizeAdvisoryLinks(item);
+
   return {
     id: item.id,
     cveId: item.cveId,
@@ -28,16 +35,16 @@ function formatAdvisory(item: typeof advisoriesTable.$inferSelect) {
     affectedProducts: (item.affectedProducts as string[]) ?? [],
     vendor: item.vendor,
     patchAvailable: item.patchAvailable,
-    patchUrl: item.patchUrl,
+    patchUrl: links.patchUrl,
     workarounds: (item.workarounds as string[]) ?? [],
-    references: (item.references as string[]) ?? [],
+    references: links.references,
     status: item.status,
     publishedAt: item.publishedAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     scope: item.scope ?? "global",
     isIndiaRelated: item.isIndiaRelated ?? false,
     indiaConfidence: item.indiaConfidence ?? 0,
-    sourceUrl: item.sourceUrl ?? undefined,
+    sourceUrl: links.sourceUrl ?? undefined,
     source: item.source ?? undefined,
     summary: item.summary ?? undefined,
     content: item.content ?? undefined,
@@ -59,7 +66,7 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     const cacheKey = `certin:${query.severity ?? ""}:${query.category ?? ""}:${rawTimeframe}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-    const conditions: SQL[] = [eq(advisoriesTable.isCertIn, true)];
+    const conditions: SQL[] = [eq(advisoriesTable.isCertIn, true), displayableAdvisorySql];
 
     if (query.severity) {
       const severities = query.severity.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) as ("critical" | "high" | "medium" | "low" | "info")[];
@@ -101,7 +108,7 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
       .offset(offset);
 
     const data = GetCertInAdvisoriesResponse.parse({
-      data: items.map(formatAdvisory),
+      data: items.filter(isDisplayableAdvisory).map(formatAdvisory),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit), totalCritical, totalHigh },
     });
 
@@ -117,6 +124,7 @@ router.get("/advisories/vendors", asyncHandler(async (req: Request, res: Respons
       .selectDistinct({ vendor: advisoriesTable.vendor })
       .from(advisoriesTable)
       .where(and(
+        displayableAdvisorySql,
         sql`${advisoriesTable.vendor} IS NOT NULL`,
         sql`${advisoriesTable.vendor} != 'Unknown'`,
       ))
@@ -133,7 +141,7 @@ router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
     const cacheKey = `advisories:${query.scope ?? ""}:${query.severity ?? ""}:${query.vendor ?? ""}:${query.status ?? ""}:${query.excludeCertIn ?? ""}:${query.timeframe ?? ""}:${query.page ?? 1}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
-    const conditions: SQL[] = [];
+    const conditions: SQL[] = [displayableAdvisorySql];
 
     if (query.scope) conditions.push(eq(advisoriesTable.scope, query.scope));
     if (query.severity) {
@@ -181,7 +189,7 @@ router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
       .offset(offset);
 
     const data = GetAdvisoriesResponse.parse({
-      items: items.map(formatAdvisory),
+      items: items.filter(isDisplayableAdvisory).map(formatAdvisory),
       total,
       page,
       limit,
@@ -208,7 +216,7 @@ router.get("/advisories/:id", asyncHandler(async (req: Request, res: Response) =
       item = row;
     }
 
-    if (!item) {
+    if (!item || !isDisplayableAdvisory(item)) {
       throw new NotFoundError("Advisory not found");
     }
 

@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockRunFeedUpdate = vi.fn();
-const mockPurgeOldRecords = vi.fn();
+const mockRunRetentionMaintenance = vi.fn();
+const mockHydrateRetentionMaintenanceStatus = vi.fn();
+const mockGetRetentionMaintenanceStatus = vi.fn(() => ({
+  lastArchiveRun: null,
+  lastPurgeRun: null,
+  archivedRows: 0,
+  purgedRows: 0,
+  maintenanceState: "idle",
+  lastMaintenanceError: null,
+}));
 const mockSchedule = vi.fn();
 const mockStop = vi.fn();
 
@@ -10,7 +19,9 @@ vi.mock("@workspace/feed-aggregator", () => ({
 }));
 
 vi.mock("./dataRetention", () => ({
-  purgeOldRecords: (...args: unknown[]) => mockPurgeOldRecords(...args),
+  runRetentionMaintenance: (...args: unknown[]) => mockRunRetentionMaintenance(...args),
+  hydrateRetentionMaintenanceStatus: (...args: unknown[]) => mockHydrateRetentionMaintenanceStatus(...args),
+  getRetentionMaintenanceStatus: () => mockGetRetentionMaintenanceStatus(),
 }));
 
 vi.mock("node-cron", () => ({
@@ -47,11 +58,13 @@ describe("feedScheduler", () => {
     vi.setSystemTime(new Date("2025-06-15T12:07:00Z"));
     broadcast = vi.fn();
     mockRunFeedUpdate.mockResolvedValue(undefined);
-    mockPurgeOldRecords.mockResolvedValue({
-      newsDeleted: 0,
-      threatsDeleted: 0,
-      advisoriesDeleted: 0,
+    mockRunRetentionMaintenance.mockResolvedValue({
+      archivedRows: 0,
+      purgedRows: 0,
+      mode: "archival",
+      skipped: false,
     });
+    mockHydrateRetentionMaintenanceStatus.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,6 +97,11 @@ describe("feedScheduler", () => {
         isRunning: false,
         lastRun: null,
         nextUpdate: expect.any(String),
+        lastArchiveRun: null,
+        lastPurgeRun: null,
+        archivedRows: 0,
+        purgedRows: 0,
+        maintenanceState: "idle",
         stats: {
           totalRuns: 0,
           successfulRuns: 0,
@@ -271,12 +289,32 @@ describe("feedScheduler", () => {
       );
     });
 
+    it("retention cron calls the maintenance runner", async () => {
+      const scheduler = createFeedScheduler(broadcast);
+      scheduler.start();
+
+      const retentionCall = mockSchedule.mock.calls.find((call) => call[0] === "0 3 * * *");
+      expect(retentionCall).toBeTruthy();
+
+      const retentionHandler = retentionCall?.[1];
+      await retentionHandler();
+
+      expect(mockRunRetentionMaintenance).toHaveBeenCalledWith({ feedUpdateRunning: true });
+    });
+
     it("triggers an immediate feed update on start", () => {
       const scheduler = createFeedScheduler(broadcast);
       scheduler.start();
 
       // runFeedUpdate is called immediately (not just scheduled)
       expect(mockRunFeedUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it("hydrates maintenance status on start", () => {
+      const scheduler = createFeedScheduler(broadcast);
+      scheduler.start();
+
+      expect(mockHydrateRetentionMaintenanceStatus).toHaveBeenCalledTimes(1);
     });
   });
 

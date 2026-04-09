@@ -57,7 +57,7 @@ export function Header() {
           title={criticalCount > 0 ? `${criticalCount} critical alert${criticalCount > 1 ? "s" : ""} — click to view` : "Notifications — coming soon"}
           onClick={() => {
             if (criticalCount > 0) {
-              setLocation("/advisories?severities=critical");
+              setLocation("/advisories?severity=critical");
             }
           }}
         >

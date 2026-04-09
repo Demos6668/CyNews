@@ -42,7 +42,14 @@ export default function ThreatIntel() {
 
   useEffect(() => {
     const initial = getInitialFiltersFromUrl(searchString);
-    if (initial.severities.length || initial.categories.length || initial.page || initial.limit) {
+    if (
+      initial.severities.length ||
+      initial.categories.length ||
+      initial.timeframe ||
+      initial.scope ||
+      initial.page ||
+      initial.limit
+    ) {
       setSeverities(initial.severities);
       setCategories(initial.categories);
       if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
@@ -104,7 +111,12 @@ export default function ThreatIntel() {
 
   const handleExport = (format: "csv" | "json") => {
     const apiBase = import.meta.env.VITE_API_BASE ?? "/api";
-    window.open(`${apiBase}/threats/export?format=${format}`, "_blank");
+    const params = new URLSearchParams({ format });
+    if (scope) params.set("scope", scope);
+    if (timeframe) params.set("timeframe", timeframe);
+    if (severities.length > 0) params.set("severity", severities.join(","));
+    if (categories.length > 0) params.set("category", categories.join(","));
+    window.open(`${apiBase}/threats/export?${params.toString()}`, "_blank");
   };
 
   const handlePageChange = useCallback((newPage: number) => {

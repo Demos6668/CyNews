@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
@@ -6,10 +6,21 @@ import { BottomNav } from "./BottomNav";
 import { WorkspaceSidebar, CreateWorkspaceModal, WorkspaceFeed } from "@/components/Workspace";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { ReactNode } from "react";
+import type { Workspace as SidebarWorkspace, WorkspaceSectionCounts, WorkspaceSectionKey } from "@/components/Workspace/WorkspaceSidebar";
+
+const emptySectionCounts: WorkspaceSectionCounts = {
+  high: 0,
+  medium: 0,
+  low: 0,
+  info: 0,
+  resolved: 0,
+};
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activeWorkspaceSection, setActiveWorkspaceSection] = useState<WorkspaceSectionKey | null>(null);
+  const [workspaceSectionCounts, setWorkspaceSectionCounts] = useState<WorkspaceSectionCounts>(emptySectionCounts);
   const {
     workspaces,
     activeWorkspace,
@@ -17,6 +28,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
     deleteWorkspace,
     createWorkspace,
   } = useWorkspaces();
+
+  useEffect(() => {
+    if (!activeWorkspace || activeWorkspace.isDefault) {
+      setActiveWorkspaceSection(null);
+      setWorkspaceSectionCounts(emptySectionCounts);
+      return;
+    }
+
+    setActiveWorkspaceSection("high");
+  }, [activeWorkspace?.id, activeWorkspace?.isDefault]);
 
   const handleCreateWorkspace = async (data: {
     name: string;
@@ -28,15 +49,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
     setShowCreateModal(false);
   };
 
+  const handleSelectWorkspace = (workspace: SidebarWorkspace) => {
+    setActiveWorkspace(workspace);
+    if (workspace.isDefault) {
+      setActiveWorkspaceSection(null);
+      return;
+    }
+
+    setActiveWorkspaceSection("high");
+  };
+
   return (
     <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
-      {/* Background ambient effects */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
-        <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-primary/20 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[500px] bg-accent/10 blur-[100px] rounded-full mix-blend-screen" />
-        <div className="absolute inset-0 bg-[url('/images/soc-bg.png')] bg-cover bg-center mix-blend-overlay opacity-30" />
-      </div>
-
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <div
         className={`flex flex-1 min-w-0 transition-[margin] duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-[260px]"}`}
@@ -44,7 +68,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <WorkspaceSidebar
           workspaces={workspaces}
           activeWorkspace={activeWorkspace}
-          onSelect={setActiveWorkspace}
+          activeSection={activeWorkspaceSection}
+          sectionCounts={workspaceSectionCounts}
+          onSelect={handleSelectWorkspace}
+          onSectionSelect={setActiveWorkspaceSection}
           onCreateNew={() => setShowCreateModal(true)}
           onDelete={deleteWorkspace}
         />
@@ -55,7 +82,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
               {activeWorkspace?.isDefault ? (
                 children
               ) : activeWorkspace ? (
-                <WorkspaceFeed workspace={activeWorkspace} />
+                <WorkspaceFeed
+                  workspace={activeWorkspace}
+                  selectedSection={activeWorkspaceSection}
+                  onSectionCountsChange={setWorkspaceSectionCounts}
+                />
               ) : (
                 children
               )}

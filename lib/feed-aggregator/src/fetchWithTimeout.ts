@@ -23,7 +23,8 @@ export async function fetchWithTimeout(
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error(
-        `Fetch timed out after ${timeout}ms for URL: ${url}`
+        `Fetch timed out after ${timeout}ms for URL: ${url}`,
+        { cause: error }
       );
     }
     throw error;

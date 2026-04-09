@@ -6,6 +6,14 @@ type WsMessage = { type: string; data?: unknown; timestamp?: string };
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
+const LIVE_QUERY_PREFIXES = [
+  "/api/dashboard/stats",
+  "/api/news",
+  "/api/threats",
+  "/api/advisories",
+  "/api/advisories/cert-in",
+  "/api/workspaces/",
+] as const;
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
@@ -15,7 +23,17 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
+  const disposedRef = useRef(false);
   const queryClient = useQueryClient();
+
+  const invalidateLiveQueries = useCallback(() => {
+    return queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0];
+        return typeof key === "string" && LIVE_QUERY_PREFIXES.some((prefix) => key.startsWith(prefix));
+      },
+    });
+  }, [queryClient]);
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -37,21 +55,26 @@ export function useWebSocket() {
         switch (msg.type) {
           case "CONNECTED":
             setNextUpdate((msg.data as { nextUpdate?: string })?.nextUpdate ?? null);
+            window.dispatchEvent(new CustomEvent("cyfy:scheduler-status", { detail: msg.data ?? null }));
             break;
           case "REFRESH_STARTED":
             setIsRefreshing(true);
+            window.dispatchEvent(new CustomEvent("cyfy:refresh-started", { detail: msg.data ?? null }));
             break;
           case "REFRESH_COMPLETE":
             setIsRefreshing(false);
             setLastUpdate(msg.timestamp ?? new Date().toISOString());
             setNextUpdate(null);
-            queryClient.invalidateQueries();
+            void invalidateLiveQueries();
+            window.dispatchEvent(new CustomEvent("cyfy:refresh-complete", { detail: msg.data ?? null }));
             break;
           case "STATS_UPDATE":
-            queryClient.invalidateQueries();
+            void invalidateLiveQueries();
+            window.dispatchEvent(new CustomEvent("cyfy:stats-update", { detail: msg.data ?? null }));
             break;
           case "REFRESH_ERROR":
             setIsRefreshing(false);
+            window.dispatchEvent(new CustomEvent("cyfy:refresh-error", { detail: msg.data ?? null }));
             break;
         }
       } catch {
@@ -61,7 +84,7 @@ export function useWebSocket() {
 
     ws.onclose = () => {
       setIsConnected(false);
-      if (attemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+      if (!disposedRef.current && attemptRef.current < MAX_RECONNECT_ATTEMPTS) {
         const delay = Math.min(
           BASE_RECONNECT_DELAY * Math.pow(2, attemptRef.current) + Math.random() * 1000,
           MAX_RECONNECT_DELAY
@@ -76,11 +99,13 @@ export function useWebSocket() {
     };
 
     wsRef.current = ws;
-  }, [queryClient]);
+  }, [invalidateLiveQueries]);
 
   useEffect(() => {
+    disposedRef.current = false;
     connect();
     return () => {
+      disposedRef.current = true;
       wsRef.current?.close();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
     };
