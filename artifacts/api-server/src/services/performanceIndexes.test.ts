@@ -97,7 +97,7 @@ describe("performanceIndexes", () => {
     expect(result.ready).toBe(true);
     expect(result.missing).toEqual([]);
     expect(mockReadFileSync).toHaveBeenCalledTimes(5);
-    expect(mockExistsSync).toHaveBeenCalledWith(expect.stringContaining("/lib/db/migrations/001_add_feed_indexes.sql"));
+    expect(mockExistsSync).toHaveBeenCalledWith(expect.stringContaining("001_add_feed_indexes.sql"));
   });
 
   it("does not reapply migrations when indexes already exist", async () => {
