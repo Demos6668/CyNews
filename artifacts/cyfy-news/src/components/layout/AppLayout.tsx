@@ -38,8 +38,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const handleSelectRecent = (item: { id: number; type: string }) => {
     const routes: Record<string, string> = {
       advisory: `/advisories?open=${item.id}`,
-      threat: `/threats?open=${item.id}`,
-      news: `/news?open=${item.id}`,
+      threat: `/threat-intel?open=${item.id}&timeframe=all`,
+      news: `/news/global?open=${item.id}&timeframe=all`,
     };
     const route = routes[item.type];
     if (route) setLocation(route);

@@ -17,11 +17,16 @@ const TYPE_FILTERS: { label: string; value: ResultType }[] = [
   { label: "News", value: "news" },
 ];
 
-function getResultPath(result: { type: string; id: number }): string {
+function getResultPath(result: { type: string; id: number; scope?: string }): string {
   switch (result.type) {
-    case "news":      return `/news/global?open=${result.id}`;
+    case "news": {
+      // Use scope from the search result; fall back to "global" for non-local items.
+      // Also set timeframe=all so the destination page will find the item regardless of age.
+      const newsScope = result.scope === "local" ? "local" : "global";
+      return `/news/${newsScope}?open=${result.id}&timeframe=all`;
+    }
     case "advisory":  return `/advisories?open=${result.id}`;
-    case "threat":    return `/threat-intel?open=${result.id}`;
+    case "threat":    return `/threat-intel?open=${result.id}&timeframe=all`;
     default:          return "/";
   }
 }

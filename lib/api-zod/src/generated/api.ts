@@ -707,6 +707,7 @@ export const SearchResponse = zod.object({
       severity: zod.string(),
       source: zod.string(),
       publishedAt: zod.string(),
+      scope: zod.string().optional(),
     }),
   ),
   total: zod.number(),

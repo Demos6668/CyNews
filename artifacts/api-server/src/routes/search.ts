@@ -24,6 +24,7 @@ interface SearchResultItem {
   severity: string;
   source: string;
   publishedAt: string;
+  scope?: string;
   rank?: number;
 }
 
@@ -75,9 +76,9 @@ async function ftsSearchSingleType(
   if (type === "news") {
     const result = await executeWithStatementTimeout<{
       id: number; title: string; summary: string; type: string;
-      severity: string; source: string; published_at: Date; rank: number;
+      severity: string; source: string; scope: string; published_at: Date; rank: number;
     }>(sql`
-      SELECT id, title, summary, type, severity, source, published_at,
+      SELECT id, title, summary, type, severity, source, scope, published_at,
         ts_rank(
           setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
           setweight(to_tsvector('english', coalesce(summary, '')), 'B'),
@@ -93,7 +94,7 @@ async function ftsSearchSingleType(
     `);
     return result.rows.map((r) => ({
       id: r.id, title: r.title, summary: r.summary, type: r.type,
-      severity: r.severity, source: r.source,
+      severity: r.severity, source: r.source, scope: r.scope,
       publishedAt: new Date(r.published_at).toISOString(), rank: r.rank,
     }));
   }
@@ -177,6 +178,7 @@ async function ilikeSearchSingleType(
         id: newsItemsTable.id, title: newsItemsTable.title,
         summary: newsItemsTable.summary, type: newsItemsTable.type,
         severity: newsItemsTable.severity, source: newsItemsTable.source,
+        scope: newsItemsTable.scope,
         publishedAt: newsItemsTable.publishedAt,
       })
       .from(newsItemsTable)
@@ -191,6 +193,7 @@ async function ilikeSearchSingleType(
     return rows.map((item) => ({
       id: item.id, title: item.title, summary: item.summary,
       type: item.type, severity: item.severity, source: item.source,
+      scope: item.scope,
       publishedAt: item.publishedAt.toISOString(),
     }));
   }
