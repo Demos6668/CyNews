@@ -50,7 +50,7 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
         references: [],
         status: "active",
         publishedAt: u.date_added ? new Date(u.date_added) : new Date(),
-      });
+      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
       added++;
     }
     result.urlhaus += added;

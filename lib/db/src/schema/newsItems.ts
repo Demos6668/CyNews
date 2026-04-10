@@ -1,4 +1,5 @@
-import { pgTable, serial, text, timestamp, boolean, jsonb, integer, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, jsonb, integer, varchar, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -28,7 +29,11 @@ export const newsItemsTable = pgTable("news_items", {
   bookmarked: boolean("bookmarked").notNull().default(false),
   publishedAt: timestamp("published_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("news_items_source_url_uq")
+    .on(t.sourceUrl)
+    .where(sql`source_url IS NOT NULL`),
+]);
 
 export const insertNewsItemSchema = createInsertSchema(newsItemsTable).omit({ id: true });
 export type InsertNewsItem = z.infer<typeof insertNewsItemSchema>;

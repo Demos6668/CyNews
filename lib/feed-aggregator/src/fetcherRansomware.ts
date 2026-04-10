@@ -60,7 +60,7 @@ export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<voi
         references: [],
         status: "active",
         publishedAt: pubDate,
-      });
+      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
       added++;
     }
     result.ransomwareLive += added;

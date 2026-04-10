@@ -49,7 +49,7 @@ export async function fetchThreatFox(result: FeedUpdateResult): Promise<void> {
         references: [],
         status: "active",
         publishedAt: i.first_seen ? new Date(i.first_seen) : new Date(),
-      });
+      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
       added++;
     }
     result.threatFox += added;

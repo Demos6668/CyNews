@@ -1180,9 +1180,15 @@ export async function fetchRssFeeds(
         knownUrls.add(link);
       }
 
-      // Batch insert all items for this source in one query each
-      if (newsBatch.length > 0) await db.insert(newsItemsTable).values(newsBatch);
-      if (threatBatch.length > 0) await db.insert(threatIntelTable).values(threatBatch);
+      // Batch insert all items for this source in one query each.
+      // onConflictDoNothing is the DB-level guard against duplicates; the
+      // in-memory knownUrls Set above is a fast-path to avoid unnecessary round-trips.
+      if (newsBatch.length > 0)
+        await db.insert(newsItemsTable).values(newsBatch)
+          .onConflictDoNothing({ target: newsItemsTable.sourceUrl });
+      if (threatBatch.length > 0)
+        await db.insert(threatIntelTable).values(threatBatch)
+          .onConflictDoNothing({ target: threatIntelTable.sourceUrl });
       if (advisoryBatch.length > 0) await db.insert(advisoriesTable).values(advisoryBatch);
 
       result.rssNews += newsBatch.length;

@@ -51,7 +51,7 @@ export async function fetchFeodoTracker(result: FeedUpdateResult): Promise<void>
         references: [],
         status: "active",
         publishedAt: e.first_seen ? new Date(e.first_seen) : new Date(),
-      });
+      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
       added++;
     }
     result.feodo += added;

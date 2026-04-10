@@ -1,4 +1,5 @@
-import { pgTable, serial, text, timestamp, jsonb, boolean, integer, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, jsonb, boolean, integer, varchar, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -35,7 +36,11 @@ export const threatIntelTable = pgTable("threat_intel", {
   lastSeen: timestamp("last_seen"),
   publishedAt: timestamp("published_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("threat_intel_source_url_uq")
+    .on(t.sourceUrl)
+    .where(sql`source_url IS NOT NULL`),
+]);
 
 export const insertThreatIntelSchema = createInsertSchema(threatIntelTable).omit({ id: true });
 export type InsertThreatIntel = z.infer<typeof insertThreatIntelSchema>;

@@ -284,15 +284,30 @@ async function searchSingleType(
   return ilikeSearchSingleType(type, searchTerm, limit);
 }
 
+/** Deduplicate results by normalized title within each type.
+ *  After DB cleanup + ON CONFLICT guards, exact-title dupes shouldn't appear,
+ *  but this protects against near-identical entries that slipped through. */
+function deduplicateResults(items: SearchResultItem[]): SearchResultItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.type}:${item.title.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function searchAllTypes(
   rawQuery: string,
   searchTerm: string,
   limit: number,
 ): Promise<SearchResultItem[]> {
+  // Fetch 2× per type so the merge/rank step has enough candidates after dedup
+  const typeLimit = limit * 2;
   const [newsResults, threatResults, advisoryResults] = await Promise.all([
-    searchSingleType("news", rawQuery, searchTerm, limit),
-    searchSingleType("threat", rawQuery, searchTerm, limit),
-    searchSingleType("advisory", rawQuery, searchTerm, limit),
+    searchSingleType("news", rawQuery, searchTerm, typeLimit),
+    searchSingleType("threat", rawQuery, searchTerm, typeLimit),
+    searchSingleType("advisory", rawQuery, searchTerm, typeLimit),
   ]);
 
   const combined = [...newsResults, ...threatResults, ...advisoryResults];
@@ -327,22 +342,24 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     let results: SearchResultItem[];
     if (query.type) {
       const t = query.type as "news" | "threat" | "advisory";
-      results = await searchSingleType(t, query.q, searchTerm, limit);
+      // Fetch extra to absorb dedup losses within a single type
+      results = await searchSingleType(t, query.q, searchTerm, limit * 2);
     } else {
       results = await searchAllTypes(query.q, searchTerm, limit);
     }
 
+    const deduped = deduplicateResults(results).slice(0, limit);
     const data = SearchResponse.parse({
-      results: results.map(({ rank: _rank, ...r }) => r),
-      total: results.length,
+      results: deduped.map(({ rank: _rank, ...r }) => r),
+      total: deduped.length,
     });
 
     apiCache.set(cacheKey, data, CACHE_TTL.SEARCH);
     const durationMs = Date.now() - startedAt;
     if (durationMs > 500) {
-      logger.info({ query: query.q, type: query.type ?? "all", durationMs, resultCount: results.length }, "search served");
+      logger.info({ query: query.q, type: query.type ?? "all", durationMs, resultCount: deduped.length }, "search served");
     } else {
-      logger.debug({ query: query.q, type: query.type ?? "all", durationMs, resultCount: results.length }, "search served");
+      logger.debug({ query: query.q, type: query.type ?? "all", durationMs, resultCount: deduped.length }, "search served");
     }
     res.json(data);
 }));
