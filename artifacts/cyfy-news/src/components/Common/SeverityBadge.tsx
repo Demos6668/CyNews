@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { getSeverityToken } from "@/lib/design-tokens";
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 
@@ -6,38 +7,34 @@ interface SeverityBadgeProps {
   severity: Severity | string;
   className?: string;
   children?: React.ReactNode;
-}
-
-function getSeverityBadgeClasses(severity: string): string {
-  switch (severity.toLowerCase()) {
-    case "critical":
-      return "bg-destructive/20 text-destructive border-destructive/30";
-    case "high":
-      return "bg-accent/20 text-accent border-accent/30";
-    case "medium":
-      return "bg-warning/20 text-warning border-warning/30";
-    case "low":
-      return "bg-success/20 text-success border-success/30";
-    case "info":
-    default:
-      return "bg-primary/20 text-primary border-primary/30";
-  }
+  /** Show a small color dot before the label (default true) */
+  showDot?: boolean;
 }
 
 export function SeverityBadge({
   severity,
   className,
   children,
+  showDot = true,
 }: SeverityBadgeProps) {
+  const token = getSeverityToken(severity);
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase",
-        getSeverityBadgeClasses(severity),
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase",
+        token.bg,
+        token.fg,
+        token.border,
         className
       )}
       aria-label={`Severity: ${severity}`}
     >
+      {showDot && (
+        <span
+          className={cn("w-1.5 h-1.5 rounded-full shrink-0", token.dot)}
+          aria-hidden="true"
+        />
+      )}
       {children ?? String(severity).toUpperCase()}
     </span>
   );

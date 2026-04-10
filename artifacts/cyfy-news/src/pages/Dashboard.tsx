@@ -3,25 +3,29 @@ import { Link } from "wouter";
 import { useGetDashboardStats, useGetNews, getGetDashboardStatsQueryKey, getGetNewsQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
 import { Card, CardContent, Skeleton, Badge } from "@/components/ui/shared";
-import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, ExternalLink, Loader2, Wrench } from "lucide-react";
+import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, Wrench } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { formatRelative } from "@/lib/utils";
 import { NewsCard, NewsDetail } from "@/components/News";
-import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus } from "@/components/Dashboard";
-import { TimeframeSelector, getTimeframeLabel, type TimeframeValue } from "@/components/Common";
+import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream } from "@/components/Dashboard";
+import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { usePreference } from "@/hooks/usePreferences";
 
 export default function Dashboard() {
   const { isConnected, isRefreshing, lastUpdate, nextUpdate } = useWebSocket();
+  const [autoRefresh] = usePreference("autoRefresh");
+  const [refreshInterval] = usePreference("refreshInterval");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const pollMs = autoRefresh ? refreshInterval * 1000 : false;
   const statsParams = { timeframe };
   const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
-    query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: 60000 },
+    query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: pollMs },
   });
   const newsParams = { limit: 3, timeframe };
   const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews(newsParams, {
-    query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: 60000 },
+    query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: pollMs },
   });
 
   if (statsLoading) {
@@ -54,11 +58,6 @@ export default function Dashboard() {
     );
   }
 
-  const threatLevelColor = 
-    stats.currentThreatLevel === 'critical' ? '#F85149' :
-    stats.currentThreatLevel === 'high' ? '#FFB74B' :
-    stats.currentThreatLevel === 'medium' ? '#F0C000' : '#3FB950';
-
   const pieData = [
     { name: 'Local', value: stats.localThreatsToday, color: '#0095AF' },
     { name: 'Global', value: stats.globalThreatsToday, color: '#FFB74B' }
@@ -75,59 +74,62 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-sans tracking-tight">Threat Overview</h1>
-          <p className="text-muted-foreground mt-1">Real-time threat intelligence landscape</p>
-        </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          {isRefreshing && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/20 rounded-full">
-              <Loader2 className="h-4 w-4 text-accent animate-spin" />
-              <span className="text-sm text-accent">Refreshing feeds...</span>
-            </div>
-          )}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${isConnected ? "bg-success/20" : "bg-destructive/20"}`}>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-success animate-pulse" : "bg-destructive"}`} />
-            <span className={`text-sm ${isConnected ? "text-success" : "text-destructive"}`}>
-              {isConnected ? "Live" : "Disconnected"}
-            </span>
-          </div>
-          <RefreshCountdown nextUpdate={nextUpdate} isRefreshing={isRefreshing} />
-          <FeedStatus />
-          {lastUpdate && (
-            <span className="text-xs text-muted-foreground">Updated: {formatRelative(lastUpdate)}</span>
-          )}
-          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
-          <QuickActions />
-          <div className="flex items-center gap-3 bg-card px-4 py-2 rounded-full border border-border">
-            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: threatLevelColor }} />
-            <span className="text-sm font-medium uppercase tracking-wider font-mono">
-              DEFCON: {stats.currentThreatLevel}
-            </span>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <PageHeader
+        title="Threat Overview"
+        icon={LayoutDashboard}
+        description="Real-time threat intelligence landscape"
+        actions={
+          <>
+            <RefreshCountdown nextUpdate={nextUpdate} isRefreshing={isRefreshing} />
+            <FeedStatus />
+            <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+            <QuickActions />
+          </>
+        }
+      />
 
-      <div className="flex justify-center mb-2">
+      <StatusStrip
+        isConnected={isConnected}
+        isRefreshing={isRefreshing}
+        lastUpdate={lastUpdate}
+        criticalCount={stats.criticalAlerts}
+        highCount={stats.highAlerts}
+        totalThreats={stats.totalThreatsToday}
+      />
+
+      {/* ThreatMeter + stats side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-6 items-start">
         <ThreatMeter
           level={stats.currentThreatLevel}
           criticalAlerts={stats.criticalAlerts}
           highAlerts={stats.highAlerts}
+          className="w-full"
         />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-        {statCards.map((stat, i) =>
-          stat.href ? (
-            <Link key={i} href={stat.href} className="block hover:opacity-90 transition-opacity">
-              <StatsCard title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
-            </Link>
-          ) : (
-            <StatsCard key={i} title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
-          )
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {statCards.map((stat, i) =>
+            stat.href ? (
+              <Link key={i} href={stat.href} className="block hover:opacity-90 transition-opacity">
+                <StatsCard
+                  title={stat.title}
+                  value={stat.value}
+                  icon={stat.icon}
+                  color={stat.color}
+                  bg={stat.bg}
+                />
+              </Link>
+            ) : (
+              <StatsCard
+                key={i}
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+                bg={stat.bg}
+              />
+            )
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -207,47 +209,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Card className="glass-panel">
-        <div className="p-6 border-b border-white/5">
-          <h3 className="font-bold">Recent Activity Stream</h3>
-        </div>
-        <div className="p-0">
-          <div className="divide-y divide-border/50">
-            {(stats?.recentActivity ?? []).map((activity) => (
-              <div
-                key={activity.id}
-                role={activity.sourceUrl ? "button" : undefined}
-                tabIndex={activity.sourceUrl ? 0 : undefined}
-                title={activity.sourceUrl ? "Open source" : "No source link"}
-                onClick={() => activity.sourceUrl && window.open(activity.sourceUrl, "_blank")}
-                onKeyDown={(e) => activity.sourceUrl && (e.key === "Enter" || e.key === " ") && window.open(activity.sourceUrl!, "_blank")}
-                className={`p-4 transition-colors flex items-center gap-4 ${
-                  activity.sourceUrl
-                    ? "cursor-pointer hover:bg-white/5"
-                    : "cursor-default opacity-80"
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  activity.severity === 'critical' ? 'bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]' : 
-                  activity.severity === 'high' ? 'bg-accent shadow-[0_0_8px_hsl(var(--accent))]' : 'bg-primary'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground">{activity.type.toUpperCase()}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                    {formatRelative(activity.timestamp)}
-                  </span>
-                  {activity.sourceUrl && (
-                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
+      <ActivityStream items={stats?.recentActivity ?? []} />
 
       <NewsDetail
         item={selectedNews}

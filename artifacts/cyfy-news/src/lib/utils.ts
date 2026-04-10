@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, formatDistanceToNow } from "date-fns";
+import { getSeverityToken } from "@/lib/design-tokens";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -23,19 +24,10 @@ export function formatRelative(dateString: string) {
 }
 
 export function getSeverityColors(severity: string) {
-  switch (severity.toLowerCase()) {
-    case 'critical':
-      return 'bg-destructive/10 text-destructive border-destructive/20 shadow-[inset_4px_0_0_0_hsl(var(--destructive))]';
-    case 'high':
-      return 'bg-accent/10 text-accent border-accent/20 shadow-[inset_4px_0_0_0_hsl(var(--accent))]';
-    case 'medium':
-      return 'bg-warning/10 text-warning border-warning/20 shadow-[inset_4px_0_0_0_hsl(var(--warning))]';
-    case 'low':
-      return 'bg-success/10 text-success border-success/20 shadow-[inset_4px_0_0_0_hsl(var(--success))]';
-    case 'info':
-    default:
-      return 'bg-primary/10 text-primary border-primary/20 shadow-[inset_4px_0_0_0_hsl(var(--primary))]';
-  }
+  const t = getSeverityToken(severity);
+  // Keep the inset shadow pattern — uses raw CSS variable for the color channel
+  const varName = t.fg.replace("text-", ""); // e.g. "destructive", "accent"
+  return `${t.bg.replace("/15", "/10")} ${t.fg} ${t.border.replace("/30", "/20")} shadow-[inset_4px_0_0_0_hsl(var(--${varName}))]`;
 }
 
 /** Strip HTML tags and decode common entities to plain text. */
@@ -59,17 +51,6 @@ export function stripHtml(html: string): string {
 }
 
 export function getSeverityBadgeColors(severity: string) {
-  switch (severity.toLowerCase()) {
-    case 'critical':
-      return 'bg-destructive/20 text-destructive border-destructive/30';
-    case 'high':
-      return 'bg-accent/20 text-accent border-accent/30';
-    case 'medium':
-      return 'bg-warning/20 text-warning border-warning/30';
-    case 'low':
-      return 'bg-success/20 text-success border-success/30';
-    case 'info':
-    default:
-      return 'bg-primary/20 text-primary border-primary/30';
-  }
+  const t = getSeverityToken(severity);
+  return `${t.bg} ${t.fg} ${t.border}`;
 }

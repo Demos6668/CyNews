@@ -147,25 +147,41 @@
 }
 
 @layer utilities {
+  /* ── Elevation system ────────────────────────────────── */
+  /* canvas: #0D1117 | card: #161B22 | elevated: #1C232E   */
+  .surface-canvas   { background: var(--background-dark); }
+  .surface-card     { background: var(--background-card); }
+  .surface-elevated { background: var(--dark-navy); }
+
+  /* ── Cards ───────────────────────────────────────────── */
   .glass-panel {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
+    background: var(--background-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.04) inset,
+      0 4px 24px 0 rgba(0,0,0,0.3);
   }
 
   .card-spec {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    transition: all 0.3s ease;
+    background: var(--background-card);
+    border: 1px solid rgba(0,149,175,0.15);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   }
 
   .card-spec:hover {
-    transform: translateY(-2px);
-    box-shadow: none;
-    border-color: transparent;
+    border-color: rgba(0,149,175,0.35);
+    box-shadow: 0 4px 24px rgba(0,149,175,0.1);
+    filter: brightness(1.04);
+  }
+
+  /* ── Numeric / monospace display ─────────────────────── */
+  .text-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
 
   .severity-critical {
@@ -199,6 +215,18 @@
   
   .glow-text {
     text-shadow: 0 0 10px rgba(0, 149, 175, 0.5);
+  }
+
+  /* ── Accessibility: focus rings ──────────────────────── */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Skip focus rings on mouse clicks (pointer events) */
+  :focus:not(:focus-visible) {
+    outline: none;
   }
 
   .email-preview {

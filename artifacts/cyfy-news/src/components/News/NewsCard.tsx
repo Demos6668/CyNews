@@ -6,7 +6,6 @@ import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
 import { useToggleBookmark } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 
 interface NewsCardProps {
   item: NewsItem;
@@ -31,22 +30,15 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
   const severityBorderClass = `severity-${item.severity}`;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
-      className="h-full"
-    >
+    <div className="h-full">
       <Card
         onClick={onClick}
         className={cn(
           "h-full overflow-hidden flex flex-col cursor-pointer card-spec group",
-          "bg-[var(--background-card)] border border-[rgba(0,149,175,0.2)] rounded-xl",
           severityBorderClass
         )}
       >
-        <div className="p-5 flex flex-col h-full bg-gradient-to-br from-transparent to-background/50">
+        <div className="p-5 flex flex-col h-full">
           <div className="flex justify-between items-start mb-3 gap-2">
             <div className="flex flex-wrap gap-2">
               <SeverityBadge severity={item.severity} />
@@ -56,30 +48,26 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
               >
                 {item.category}
               </Badge>
-              {item.scope === "local" && (
-                <Badge
-                  variant="secondary"
-                  className="bg-orange-500/20 text-orange-400"
-                >
-                  LOCAL
-                </Badge>
-              )}
             </div>
-            {item.scope === "local" && (
-              <div className="mb-2">
-                <IndiaBadge item={item} />
-              </div>
-            )}
             <button
               onClick={handleBookmark}
               disabled={toggleBookmarkMutation.isPending}
-              className="text-muted-foreground hover:text-accent transition-colors p-1 rounded-full hover:bg-white/5"
+              aria-label={item.bookmarked ? "Remove bookmark" : "Bookmark this article"}
+              aria-pressed={item.bookmarked}
+              className="text-muted-foreground hover:text-accent transition-colors p-1 rounded-full hover:bg-white/5 shrink-0"
             >
               <Bookmark
+                aria-hidden="true"
                 className={cn("h-5 w-5", item.bookmarked && "fill-accent text-accent")}
               />
             </button>
           </div>
+
+          {(item.scope === "local" || item.isIndiaRelated) && (
+            <div className="mb-2">
+              <IndiaBadge item={item} />
+            </div>
+          )}
 
           <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2">
             {item.title}
@@ -113,6 +101,6 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
           </div>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useGetAdvisories } from "@workspace/api-client-react";
 import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { ShieldAlert, AlertTriangle, Download, ChevronDown, Mail, FileDown } from "lucide-react";
@@ -17,6 +17,7 @@ import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 import { exportAdvisoriesBulk } from "@/lib/exportApi";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "New", value: "new" },
@@ -102,6 +103,15 @@ export default function Advisories() {
     excludeCertIn: true,
   });
 
+  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
+  useEffect(() => {
+    const openId = new URLSearchParams(searchString).get("open");
+    if (!openId || !data?.items?.length) return;
+    const id = parseInt(openId, 10);
+    const match = data.items.find((a) => a.id === id);
+    if (match) setSelectedItem(match);
+  }, [data?.items, searchString]);
+
   const activeFilterCount = severities.length + statuses.length + vendors.length;
   const hasActiveFilters = activeFilterCount > 0;
 
@@ -123,15 +133,19 @@ export default function Advisories() {
 
   const handleExportSelected = async () => {
     if (selectedIds.size === 0) return;
-    const blob = await exportAdvisoriesBulk({ ids: Array.from(selectedIds) });
-    if (!blob) return;
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    setSelectedIds(new Set());
+    try {
+      const blob = await exportAdvisoriesBulk({ ids: Array.from(selectedIds) });
+      if (!blob) { toast.error("Export failed"); return; }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      setSelectedIds(new Set());
+    } catch {
+      toast.error("Export failed. Please try again.");
+    }
   };
 
   const handlePageChange = useCallback((newPage: number) => {
@@ -148,14 +162,18 @@ export default function Advisories() {
   const totalItems = data?.total ?? 0;
 
   const handleExportAll = async () => {
-    const blob = await exportAdvisoriesBulk({ timeframe, scope });
-    if (!blob) return;
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    try {
+      const blob = await exportAdvisoriesBulk({ timeframe, scope });
+      if (!blob) { toast.error("Export failed"); return; }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cynews-advisories-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Export failed. Please try again.");
+    }
   };
 
   return (
@@ -222,6 +240,17 @@ export default function Advisories() {
         onShowFiltersToggle={() => setShowFilters(!showFilters)}
         activeCount={activeFilterCount}
       />
+
+      {hasActiveFilters && (
+        <ActiveFilterBar
+          filters={[
+            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+            ...statuses.map((s): ActiveFilter => ({ key: `status-${s}`, label: s.replace("_", " "), color: "status", onRemove: () => toggleStatus(s) })),
+            ...vendors.map((v): ActiveFilter => ({ key: `vendor-${v}`, label: v, color: "vendor", onRemove: () => toggleVendor(v) })),
+          ]}
+          onClearAll={clearFilters}
+        />
+      )}
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">

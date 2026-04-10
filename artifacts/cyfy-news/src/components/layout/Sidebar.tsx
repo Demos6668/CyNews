@@ -7,6 +7,7 @@ import {
   Shield,
   ShieldAlert,
   Crosshair,
+  Bookmark,
   Settings,
   Menu,
   ChevronLeft,
@@ -24,6 +25,7 @@ const navItems = [
   { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
   { name: "Patches", href: "/patches", icon: Wrench, section: "intel" },
   { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
+  { name: "Bookmarks", href: "/bookmarks", icon: Bookmark, section: "intel" },
   { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];
 

@@ -1,6 +1,6 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, type TimeframeValue } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import {
@@ -102,6 +102,15 @@ export default function ThreatIntel() {
   type GroupedResponse = { groups: { key: string; count: number; items: ThreatIntelItem[] }[]; total: number; groupBy: string };
   const groupedData = groupBy ? (data as unknown as GroupedResponse | undefined) : undefined;
 
+  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
+  useEffect(() => {
+    const openId = new URLSearchParams(searchString).get("open");
+    if (!openId || !data?.items?.length) return;
+    const id = parseInt(openId, 10);
+    const match = data.items.find((t) => t.id === id);
+    if (match) setSelectedItem(match);
+  }, [data?.items, searchString]);
+
   const activeFilterCount = severities.length + categories.length;
   const hasActiveFilters = activeFilterCount > 0;
 
@@ -123,7 +132,7 @@ export default function ThreatIntel() {
     if (timeframe) params.set("timeframe", timeframe);
     if (severities.length > 0) params.set("severity", severities.join(","));
     if (categories.length > 0) params.set("category", categories.join(","));
-    window.open(`${apiBase}/threats/export?${params.toString()}`, "_blank");
+    window.open(`${apiBase}/threats/export?${params.toString()}`, "_blank", "noopener,noreferrer");
   };
 
   const handlePageChange = useCallback((newPage: number) => {
@@ -255,6 +264,16 @@ export default function ThreatIntel() {
         onShowFiltersToggle={() => setShowFilters(!showFilters)}
         activeCount={activeFilterCount}
       />
+
+      {hasActiveFilters && (
+        <ActiveFilterBar
+          filters={[
+            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+            ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
+          ]}
+          onClearAll={clearFilters}
+        />
+      )}
 
       <h2 className="text-xl font-bold mt-8 mb-4 border-l-4 border-primary pl-3">
         {groupBy ? "Grouped Threats" : "Latest Threat Reports"}

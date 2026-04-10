@@ -126,7 +126,8 @@ function normalizeWhitespace(text: string): string {
 function parseListPageDate(text: string): Date | undefined {
   const cleaned = normalizeWhitespace(text.replace(/[()]/g, ""));
   if (!cleaned) return undefined;
-  const d = new Date(cleaned);
+  // Parse as UTC noon so the date is unambiguous regardless of local timezone
+  const d = new Date(cleaned + " UTC");
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 

@@ -1,4 +1,4 @@
-import { Bell, User, ChevronDown, LogOut, Settings } from "lucide-react";
+import { Bell, User, ChevronDown, LogOut, Settings, Search, X, History } from "lucide-react";
 import { SearchBar } from "@/components/Common";
 import {
   DropdownMenu,
@@ -13,24 +13,35 @@ import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useGetDashboardStats, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePreference } from "@/hooks/usePreferences";
 
 export function Header() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const { data: stats } = useGetDashboardStats(undefined, {
     query: { queryKey: getGetDashboardStatsQueryKey(), refetchInterval: 60000 },
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [profileName] = usePreference("profileName");
+
+  // Focus search input whenever mobile overlay opens
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [mobileSearchOpen]);
 
   useKeyboardShortcuts({
-    onSearchFocus: () => searchInputRef.current?.focus(),
+    onSearchFocus: () => setMobileSearchOpen(true),
   });
 
   useEffect(() => {
     if (debouncedSearch) {
       setLocation(`/search?q=${encodeURIComponent(debouncedSearch)}`);
       setSearchQuery("");
+      setMobileSearchOpen(false);
     }
   }, [debouncedSearch, setLocation]);
 
@@ -38,19 +49,57 @@ export function Header() {
 
   return (
     <header
-      className="h-16 flex items-center justify-between px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
+      className="h-16 flex items-center justify-between px-4 md:px-6 backdrop-blur-md border-b border-border sticky top-0 z-30"
       style={{ backgroundColor: "var(--dark-navy)" }}
-      role="navigation"
-      aria-label="Header navigation"
+      aria-label="Site header"
     >
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search global threats, CVEs, news..."
-        inputRef={searchInputRef}
-      />
+      {/* Mobile: fullscreen search overlay */}
+      {mobileSearchOpen && (
+        <div className="lg:hidden absolute inset-0 z-50 flex items-center gap-2 px-4 bg-[var(--dark-navy)] border-b border-border">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search threats, CVEs, news..."
+            inputRef={searchInputRef}
+            autoFocus
+          />
+          <button
+            onClick={() => { setMobileSearchOpen(false); setSearchQuery(""); }}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close search"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
-      <div className="flex items-center gap-4 ml-4">
+      {/* Desktop search — always visible on lg+ */}
+      <div className="hidden lg:block flex-1 max-w-xl">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search global threats, CVEs, news..."
+          inputRef={searchInputRef}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 ml-auto lg:ml-4">
+        {/* Mobile search toggle */}
+        <button
+          className="lg:hidden p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+          aria-label="Search"
+          onClick={() => setMobileSearchOpen(true)}
+        >
+          <Search className="h-5 w-5" />
+        </button>
+        <button
+          className="p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+          aria-label="Recently viewed"
+          title="Recently viewed"
+          onClick={() => window.dispatchEvent(new Event("cyfy:open-history"))}
+        >
+          <History className="h-5 w-5" />
+        </button>
         <button
           className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
           aria-label="Notifications"
@@ -77,8 +126,8 @@ export function Header() {
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-secondary font-bold text-sm">
                 <User className="h-4 w-4" />
               </div>
-              <span className="text-sm font-medium hidden sm:inline-block">
-                Analyst
+              <span className="text-sm font-medium hidden sm:inline-block truncate max-w-[120px]">
+                {profileName}
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
             </button>
