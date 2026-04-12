@@ -22,7 +22,9 @@ export default function CertInAdvisories() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  // dep array is [] — we capture searchString at mount time intentionally.
   const hydratedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -30,7 +32,7 @@ export default function CertInAdvisories() {
     if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
     if (initial.page) setPage(initial.page);
     if (initial.limit) setLimit(initial.limit);
-  }, [searchString]);
+  }, []);
 
   useFilterParamsSync(
     "/cert-in",

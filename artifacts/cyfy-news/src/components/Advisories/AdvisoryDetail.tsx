@@ -54,6 +54,7 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
     refs: false,
     summary: false,
     content: true,
+    recommendations: true,
   });
 
   if (!item) return null;

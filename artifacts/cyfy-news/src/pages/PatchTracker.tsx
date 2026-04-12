@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Wrench, ExternalLink, CheckCircle, AlertTriangle, Clock, ChevronDown } from "lucide-react";
 import { SeverityBadge } from "@/components/Common/SeverityBadge";
 import { Skeleton } from "@/components/ui/shared";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch as useWouterSearch } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -148,6 +148,8 @@ export default function PatchTracker() {
   const [highlightId, setHighlightId] = useState<number | null>(openId ? Number(openId) : null);
   const highlightRef = useRef<HTMLTableRowElement>(null);
 
+  const queryClient = useQueryClient();
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["patches", patchStatus, vendor, severity, page],
     queryFn: () => fetchPatches({ patchStatus, vendor, severity, page }),
@@ -166,6 +168,7 @@ export default function PatchTracker() {
     onSuccess: () => {
       toast.success("Patch status updated");
       refetch();
+      void queryClient.invalidateQueries({ queryKey: ["patches"] });
     },
     onError: () => toast.error("Failed to update status"),
   });

@@ -19,6 +19,12 @@ import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilter
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+interface GroupedResponse {
+  groups: { key: string; count: number; items: ThreatIntelItem[] }[];
+  total: number;
+  groupBy: string;
+}
+
 const THREAT_CATEGORY_OPTIONS = [
   "Ransomware",
   "Vulnerability Exploitation",
@@ -45,7 +51,9 @@ export default function ThreatIntel() {
   const [limit, setLimit] = useState(50);
 
   // Hydrate filter state from URL once on mount only.
+  // dep array is [] — we capture searchString at mount time intentionally.
   const hydratedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -65,7 +73,7 @@ export default function ThreatIntel() {
       if (initial.page) setPage(initial.page);
       if (initial.limit) setLimit(initial.limit);
     }
-  }, [searchString]);
+  }, []);
 
   useFilterParamsSync(
     "/threat-intel",
@@ -105,7 +113,6 @@ export default function ThreatIntel() {
   } as Parameters<typeof useGetThreats>[0]);
 
   // Grouped response shape (not in generated types, accessed via cast)
-  type GroupedResponse = { groups: { key: string; count: number; items: ThreatIntelItem[] }[]; total: number; groupBy: string };
   const groupedData = groupBy ? (data as unknown as GroupedResponse | undefined) : undefined;
 
   // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
