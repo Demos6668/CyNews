@@ -7,6 +7,8 @@ import {
   Target,
   Calendar,
   ExternalLink,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";
 import { formatDate, stripHtml } from "@/lib/utils";
@@ -16,6 +18,14 @@ import { cn } from "@/lib/utils";
 import { normalizeThreatLinks } from "@/lib/threatLinks";
 import { getSeverityToken } from "@/lib/design-tokens";
 import { addRecentItem } from "@/lib/recentlyViewed";
+
+/** Returns a MITRE ATT&CK URL for a technique ID like T1059 or T1059.001 */
+function mitreUrl(ttp: string): string | null {
+  const match = ttp.match(/T(\d{4})(?:\.(\d{3}))?/i);
+  if (!match) return null;
+  const base = `https://attack.mitre.org/techniques/T${match[1]}`;
+  return match[2] ? `${base}/${match[2]}/` : `${base}/`;
+}
 
 interface ThreatModalProps {
   item: ThreatIntelItem | null;
@@ -34,6 +44,7 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
     }
   }, [isOpen, item?.id]);
 
+  const [copiedIoc, setCopiedIoc] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     ttps: true,
     iocs: true,
@@ -188,14 +199,29 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
                 color="text-primary"
               >
                 <ul className="space-y-1.5">
-                  {item.ttps.map((ttp: string) => (
-                    <li
-                      key={ttp}
-                      className="text-sm font-mono bg-background/50 px-3 py-1.5 rounded text-muted-foreground border border-white/5"
-                    >
-                      {ttp}
-                    </li>
-                  ))}
+                  {item.ttps.map((ttp: string) => {
+                    const url = mitreUrl(ttp);
+                    return (
+                      <li
+                        key={ttp}
+                        className="flex items-center justify-between gap-2 text-sm font-mono bg-background/50 px-3 py-1.5 rounded text-muted-foreground border border-white/5"
+                      >
+                        <span>{ttp}</span>
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 text-primary/60 hover:text-primary transition-colors"
+                            title="View on MITRE ATT&CK"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </AccordionSection>
             )}
@@ -211,12 +237,38 @@ export function ThreatModal({ item, isOpen, onClose }: ThreatModalProps) {
               >
                 <div className="flex flex-wrap gap-2">
                   {item.iocs.map((ioc: string) => (
-                    <code
+                    <div
                       key={ioc}
-                      className="text-xs bg-destructive/10 text-destructive-foreground px-2 py-1 rounded select-all border border-destructive/20"
+                      className="flex items-center gap-1 text-xs bg-destructive/10 border border-destructive/20 rounded overflow-hidden"
                     >
-                      {ioc}
-                    </code>
+                      <code className="px-2 py-1 text-destructive-foreground select-all">{ioc}</code>
+                      <button
+                        type="button"
+                        title="Copy to clipboard"
+                        className="px-1.5 py-1 text-muted-foreground hover:text-foreground transition-colors border-l border-destructive/20"
+                        onClick={() => {
+                          navigator.clipboard.writeText(ioc).catch(() => undefined);
+                          setCopiedIoc(ioc);
+                          setTimeout(() => setCopiedIoc(null), 1500);
+                        }}
+                      >
+                        {copiedIoc === ioc ? (
+                          <Check className="w-3 h-3 text-success" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                      <a
+                        href={`https://www.virustotal.com/gui/search/${encodeURIComponent(ioc)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Search on VirusTotal"
+                        className="px-1.5 py-1 text-muted-foreground hover:text-orange-400 transition-colors border-l border-destructive/20"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   ))}
                 </div>
               </AccordionSection>

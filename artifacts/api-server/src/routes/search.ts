@@ -278,9 +278,10 @@ async function searchSingleType(
       return results;
     }
   } catch (error) {
-    if (!isStatementTimeoutError(error)) {
-      // Full-text search is an optimization. If it fails, keep the endpoint usable
-      // by falling back to the cheaper ILIKE search path instead of returning 500.
+    if (isStatementTimeoutError(error)) {
+      logger.warn({ type, query: rawQuery }, "FTS timed out, falling back to ILIKE");
+    } else {
+      logger.warn({ error, type, query: rawQuery }, "FTS failed, falling back to ILIKE");
     }
   }
 

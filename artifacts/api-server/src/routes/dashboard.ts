@@ -188,4 +188,58 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
     res.json(data);
 }));
 
+/**
+ * GET /api/dashboard/severity-trend
+ * Returns daily critical/high/medium/low counts for the last 7 days.
+ * Lightweight endpoint — no Zod validation, 5-minute cache.
+ */
+router.get("/dashboard/severity-trend", asyncHandler(async (_req: Request, res: Response) => {
+  const cacheKey = "dashboard:severity-trend:7d";
+  const cached = apiCache.get<object>(cacheKey);
+  if (cached) { res.json(cached); return; }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [newsRows, threatRows] = await Promise.all([
+    db.execute<{ day: string; severity: string; cnt: number }>(sql`
+      SELECT date_trunc('day', published_at)::date::text AS day,
+             severity,
+             count(*)::int AS cnt
+      FROM news_items
+      WHERE published_at >= ${sevenDaysAgo}
+      GROUP BY 1, 2
+    `),
+    db.execute<{ day: string; severity: string; cnt: number }>(sql`
+      SELECT date_trunc('day', published_at)::date::text AS day,
+             severity,
+             count(*)::int AS cnt
+      FROM threat_intel
+      WHERE published_at >= ${sevenDaysAgo}
+      GROUP BY 1, 2
+    `),
+  ]);
+
+  // Merge rows from both tables
+  const byDay: Record<string, Record<string, number>> = {};
+  for (const row of [...newsRows.rows, ...threatRows.rows]) {
+    if (!byDay[row.day]) byDay[row.day] = {};
+    byDay[row.day][row.severity] = (byDay[row.day][row.severity] ?? 0) + (row.cnt ?? 0);
+  }
+
+  // Build last 7 days array (fill missing days with zeros)
+  const days: Array<{ date: string; critical: number; high: number; medium: number; low: number }> = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const counts = byDay[key] ?? {};
+    days.push({ date: key, critical: counts.critical ?? 0, high: counts.high ?? 0, medium: counts.medium ?? 0, low: counts.low ?? 0 });
+  }
+
+  const result = { days };
+  apiCache.set(cacheKey, result, 5 * 60_000); // 5 min cache
+  res.json(result);
+}));
+
 export default router;

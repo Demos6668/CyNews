@@ -24,6 +24,11 @@ const wsProxyTarget = process.env.VITE_WS_PROXY_TARGET ?? "ws://localhost:8081";
 
 export default defineConfig({
   base: basePath,
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(
+      `v${process.env.npm_package_version ?? "1.0.0"}`
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),

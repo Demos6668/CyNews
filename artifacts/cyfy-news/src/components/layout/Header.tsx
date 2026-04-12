@@ -1,4 +1,4 @@
-import { Bell, User, ChevronDown, LogOut, Settings, Search, X, History } from "lucide-react";
+import { Bell, User, ChevronDown, LogOut, Settings, Search, X, History, AlertTriangle } from "lucide-react";
 import { SearchBar } from "@/components/Common";
 import {
   DropdownMenu,
@@ -8,6 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getSeverityBadgeColors, formatRelative } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -100,23 +107,78 @@ export function Header() {
         >
           <History className="h-5 w-5" />
         </button>
-        <button
-          className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
-          aria-label="Notifications"
-          title={criticalCount > 0 ? `${criticalCount} critical alert${criticalCount > 1 ? "s" : ""} — click to view` : "Notifications — coming soon"}
-          onClick={() => {
-            if (criticalCount > 0) {
-              setLocation("/advisories?severity=critical");
-            }
-          }}
-        >
-          <Bell className="h-5 w-5" />
-          {criticalCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white border-2 border-[var(--dark-navy)]">
-              {criticalCount > 99 ? "99+" : criticalCount}
-            </span>
-          )}
-        </button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5" />
+              {criticalCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white border-2 border-[var(--dark-navy)]">
+                  {criticalCount > 99 ? "99+" : criticalCount}
+                </span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0 border-border/60">
+            <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
+              <span className="text-sm font-semibold">Recent Activity</span>
+              {criticalCount > 0 && (
+                <span className="text-xs text-destructive font-medium">{criticalCount} critical</span>
+              )}
+            </div>
+            {(stats?.recentActivity ?? []).length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No recent activity
+              </div>
+            ) : (
+              <div className="divide-y divide-border/40 max-h-72 overflow-y-auto">
+                {(stats?.recentActivity ?? []).slice(0, 7).map((item) => (
+                  <button
+                    key={`${item.id}-${item.type}`}
+                    type="button"
+                    onClick={() => {
+                      const route = item.type === "threat" || item.sourceType === "threat"
+                        ? `/threat-intel?open=${item.id}&timeframe=all`
+                        : `/advisories?open=${item.id}`;
+                      setLocation(route);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-0.5">
+                      {(item.severity === "critical" || item.severity === "high") && (
+                        <AlertTriangle className={cn(
+                          "h-3 w-3 shrink-0",
+                          item.severity === "critical" ? "text-destructive" : "text-warning"
+                        )} />
+                      )}
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+                        getSeverityBadgeColors(item.severity)
+                      )}>
+                        {item.severity}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                        {formatRelative(item.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{item.title}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="px-4 py-2.5 border-t border-border/60">
+              <button
+                type="button"
+                onClick={() => setLocation("/advisories")}
+                className="text-xs text-primary hover:underline"
+              >
+                View all advisories →
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <div className="h-8 w-px bg-border mx-2" />
 

@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   X,
   Wrench,
+  Building2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +26,7 @@ const navItems = [
   { name: "Advisories", href: "/advisories", icon: ShieldAlert, section: "intel" },
   { name: "Patches", href: "/patches", icon: Wrench, section: "intel" },
   { name: "Threat Intel", href: "/threat-intel", icon: Crosshair, section: "intel" },
+  { name: "Workspaces", href: "/workspaces", icon: Building2, section: "intel" },
   { name: "Bookmarks", href: "/bookmarks", icon: Bookmark, section: "intel" },
   { name: "Settings", href: "/settings", icon: Settings, section: "settings" },
 ];
@@ -85,7 +87,8 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
 
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2" aria-label="Main navigation">
         {navItems.map((item, idx) => {
-          const isActive = location === item.href || (location.startsWith(item.href) && item.href !== '/');
+          const pathname = location.split("?")[0];
+          const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/');
           const showDivider =
             !collapsed &&
             idx > 0 &&

@@ -7,7 +7,7 @@ import { Activity, ShieldAlert, Crosshair, CheckCircle2, AlertTriangle, Wrench }
 import { LayoutDashboard } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { NewsCard, NewsDetail } from "@/components/News";
-import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream } from "@/components/Dashboard";
+import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream, IndiaStatsPanel, SeverityTrendChart } from "@/components/Dashboard";
 import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { usePreference } from "@/hooks/usePreferences";
@@ -23,9 +23,13 @@ export default function Dashboard() {
   const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
     query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: pollMs },
   });
-  const newsParams = { limit: 3, timeframe };
+  const newsParams = { limit: 4, timeframe };
   const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews(newsParams, {
     query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: pollMs },
+  });
+  const localStatsParams = { timeframe, scope: "local" as const };
+  const { data: localStats } = useGetDashboardStats(localStatsParams, {
+    query: { queryKey: getGetDashboardStatsQueryKey(localStatsParams), refetchInterval: pollMs },
   });
 
   if (statsLoading) {
@@ -206,10 +210,13 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          {localStats && <IndiaStatsPanel stats={localStats} />}
         </div>
       </div>
 
       <ActivityStream items={stats?.recentActivity ?? []} />
+
+      <SeverityTrendChart />
 
       <NewsDetail
         item={selectedNews}

@@ -55,7 +55,10 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
       lastRun = new Date();
       stats.successfulRuns++;
       stats.lastError = null;
-      apiCache.invalidate();
+      apiCache.invalidate("news:");
+      apiCache.invalidate("threats:");
+      apiCache.invalidate("dashboard:");
+      apiCache.invalidate("search:");
       const duration = ((Date.now() - start) / 1000).toFixed(2);
       logger.info({ duration }, "Feed update complete");
     } catch (err) {

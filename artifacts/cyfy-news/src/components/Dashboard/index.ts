@@ -5,3 +5,5 @@ export { ThreatMeter } from "./ThreatMeter";
 export { QuickActions } from "./QuickActions";
 export { RefreshCountdown } from "./RefreshCountdown";
 export { FeedStatus } from "./FeedStatus";
+export { IndiaStatsPanel } from "./IndiaStatsPanel";
+export { SeverityTrendChart } from "./SeverityTrendChart";

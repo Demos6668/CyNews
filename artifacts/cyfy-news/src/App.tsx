@@ -15,13 +15,22 @@ const Search = lazy(() => import("@/pages/Search"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const PatchTracker = lazy(() => import("@/pages/PatchTracker"));
 const Bookmarks = lazy(() => import("@/pages/Bookmarks"));
+const Workspaces = lazy(() => import("@/pages/Workspaces"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error && "status" in error) {
+    const status = (error as Error & { status: number }).status;
+    return status >= 500;
+  }
+  return false;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: false,
+      retry: (failureCount, error) => failureCount < 2 && isRetryableError(error),
     },
   },
 });
@@ -51,6 +60,7 @@ function Router() {
             <Route path="/threat-intel" component={ThreatIntel} />
             <Route path="/search" component={Search} />
             <Route path="/bookmarks" component={Bookmarks} />
+            <Route path="/workspaces" component={Workspaces} />
             <Route path="/settings" component={Settings} />
             <Route component={NotFound} />
           </Switch>

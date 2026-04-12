@@ -7,45 +7,48 @@ import { Switch } from "@/components/ui/switch";
 type SettingsTab = "profile" | "notifications" | "preferences" | "api";
 
 function ApiKeysTab() {
-  const [urlhausKey, setUrlhausKey] = useState(() => localStorage.getItem("cynews-urlhaus-key") ?? "");
-  const [threatfoxKey, setThreatfoxKey] = useState(() => localStorage.getItem("cynews-threatfox-key") ?? "");
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = () => {
-    localStorage.setItem("cynews-urlhaus-key", urlhausKey);
-    localStorage.setItem("cynews-threatfox-key", threatfoxKey);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
   return (
     <Card className="bg-card/50">
       <div className="p-6 border-b border-border">
         <h2 className="text-xl font-semibold">API Configuration</h2>
       </div>
-      <CardContent className="p-6 space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">URLhaus Auth Key</label>
-          <Input type="password" placeholder="Enter your URLhaus API key" value={urlhausKey} onChange={(e) => setUrlhausKey(e.target.value)} />
-          <p className="text-xs text-muted-foreground">Free at https://auth.abuse.ch/</p>
+      <CardContent className="p-6 space-y-6">
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+          <Shield className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-amber-300">Server-side configuration</p>
+            <p className="text-sm text-muted-foreground">
+              API credentials (URLhaus, ThreatFox, Ransomware.live, etc.) are configured server-side
+              via environment variables. Never enter API keys into browser fields — they would be
+              stored in plaintext and accessible to any script on this page.
+            </p>
+          </div>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">ThreatFox Auth Key</label>
-          <Input type="password" placeholder="Enter your ThreatFox API key" value={threatfoxKey} onChange={(e) => setThreatfoxKey(e.target.value)} />
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Integration endpoints
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-muted/20">
+              <span className="text-muted-foreground">RSS Feed</span>
+              <code className="bg-background px-2 py-0.5 rounded text-xs font-mono">/api/news/rss</code>
+            </div>
+            <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-muted/20">
+              <span className="text-muted-foreground">WebSocket</span>
+              <code className="bg-background px-2 py-0.5 rounded text-xs font-mono">ws://&#123;host&#125;/ws</code>
+            </div>
+            <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-muted/20">
+              <span className="text-muted-foreground">REST API</span>
+              <code className="bg-background px-2 py-0.5 rounded text-xs font-mono">/api/*</code>
+            </div>
+          </div>
         </div>
-        <div className="p-4 bg-muted/30 rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            <strong>RSS Feed Endpoint:</strong>{" "}
-            <code className="bg-background px-2 py-0.5 rounded text-xs">/api/news/rss</code>
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            <strong>WebSocket:</strong>{" "}
-            <code className="bg-background px-2 py-0.5 rounded text-xs">ws://{"{host}"}/ws</code>
-          </p>
-        </div>
-        <Button className="mt-4" onClick={handleSave}>
-          {saved ? "Saved!" : "Save API Keys"}
-        </Button>
+
+        <p className="text-xs text-muted-foreground">
+          To update feed source credentials, set the corresponding environment variables and restart
+          the server process.
+        </p>
       </CardContent>
     </Card>
   );

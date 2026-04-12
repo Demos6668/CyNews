@@ -3,10 +3,8 @@ import {
   LayoutDashboard,
   Globe,
   MapPin,
-  Shield,
-  ShieldAlert,
   Crosshair,
-  Wrench,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,10 +12,8 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Local", href: "/news/local", icon: MapPin },
   { name: "Global", href: "/news/global", icon: Globe },
-  { name: "CERT-In", href: "/cert-in", icon: Shield },
-  { name: "Advisories", href: "/advisories", icon: ShieldAlert },
-  { name: "Patches", href: "/patches", icon: Wrench },
   { name: "Threats", href: "/threat-intel", icon: Crosshair },
+  { name: "Workspaces", href: "/workspaces", icon: Building2 },
 ];
 
 export function BottomNav() {
@@ -31,9 +27,10 @@ export function BottomNav() {
     >
       <div className="flex items-center justify-around h-[56px]">
         {navItems.map((item) => {
+          const pathname = location.split("?")[0];
           const isActive =
-            location === item.href ||
-            (item.href !== "/" && location.startsWith(item.href));
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
 
           return (
             <Link key={item.href} href={item.href} className="flex-1 h-full" aria-current={isActive ? "page" : undefined}>

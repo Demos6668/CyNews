@@ -54,6 +54,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
     createWorkspace,
   } = useWorkspaces();
 
+  // Select workspace when Workspaces page dispatches this event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (!id) return;
+      const found = workspaces.find((w) => w.id === id);
+      if (found) handleSelectWorkspace(found);
+    };
+    window.addEventListener("cyfy:select-workspace", handler);
+    return () => window.removeEventListener("cyfy:select-workspace", handler);
+  }, [workspaces]);
+
   useEffect(() => {
     if (!activeWorkspace || activeWorkspace.isDefault) {
       setActiveWorkspaceSection(null);

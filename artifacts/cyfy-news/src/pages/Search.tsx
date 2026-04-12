@@ -4,7 +4,7 @@ import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate, stripHtml } from "@/lib/utils";
 import { Search as SearchIcon, ChevronRight, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { highlightMatch } from "@/lib/highlightMatch";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +62,10 @@ export default function Search() {
   const searchString = useWouterSearch();
   const query = new URLSearchParams(searchString).get("q") || "";
   const [typeFilter, setTypeFilter] = useState<ResultType>("all");
+  const [displayLimit, setDisplayLimit] = useState(10);
+
+  // Reset display limit when query or filter changes
+  useEffect(() => { setDisplayLimit(10); }, [query, typeFilter]);
 
   const searchParams = { q: query };
   const { data, isLoading, isError, error } = useSearch(searchParams, {
@@ -165,7 +169,7 @@ export default function Search() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredResults.map((result) => (
+          {filteredResults.slice(0, displayLimit).map((result) => (
             <Card
               key={`${result.type}-${result.id}`}
               className="hover:bg-white/5 transition-colors group cursor-pointer border-white/5"
@@ -193,6 +197,16 @@ export default function Search() {
               </div>
             </Card>
           ))}
+          {filteredResults.length > displayLimit && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setDisplayLimit((prev) => prev + 10)}
+                className="px-6 py-2 text-sm border border-border/60 hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                Load more ({filteredResults.length - displayLimit} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
