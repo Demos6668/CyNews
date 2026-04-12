@@ -8,6 +8,7 @@ export interface RecentItem {
   type: RecentItemType;
   title: string;
   severity?: string;
+  scope?: string;
   visitedAt: string; // ISO string
 }
 

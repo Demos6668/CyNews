@@ -22,7 +22,7 @@ export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
 
   useEffect(() => {
     if (isOpen && item) {
-      addRecentItem({ id: item.id, type: "news", title: item.title, severity: item.severity });
+      addRecentItem({ id: item.id, type: "news", title: item.title, severity: item.severity, scope: item.scope ?? undefined });
       window.dispatchEvent(new Event("cyfy:history-updated"));
     }
   }, [isOpen, item?.id]);

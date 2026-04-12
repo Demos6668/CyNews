@@ -35,11 +35,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("cyfy:open-history", handler);
   }, []);
 
-  const handleSelectRecent = (item: { id: number; type: string }) => {
+  const handleSelectRecent = (item: { id: number; type: string; scope?: string }) => {
+    const newsScope = item.scope === "local" ? "local" : "global";
     const routes: Record<string, string> = {
       advisory: `/advisories?open=${item.id}&timeframe=all`,
       threat: `/threat-intel?open=${item.id}&timeframe=all`,
-      news: `/news/global?open=${item.id}&timeframe=all`,
+      news: `/news/${newsScope}?open=${item.id}&timeframe=all`,
     };
     const route = routes[item.type];
     if (route) setLocation(route);

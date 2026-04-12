@@ -169,10 +169,11 @@ export default function PatchTracker() {
     },
     onError: () => toast.error("Failed to update status"),
   });
+  const { mutate: mutatePatch } = mutation;
 
   const handleStatusChange = useCallback(
-    (id: number, status: string) => mutation.mutate({ id, status }),
-    [mutation.mutate],
+    (id: number, status: string) => mutatePatch({ id, status }),
+    [mutatePatch],
   );
 
   const handleBulkAction = useCallback(

@@ -94,7 +94,7 @@ export function useFilterParamsSync(
     filters.scope,
     filters.page,
     filters.limit,
-    setLocation,
+    // setLocation is stable in Wouter — omitted intentionally
   ]);
 }
 

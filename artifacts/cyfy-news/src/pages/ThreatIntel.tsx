@@ -337,7 +337,7 @@ export default function ThreatIntel() {
               onItemClick={(item) => setSelectedItem(item)}
             />
           </div>
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <Pagination
               currentPage={page}
               totalPages={totalPages}
@@ -359,7 +359,7 @@ export default function ThreatIntel() {
               />
             ))}
           </div>
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <Pagination
               currentPage={page}
               totalPages={totalPages}

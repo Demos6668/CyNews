@@ -206,7 +206,7 @@ export default function CertInAdvisories() {
                   showCheckbox
                 />
               ))}
-              {totalPages > 1 && (
+              {totalPages >= 1 && (
                 <div className="pt-6">
                   <Pagination
                     currentPage={page}

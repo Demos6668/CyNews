@@ -40,9 +40,9 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [limit, setLimit] = useState(20);
 
   // Hydrate filter state from URL once on mount only.
-  // Using a ref guard prevents re-running when useFilterParamsSync writes back to the URL,
-  // which would otherwise cause an extra render cycle.
+  // dep array is [] — we capture searchString at mount time intentionally.
   const hydratedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -64,7 +64,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
       if (initial.page) setPage(initial.page);
       if (initial.limit) setLimit(initial.limit);
     }
-  }, [searchString]);
+  }, []);
 
 
   useFilterParamsSync(
@@ -251,7 +251,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
             items={data?.items ?? []}
             onItemClick={(item) => setSelectedItem(item)}
           />
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <Pagination
               currentPage={page}
               totalPages={totalPages}

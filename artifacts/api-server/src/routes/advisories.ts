@@ -146,7 +146,7 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
 
     if (patchStatus === "available") conditions.push(eq(advisoriesTable.patchAvailable, true), sql`${advisoriesTable.status} != 'patched'`);
     else if (patchStatus === "applied") conditions.push(eq(advisoriesTable.status, "patched"));
-    else if (patchStatus === "pending") conditions.push(eq(advisoriesTable.patchAvailable, false), sql`${advisoriesTable.status} != 'patched'`);
+    else if (patchStatus === "pending") conditions.push(eq(advisoriesTable.patchAvailable, true), sql`${advisoriesTable.status} != 'patched'`);
 
     if (vendor) conditions.push(eq(advisoriesTable.vendor, vendor));
     if (severity) {

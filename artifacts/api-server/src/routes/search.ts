@@ -277,8 +277,15 @@ async function searchSingleType(
   limit: number,
   scope?: "local" | "global",
 ): Promise<SearchResultItem[]> {
-  const tsQuery = rawQuery.length >= FTS_MIN_LENGTH ? toTsQuery(rawQuery) : "";
+  const qualifiesForFts = rawQuery.length >= FTS_MIN_LENGTH;
+  const tsQuery = qualifiesForFts ? toTsQuery(rawQuery) : "";
   const useFts = tsQuery.length > 0;
+
+  // All tokens were filtered (e.g. purely reserved words like "OR", "AND", "NOT").
+  // Do NOT fall back to ILIKE — that would flood results via substring match.
+  if (qualifiesForFts && !useFts) {
+    return [];
+  }
 
   if (!useFts) {
     return ilikeSearchSingleType(type, searchTerm, limit, scope);

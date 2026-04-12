@@ -49,7 +49,9 @@ export default function Advisories() {
   const [limit, setLimit] = useState(20);
 
   // Hydrate filter state from URL once on mount only.
+  // dep array is [] — we capture searchString at mount time intentionally.
   const hydratedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -61,7 +63,7 @@ export default function Advisories() {
     if (initial.scope) setScope(initial.scope as "local" | "global");
     if (initial.page) setPage(initial.page);
     if (initial.limit) setLimit(initial.limit);
-  }, [searchString]);
+  }, []);
 
   useFilterParamsSync(
     "/advisories",
@@ -301,7 +303,7 @@ export default function Advisories() {
             onToggleSelect={toggleSelect}
             showCheckboxes
           />
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <Pagination
               currentPage={page}
               totalPages={totalPages}
