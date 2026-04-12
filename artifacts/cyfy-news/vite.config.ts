@@ -19,8 +19,8 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8081";
-const wsProxyTarget = process.env.VITE_WS_PROXY_TARGET ?? "ws://localhost:8081";
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8080";
+const wsProxyTarget = process.env.VITE_WS_PROXY_TARGET ?? "ws://localhost:8080";
 
 export default defineConfig({
   base: basePath,
