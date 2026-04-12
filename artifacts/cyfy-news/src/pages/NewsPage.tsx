@@ -32,7 +32,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(undefined);
-  const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
   const [showFilters, setShowFilters] = useState(true);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);

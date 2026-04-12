@@ -29,7 +29,7 @@ function parseSearchParams(searchString: string): FilterParams {
     vendors: params.get("vendor")?.split(",").map((v) => v.trim()).filter(Boolean) ?? [],
     dateFrom: params.get("dateFrom") ?? undefined,
     dateTo: params.get("dateTo") ?? undefined,
-    timeframe: params.get("timeframe") ?? DEFAULT_TIMEFRAME,
+    timeframe: params.get("timeframe") ?? undefined,
     scope: params.get("scope") ?? undefined,
     page: pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : undefined,
     limit: limitParam ? Math.max(1, Math.min(96, parseInt(limitParam, 10) || DEFAULT_LIMIT)) : undefined,
