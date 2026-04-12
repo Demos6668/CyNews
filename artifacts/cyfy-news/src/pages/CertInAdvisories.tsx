@@ -3,17 +3,20 @@ import { AdvisoryDetail, CertInAdvisoryCard } from "@/components/Advisories";
 import { Button } from "@/components/ui/shared";
 import { TimeframeSelector, Pagination, type TimeframeValue } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearch } from "wouter";
+import { useSearch, useLocation } from "wouter";
 import { ShieldAlert, Download, ExternalLink, RefreshCw, Mail, FileDown } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
 import { EmptyState } from "@/components/Common";
 import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 import { exportAdvisoriesBulk } from "@/lib/exportApi";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export default function CertInAdvisories() {
+  usePageTitle("CERT-In Advisories");
+  const [pathname, setLocation] = useLocation();
   const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -116,7 +119,7 @@ export default function CertInAdvisories() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-sans tracking-tight flex items-center gap-3">
@@ -189,20 +192,24 @@ export default function CertInAdvisories() {
               <span className="ml-3 text-muted-foreground">Loading CERT-In advisories...</span>
             </div>
           ) : (certInData?.data?.length ?? 0) === 0 ? (
-            <div className="text-center py-12">
-              <ShieldAlert className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <EmptyState
-                title="No CERT-In advisories"
-                description="No advisories in the selected timeframe. Try a different time range."
-              />
-            </div>
+            <EmptyState
+              icon={ShieldAlert}
+              title="No CERT-In advisories"
+              description="No advisories in the selected timeframe. Try a different time range."
+              className="border-0 bg-transparent py-12"
+            />
           ) : (
             <div className="space-y-4">
               {(certInData?.data ?? []).map((advisory) => (
                 <CertInAdvisoryCard
                   key={advisory.id}
                   advisory={advisory}
-                  onClick={() => setSelectedItem(advisory)}
+                  onClick={() => {
+                    setSelectedItem(advisory);
+                    const params = new URLSearchParams(searchString);
+                    params.set("open", String(advisory.id));
+                    setLocation(`${pathname}?${params.toString()}`);
+                  }}
                   selected={selectedIds.has(advisory.id)}
                   onToggleSelect={toggleSelect}
                   showCheckbox
@@ -248,7 +255,13 @@ export default function CertInAdvisories() {
       <AdvisoryDetail
         item={selectedItem}
         isOpen={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => {
+          setSelectedItem(null);
+          const params = new URLSearchParams(searchString);
+          params.delete("open");
+          const qs = params.toString();
+          setLocation(`${pathname}${qs ? `?${qs}` : ""}`);
+        }}
       />
 
       <BulkEmailExportModal

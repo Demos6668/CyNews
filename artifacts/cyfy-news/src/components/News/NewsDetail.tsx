@@ -1,9 +1,11 @@
 import { useEffect } from "react";
-import { Calendar, ExternalLink, Target } from "lucide-react";
+import { Calendar, ExternalLink, Target, Bookmark } from "lucide-react";
 import { Badge, Button } from "@/components/ui/shared";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
+import { useToggleBookmark } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -19,6 +21,14 @@ interface NewsDetailProps {
 export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
   useBodyScrollLock(isOpen);
   useEscapeKey(isOpen, onClose);
+  const queryClient = useQueryClient();
+  const bookmarkMutation = useToggleBookmark({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ["/api/news/bookmarked"] });
+      },
+    },
+  });
 
   useEffect(() => {
     if (isOpen && item) {
@@ -62,9 +72,24 @@ export function NewsDetail({ item, isOpen, onClose }: NewsDetailProps) {
               <SeverityBadge severity={item.severity} />
               <Badge variant="outline">{item.category}</Badge>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              ✕
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => bookmarkMutation.mutate({ id: item.id })}
+                disabled={bookmarkMutation.isPending}
+                aria-label={item.bookmarked ? "Remove bookmark" : "Bookmark this article"}
+                aria-pressed={item.bookmarked}
+                title={item.bookmarked ? "Remove bookmark" : "Bookmark"}
+              >
+                <Bookmark
+                  className={cn("h-5 w-5", item.bookmarked && "fill-accent text-accent")}
+                />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+                ✕
+              </Button>
+            </div>
           </div>
 
           <h2 className="text-3xl font-bold mb-4 font-sans leading-tight">

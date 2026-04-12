@@ -4,6 +4,8 @@ import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { usePreference } from "@/hooks/usePreferences";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { toast } from "sonner";
 
 type SettingsTab = "profile" | "notifications" | "preferences" | "api";
 
@@ -56,6 +58,7 @@ function ApiKeysTab() {
 }
 
 export default function Settings() {
+  usePageTitle("Settings");
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
 
@@ -128,6 +131,7 @@ export default function Settings() {
                   <Button className="mt-4" onClick={() => {
                     setProfileName(profileNameDraft);
                     setDepartment(departmentDraft);
+                    toast.success("Profile saved");
                   }}>Save Changes</Button>
                 </CardContent>
               </Card>

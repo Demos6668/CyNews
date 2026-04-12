@@ -1,8 +1,9 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearch } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   Crosshair,
   Download,
@@ -16,6 +17,7 @@ import {
 import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { ThreatCard, ThreatModal, ThreatTimeline, ThreatGroupView } from "@/components/Threats";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
@@ -38,11 +40,13 @@ const THREAT_CATEGORY_OPTIONS = [
 ];
 
 export default function ThreatIntel() {
+  usePageTitle("Threat Intelligence");
   const searchString = useSearch();
+  const [pathname, setLocation] = useLocation();
   const [selectedItem, setSelectedItem] = useState<ThreatIntelItem | null>(null);
   const [severities, setSeverities] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [groupBy, setGroupBy] = useState<string | undefined>(undefined);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
@@ -166,8 +170,23 @@ export default function ThreatIntel() {
   const totalPages = data?.totalPages ?? 0;
   const totalItems = data?.total ?? 0;
 
+  const openThreat = (item: ThreatIntelItem) => {
+    setSelectedItem(item);
+    const params = new URLSearchParams(searchString);
+    params.set("open", String(item.id));
+    setLocation(`${pathname}?${params.toString()}`);
+  };
+
+  const closeThreat = () => {
+    setSelectedItem(null);
+    const params = new URLSearchParams(searchString);
+    params.delete("open");
+    const qs = params.toString();
+    setLocation(`${pathname}${qs ? `?${qs}` : ""}`);
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-150">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-bold font-sans tracking-tight flex items-center gap-3 glow-text">
@@ -207,16 +226,17 @@ export default function ThreatIntel() {
             </button>
           </div>
           {groupBy !== undefined && (
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              className="text-xs rounded-md border border-border bg-secondary px-2 py-1.5 text-foreground"
-            >
-              <option value="category">By Category</option>
-              <option value="severity">By Severity</option>
-              <option value="threat_actor">By Threat Actor</option>
-              <option value="source">By Source</option>
-            </select>
+            <Select value={groupBy} onValueChange={setGroupBy}>
+              <SelectTrigger className="text-xs h-8 w-36 border-border bg-secondary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="category">By Category</SelectItem>
+                <SelectItem value="severity">By Severity</SelectItem>
+                <SelectItem value="threat_actor">By Threat Actor</SelectItem>
+                <SelectItem value="source">By Source</SelectItem>
+              </SelectContent>
+            </Select>
           )}
           <div className="flex gap-2">
             <Button
@@ -269,29 +289,30 @@ export default function ThreatIntel() {
         </Card>
       </div>
 
-      <FilterSection
-        variant="threats"
-        severities={severities}
-        categories={categories}
-        categoryOptions={THREAT_CATEGORY_OPTIONS}
-        onToggleSeverity={toggleSeverity}
-        onToggleCategory={toggleCategory}
-        onApplyPreset={applyPreset}
-        onClearAll={clearFilters}
-        showFilters={showFilters}
-        onShowFiltersToggle={() => setShowFilters(!showFilters)}
-        activeCount={activeFilterCount}
-      />
-
-      {hasActiveFilters && (
-        <ActiveFilterBar
-          filters={[
-            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
-            ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
-          ]}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 space-y-2">
+        <FilterSection
+          variant="threats"
+          severities={severities}
+          categories={categories}
+          categoryOptions={THREAT_CATEGORY_OPTIONS}
+          onToggleSeverity={toggleSeverity}
+          onToggleCategory={toggleCategory}
+          onApplyPreset={applyPreset}
           onClearAll={clearFilters}
+          showFilters={showFilters}
+          onShowFiltersToggle={() => setShowFilters(!showFilters)}
+          activeCount={activeFilterCount}
         />
-      )}
+        {hasActiveFilters && (
+          <ActiveFilterBar
+            filters={[
+              ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+              ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
+            ]}
+            onClearAll={clearFilters}
+          />
+        )}
+      </div>
 
       <h2 className="text-xl font-bold mt-8 mb-4 border-l-4 border-primary pl-3">
         {groupBy ? "Grouped Threats" : "Latest Threat Reports"}
@@ -320,7 +341,7 @@ export default function ThreatIntel() {
           groups={groupedData?.groups ?? []}
           total={groupedData?.total ?? 0}
           groupBy={groupBy}
-          onItemClick={(item) => setSelectedItem(item)}
+          onItemClick={openThreat}
         />
       ) : (data?.items?.length ?? 0) === 0 ? (
         <EmptyState
@@ -341,7 +362,7 @@ export default function ThreatIntel() {
           <div className="bg-card/50 rounded-xl border border-white/5 overflow-hidden">
             <ThreatTimeline
               items={data?.items ?? []}
-              onItemClick={(item) => setSelectedItem(item)}
+              onItemClick={openThreat}
             />
           </div>
           {totalPages >= 1 && (
@@ -362,7 +383,7 @@ export default function ThreatIntel() {
               <ThreatCard
                 key={item.id}
                 item={item}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => openThreat(item)}
               />
             ))}
           </div>
@@ -382,7 +403,7 @@ export default function ThreatIntel() {
       <ThreatModal
         item={selectedItem}
         isOpen={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={closeThreat}
       />
     </div>
   );

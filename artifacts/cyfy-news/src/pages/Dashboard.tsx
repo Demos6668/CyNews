@@ -11,8 +11,10 @@ import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, Sta
 import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { usePreference } from "@/hooks/usePreferences";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function Dashboard() {
+  usePageTitle("Dashboard");
   const { isConnected, isRefreshing, lastUpdate, nextUpdate } = useWebSocket();
   const [autoRefresh] = usePreference("autoRefresh");
   const [refreshInterval] = usePreference("refreshInterval");
@@ -70,15 +72,15 @@ export default function Dashboard() {
   const timeframeLabel = getTimeframeLabel(timeframe);
   const patchesAvailable = stats.patchesAvailable ?? 0;
   const statCards = [
-    { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10", href: undefined },
-    { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10", href: undefined },
+    { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10", href: "/threat-intel" },
+    { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10", href: "/advisories" },
     { title: "Patches Available", value: patchesAvailable, icon: Wrench, color: "text-warning", bg: "bg-warning/10", href: "/patches" },
-    { title: "Critical Alerts", value: stats.criticalAlerts, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", href: undefined },
+    { title: "Critical Alerts", value: stats.criticalAlerts, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", href: "/advisories?severity=critical&timeframe=all" },
     { title: "Resolved Incidents", value: stats.resolvedIncidents, icon: CheckCircle2, color: "text-success", bg: "bg-success/10", href: undefined },
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <PageHeader
         title="Threat Overview"
         icon={LayoutDashboard}

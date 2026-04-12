@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addProduct as apiAddProduct } from "@workspace/api-client-react";
 
 const PRODUCT_CATEGORIES = [
@@ -147,15 +148,16 @@ export function AddProductModal({ isOpen, onClose, workspaceId, onAdded }: AddPr
                 placeholder="Version (optional)"
                 className="px-3 py-2 bg-background border border-border rounded-lg text-sm focus:border-primary outline-none"
               />
-              <select
-                value={product.category}
-                onChange={(e) => setProduct((p) => ({ ...p, category: e.target.value }))}
-                className="px-3 py-2 bg-background border border-border rounded-lg text-sm focus:border-primary outline-none"
-              >
-                {PRODUCT_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <Select value={product.category} onValueChange={(v) => setProduct((p) => ({ ...p, category: v }))}>
+                <SelectTrigger className="text-sm h-10 border-border bg-background">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button
               type="submit"

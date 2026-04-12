@@ -64,7 +64,8 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
   };
 
   const severityBg = getSeverityToken(item.severity).hex;
-  const cvssColor = getCvssHex(item.cvssScore);
+  const unscored = item.cvssScore === 0;
+  const cvssColor = unscored ? "rgba(255,255,255,0.3)" : getCvssHex(item.cvssScore);
   const isCertIn = item.isCertIn ?? false;
   const links = normalizeAdvisoryLinks(item);
   const primaryLinkLabel = getPrimaryAdvisoryLinkLabel(item);
@@ -165,8 +166,9 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               <div
                 className="text-3xl font-mono font-bold"
                 style={{ color: cvssColor }}
+                title={unscored ? "Not yet scored by NVD" : undefined}
               >
-                {item.cvssScore.toFixed(1)}
+                {unscored ? "N/A" : item.cvssScore.toFixed(1)}
               </div>
               <div className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
                 CVSS
@@ -249,9 +251,27 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
             <h3 className="text-lg font-semibold mb-3 border-b border-border pb-2">
               Description
             </h3>
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {stripHtml(item.description ?? "")}
-            </p>
+            {/^information published\.?$/i.test(stripHtml(item.description ?? "").trim()) ? (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/20 border border-border/50">
+                <span className="text-muted-foreground text-sm leading-relaxed">
+                  Full details are pending NVD processing.{" "}
+                  {item.cveId && (
+                    <a
+                      href={`https://nvd.nist.gov/vuln/detail/${item.cveId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      View on NVD →
+                    </a>
+                  )}
+                </span>
+              </div>
+            ) : (
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {stripHtml(item.description ?? "")}
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -285,25 +305,27 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
               </AccordionSection>
             )}
 
-            <AccordionSection
-              title={`Affected Products (${item.affectedProducts.length})`}
-              sectionKey="products"
-              expanded={expandedSections.products}
-              onToggle={() => toggleSection("products")}
-              icon={Target}
-              color="text-yellow-400"
-            >
-              <div className="flex flex-wrap gap-2">
-                {item.affectedProducts.map((p: string) => (
-                  <span
-                    key={p}
-                    className="text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20"
-                  >
-                    {p}
-                  </span>
-                ))}
-              </div>
-            </AccordionSection>
+            {item.affectedProducts.length > 0 && (
+              <AccordionSection
+                title={`Affected Products (${item.affectedProducts.length})`}
+                sectionKey="products"
+                expanded={expandedSections.products}
+                onToggle={() => toggleSection("products")}
+                icon={Target}
+                color="text-yellow-400"
+              >
+                <div className="flex flex-wrap gap-2">
+                  {item.affectedProducts.map((p: string) => (
+                    <span
+                      key={p}
+                      className="text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20"
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </AccordionSection>
+            )}
 
             {(item.recommendations && item.recommendations.length > 0) && (
               <AccordionSection

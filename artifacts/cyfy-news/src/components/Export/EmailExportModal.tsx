@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Advisory } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { getEmailTemplates, previewEmail, exportEmail } from "@/lib/exportApi";
@@ -144,19 +145,18 @@ function CustomizationPanel({
         <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">
           Priority Override
         </label>
-        <select
-          value={customizations.priorityOverride ?? ""}
-          onChange={(e) => updateField("priorityOverride", e.target.value)}
-          className="w-full px-3 py-2 bg-muted/50 border border-border rounded-lg text-foreground text-sm"
-        >
-          <option value="">
-            Use Default ({advisory.severity ?? "medium"})
-          </option>
-          <option value="critical">Critical - Immediate Action</option>
-          <option value="high">High - Action Within 24 Hours</option>
-          <option value="medium">Medium - Action This Week</option>
-          <option value="low">Low - Informational</option>
-        </select>
+        <Select value={customizations.priorityOverride ?? ""} onValueChange={(v) => updateField("priorityOverride", v)}>
+          <SelectTrigger className="w-full text-sm border-border bg-muted/50">
+            <SelectValue placeholder={`Use Default (${advisory.severity ?? "medium"})`} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Use Default ({advisory.severity ?? "medium"})</SelectItem>
+            <SelectItem value="critical">Critical - Immediate Action</SelectItem>
+            <SelectItem value="high">High - Action Within 24 Hours</SelectItem>
+            <SelectItem value="medium">Medium - Action This Week</SelectItem>
+            <SelectItem value="low">Low - Informational</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">

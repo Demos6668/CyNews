@@ -92,6 +92,7 @@ app.use("/api/news", (req: Request, res: Response, next: NextFunction) => {
   }
 });
 app.use("/api/export", writeLimiter);
+app.use("/api/threats/export", writeLimiter);
 
 // Prevent browsers from caching API responses (server-side TTL cache handles freshness)
 app.use("/api", (_req: Request, res: Response, next: NextFunction) => {

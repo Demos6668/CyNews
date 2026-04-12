@@ -109,21 +109,14 @@ export function RecentlyViewedDrawer({
                   : undefined;
 
                 return (
-                  <li key={`${item.type}-${item.id}`}>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group flex items-start gap-3 cursor-pointer"
+                  // Two sibling buttons: select (full row) + remove (absolute, hover-visible)
+                  // Avoids ARIA violation of interactive content inside role="button".
+                  <li key={`${item.type}-${item.id}`} className="relative group">
+                    <button
+                      className="w-full text-left px-3 py-2.5 pr-8 rounded-lg hover:bg-muted/50 transition-colors flex items-start gap-3"
                       onClick={() => {
                         onSelect(item);
                         onClose();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onSelect(item);
-                          onClose();
-                        }
                       }}
                     >
                       <div className="mt-0.5 shrink-0 relative">
@@ -146,17 +139,14 @@ export function RecentlyViewedDrawer({
                           {formatRelative(item.visitedAt)}
                         </p>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemove(item.id, item.type);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-all rounded shrink-0 mt-0.5"
-                        aria-label={`Remove ${item.title} from history`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
+                    </button>
+                    <button
+                      onClick={() => onRemove(item.id, item.type)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-all rounded"
+                      aria-label={`Remove ${item.title} from history`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </li>
                 );
               })}

@@ -116,7 +116,7 @@ router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response)
       items: items.map(formatNewsItem),
       total: items.length,
       page: 1,
-      limit: items.length,
+      limit: 100,
       totalPages: 1,
     });
 
@@ -163,7 +163,7 @@ router.get("/news", asyncHandler(async (req: Request, res: Response) => {
       .where(where);
 
     const total = totalResult?.count ?? 0;
-    const page = query.page ?? 1;
+    const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 

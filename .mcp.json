@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cynews": {
+      "command": "node",
+      "args": [
+        "--env-file=.env",
+        "--import",
+        "tsx",
+        "artifacts/mcp-server/src/index.ts"
+      ],
+      "env": {}
+    }
+  }
+}

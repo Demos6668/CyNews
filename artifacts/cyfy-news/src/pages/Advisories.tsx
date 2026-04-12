@@ -3,7 +3,7 @@ import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
 import { TabSwitch, TimeframeSelector, FilterSection, Pagination, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearch } from "wouter";
+import { useSearch, useLocation } from "wouter";
 import { ShieldAlert, AlertTriangle, Download, ChevronDown, Mail, FileDown } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
 import { EmptyState } from "@/components/Common";
@@ -18,6 +18,7 @@ import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilter
 import { exportAdvisoriesBulk } from "@/lib/exportApi";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
   { label: "New", value: "new" },
@@ -29,6 +30,8 @@ const STATUS_OPTIONS: { label: string; value: string }[] = [
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export default function Advisories() {
+  usePageTitle("Security Advisories");
+  const [pathname, setLocation] = useLocation();
   const searchString = useSearch();
   const { data: vendorData } = useQuery<{ vendors: string[] }>({
     queryKey: ["advisories-vendors"],
@@ -42,7 +45,7 @@ export default function Advisories() {
   const [severities, setSeverities] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
   const [scope, setScope] = useState<"local" | "global">("global");
   const [page, setPage] = useState(1);
@@ -193,7 +196,7 @@ export default function Advisories() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-sans tracking-tight flex items-center gap-3">
@@ -241,32 +244,33 @@ export default function Advisories() {
         </div>
       </div>
 
-      <FilterSection
-        variant="advisories"
-        severities={severities}
-        statuses={statuses}
-        statusOptions={STATUS_OPTIONS}
-        vendors={vendors}
-        vendorOptions={vendorOptions}
-        onToggleSeverity={toggleSeverity}
-        onToggleStatus={toggleStatus}
-        onToggleVendor={toggleVendor}
-        onClearAll={clearFilters}
-        showFilters={showFilters}
-        onShowFiltersToggle={() => setShowFilters(!showFilters)}
-        activeCount={activeFilterCount}
-      />
-
-      {hasActiveFilters && (
-        <ActiveFilterBar
-          filters={[
-            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
-            ...statuses.map((s): ActiveFilter => ({ key: `status-${s}`, label: s.replace("_", " "), color: "status", onRemove: () => toggleStatus(s) })),
-            ...vendors.map((v): ActiveFilter => ({ key: `vendor-${v}`, label: v, color: "vendor", onRemove: () => toggleVendor(v) })),
-          ]}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 space-y-2">
+        <FilterSection
+          variant="advisories"
+          severities={severities}
+          statuses={statuses}
+          statusOptions={STATUS_OPTIONS}
+          vendors={vendors}
+          vendorOptions={vendorOptions}
+          onToggleSeverity={toggleSeverity}
+          onToggleStatus={toggleStatus}
+          onToggleVendor={toggleVendor}
           onClearAll={clearFilters}
+          showFilters={showFilters}
+          onShowFiltersToggle={() => setShowFilters(!showFilters)}
+          activeCount={activeFilterCount}
         />
-      )}
+        {hasActiveFilters && (
+          <ActiveFilterBar
+            filters={[
+              ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+              ...statuses.map((s): ActiveFilter => ({ key: `status-${s}`, label: s.replace("_", " "), color: "status", onRemove: () => toggleStatus(s) })),
+              ...vendors.map((v): ActiveFilter => ({ key: `vendor-${v}`, label: v, color: "vendor", onRemove: () => toggleVendor(v) })),
+            ]}
+            onClearAll={clearFilters}
+          />
+        )}
+      </div>
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
@@ -298,7 +302,12 @@ export default function Advisories() {
         <>
           <AdvisoryList
             items={data?.items ?? []}
-            onItemClick={(item) => setSelectedItem(item)}
+            onItemClick={(item) => {
+              setSelectedItem(item);
+              const params = new URLSearchParams(searchString);
+              params.set("open", String(item.id));
+              setLocation(`${pathname}?${params.toString()}`);
+            }}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
             showCheckboxes
@@ -319,7 +328,13 @@ export default function Advisories() {
       <AdvisoryDetail
         item={selectedItem}
         isOpen={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => {
+          setSelectedItem(null);
+          const params = new URLSearchParams(searchString);
+          params.delete("open");
+          const qs = params.toString();
+          setLocation(`${pathname}${qs ? `?${qs}` : ""}`);
+        }}
       />
 
       <BulkEmailExportModal

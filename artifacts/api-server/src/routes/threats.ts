@@ -246,7 +246,7 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
       .where(where as SQL);
 
     const total = totalResult?.count ?? 0;
-    const page = query.page ?? 1;
+    const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 

@@ -94,6 +94,14 @@ export async function createWorkspace(data: WorkspaceInput) {
   return workspace;
 }
 
+/**
+ * Add a product to a workspace and optionally trigger threat matching.
+ *
+ * @param options.skipMatch - When true, skips the threat-matching scan after insert.
+ *   Use only when the caller guarantees a single `matchThreatsToWorkspace()` call
+ *   will follow (e.g., bulk inserts during workspace creation). Omitting this on a
+ *   standalone `addProduct` call will silently leave new threats unmatched.
+ */
 export async function addProduct(
   workspaceId: string,
   product: ProductInput,

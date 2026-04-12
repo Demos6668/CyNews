@@ -1,16 +1,20 @@
 import { useState, useMemo } from "react";
 import { useGetBookmarkedNews } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
-import { Skeleton } from "@/components/ui/shared";
-import { Bookmark, AlertTriangle } from "lucide-react";
+import { Skeleton, Button } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bookmark, AlertTriangle, Newspaper, Shield } from "lucide-react";
 import { NewsCard, NewsDetail } from "@/components/News";
 import { PageHeader } from "@/components/Common";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { Link } from "wouter";
 
 type ScopeFilter = "all" | "local" | "global";
 type SortOrder = "newest" | "oldest";
 
 export default function Bookmarks() {
+  usePageTitle("Bookmarks");
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [scope, setScope] = useState<ScopeFilter>("all");
   const [sort, setSort] = useState<SortOrder>("newest");
@@ -28,7 +32,7 @@ export default function Bookmarks() {
   const total = data?.items?.length ?? 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <PageHeader
         icon={Bookmark}
         title="Bookmarks"
@@ -53,14 +57,15 @@ export default function Bookmarks() {
                 ))}
               </div>
               {/* Sort */}
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortOrder)}
-                className="text-xs rounded-md border border-border bg-secondary px-2 py-2 text-foreground"
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-              </select>
+              <Select value={sort} onValueChange={(v) => setSort(v as SortOrder)}>
+                <SelectTrigger className="text-xs h-8 w-32 border-border bg-secondary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           ) : undefined
         }
@@ -91,6 +96,22 @@ export default function Bookmarks() {
               ? "Click the bookmark icon on any news article to save it here for later."
               : "Try changing the scope filter."}
           </p>
+          {total === 0 && (
+            <div className="flex items-center gap-3 mt-2">
+              <Link href="/news/local">
+                <Button variant="outline" className="gap-2">
+                  <Newspaper className="h-4 w-4" />
+                  Browse Local News
+                </Button>
+              </Link>
+              <Link href="/advisories">
+                <Button variant="outline" className="gap-2">
+                  <Shield className="h-4 w-4" />
+                  Browse Advisories
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

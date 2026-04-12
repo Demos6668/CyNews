@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const PRODUCT_CATEGORIES = [
@@ -247,15 +248,16 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
                   placeholder="Version (optional)"
                   className="px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
                 />
-                <select
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, category: e.target.value }))}
-                  className="px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
-                >
-                  {PRODUCT_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                <Select value={newProduct.category} onValueChange={(v) => setNewProduct((p) => ({ ...p, category: v }))}>
+                  <SelectTrigger className="text-sm h-10 border-border bg-card">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 type="button"

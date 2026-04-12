@@ -1,6 +1,6 @@
 import { Shield, Calendar, ExternalLink } from "lucide-react";
 import { Card, Badge } from "@/components/ui/shared";
-import { formatRelative, stripHtml } from "@/lib/utils";
+import { formatDate, formatRelative, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import { IndiaBadge } from "./IndiaBadge";
 import type { ThreatIntelItem } from "@workspace/api-client-react";
@@ -99,7 +99,7 @@ export function ThreatCard({ item, onClick }: ThreatCardProps) {
           <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border/40">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              <span>{formatRelative(item.publishedAt)}</span>
+              <span title={formatDate(item.publishedAt)}>{formatRelative(item.publishedAt)}</span>
             </div>
             {links.sourceUrl ? (
               <a

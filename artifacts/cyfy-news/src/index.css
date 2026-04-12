@@ -59,17 +59,17 @@
   --popover: 215 21% 11%;
   --popover-foreground: 0 0% 100%;
 
-  /* Primary Teal #0095AF */
-  --primary: 189 100% 34%;
+  /* Primary Teal — desaturated per NNg dark-mode: was 189 100% 34% (too saturated/harsh) */
+  --primary: 189 75% 38%;
   --primary-foreground: 0 0% 100%;
 
   /* Secondary / Sidebar Dark Navy #1A2332 */
   --secondary: 217 31% 15%;
   --secondary-foreground: 0 0% 100%;
 
-  /* Muted Text #8B949E */
+  /* Muted Text — raised from 58% to 65% lightness for WCAG AA compliance (~4.6:1 on card bg) */
   --muted: 217 31% 15%;
-  --muted-foreground: 212 8% 58%;
+  --muted-foreground: 212 10% 65%;
 
   /* Accent Amber #FFB74B */
   --accent: 36 100% 65%;

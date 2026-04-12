@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -126,17 +127,18 @@ export function Pagination({
       {onItemsPerPageChange && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Per page:</span>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:border-primary outline-none"
-          >
-            {[...new Set([...PAGE_SIZE_OPTIONS, itemsPerPage])].sort((a, b) => a - b).map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <Select value={String(itemsPerPage)} onValueChange={(v) => onItemsPerPageChange(Number(v))}>
+            <SelectTrigger className="h-9 w-20 text-sm border-border bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[...new Set([...PAGE_SIZE_OPTIONS, itemsPerPage])].sort((a, b) => a - b).map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
     </div>

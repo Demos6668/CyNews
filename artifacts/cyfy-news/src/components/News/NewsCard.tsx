@@ -1,7 +1,7 @@
 import { Bookmark, Calendar, ExternalLink } from "lucide-react";
 import { IndiaBadge } from "@/components/Threats";
 import { Card, Badge } from "@/components/ui/shared";
-import { cn, formatRelative, stripHtml } from "@/lib/utils";
+import { cn, formatDate, formatRelative, stripHtml } from "@/lib/utils";
 import { SeverityBadge } from "@/components/Common";
 import type { NewsItem } from "@workspace/api-client-react";
 import { useToggleBookmark } from "@workspace/api-client-react";
@@ -81,7 +81,7 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
           <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border/50">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              <span>{formatRelative(item.publishedAt)}</span>
+              <span title={formatDate(item.publishedAt)}>{formatRelative(item.publishedAt)}</span>
             </div>
             {item.sourceUrl ? (
               <a

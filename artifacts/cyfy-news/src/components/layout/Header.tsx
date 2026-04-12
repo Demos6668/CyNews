@@ -111,7 +111,7 @@ export function Header() {
           <PopoverTrigger asChild>
             <button
               className="relative p-2 text-muted-foreground hover:text-white transition-colors rounded-full hover:bg-white/5"
-              aria-label="Notifications"
+              aria-label={criticalCount > 0 ? `Notifications — ${criticalCount} critical alert${criticalCount !== 1 ? "s" : ""}` : "Notifications"}
             >
               <Bell className="h-5 w-5" />
               {criticalCount > 0 && (
@@ -123,7 +123,7 @@ export function Header() {
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0 border-border/60">
             <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
-              <span className="text-sm font-semibold">Recent Activity</span>
+              <span className="text-sm font-semibold">Critical Alerts</span>
               {criticalCount > 0 && (
                 <span className="text-xs text-destructive font-medium">{criticalCount} critical</span>
               )}

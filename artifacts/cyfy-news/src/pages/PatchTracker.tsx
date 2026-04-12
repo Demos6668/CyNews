@@ -2,10 +2,13 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Wrench, ExternalLink, CheckCircle, AlertTriangle, Clock, ChevronDown } from "lucide-react";
 import { SeverityBadge } from "@/components/Common/SeverityBadge";
 import { Skeleton } from "@/components/ui/shared";
+import { Pagination } from "@/components/Common";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch as useWouterSearch } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const apiBase = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
 
@@ -40,6 +43,8 @@ function fetchPatches(params: {
   vendor: string;
   severity: string;
   page: number;
+  sortBy: "severity" | "cvss" | "published" | null;
+  sortDir: "asc" | "desc";
 }): Promise<PatchResponse> {
   const q = new URLSearchParams();
   if (params.patchStatus !== "all") q.set("patchStatus", params.patchStatus);
@@ -47,6 +52,7 @@ function fetchPatches(params: {
   if (params.severity) q.set("severity", params.severity);
   q.set("page", String(params.page));
   q.set("limit", "20");
+  if (params.sortBy) { q.set("sortBy", params.sortBy); q.set("sortDir", params.sortDir); }
   return fetch(`${apiBase}/advisories/patches?${q.toString()}`).then((r) => {
     if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
     return r.json() as Promise<PatchResponse>;
@@ -136,6 +142,7 @@ function StatusDropdown({
 }
 
 export default function PatchTracker() {
+  usePageTitle("Patch Tracker");
   const searchString = useWouterSearch();
   const openId = new URLSearchParams(searchString).get("open");
 
@@ -144,6 +151,8 @@ export default function PatchTracker() {
   const [vendorDraft, setVendorDraft] = useState("");
   const [severity, setSeverity] = useState("");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"severity" | "cvss" | "published" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [highlightId, setHighlightId] = useState<number | null>(openId ? Number(openId) : null);
   const highlightRef = useRef<HTMLTableRowElement>(null);
@@ -151,8 +160,8 @@ export default function PatchTracker() {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["patches", patchStatus, vendor, severity, page],
-    queryFn: () => fetchPatches({ patchStatus, vendor, severity, page }),
+    queryKey: ["patches", patchStatus, vendor, severity, page, sortBy, sortDir],
+    queryFn: () => fetchPatches({ patchStatus, vendor, severity, page, sortBy, sortDir }),
   });
 
   // Scroll to and highlight the deep-linked row
@@ -210,25 +219,40 @@ export default function PatchTracker() {
     }
   };
 
-  const resetFilters = () => {
-    setPatchStatus("all");
-    setVendor("");
-    setSeverity("");
+  const handleSort = (col: "severity" | "cvss" | "published") => {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
+    }
     setPage(1);
   };
 
+  const resetFilters = () => {
+    setPatchStatus("all");
+    setVendor("");
+    setVendorDraft("");
+    setSeverity("");
+    setPage(1);
+    setSortBy(null);
+    setSortDir("desc");
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="text-3xl font-bold font-sans tracking-tight flex items-center gap-3 glow-text">
-            <Wrench className="h-8 w-8 text-primary" /> Patch Tracker
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Track available patches and remediation status for security advisories.
-          </p>
-        </div>
+      <div className="border-b border-border pb-6">
+        <h1 className="text-3xl font-bold font-sans tracking-tight flex items-center gap-3 glow-text">
+          <Wrench className="h-8 w-8 text-primary" /> Patch Tracker
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Track available patches and remediation status for security advisories.
+        </p>
+      </div>
+
+      {/* Sticky filter bar */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Patch status filter */}
           <div className="flex p-1 rounded-lg border border-border bg-secondary/50 gap-0.5">
@@ -256,17 +280,18 @@ export default function PatchTracker() {
             className="text-xs rounded-md border border-border bg-secondary px-2 py-2 text-foreground placeholder:text-muted-foreground w-28"
           />
           {/* Severity filter */}
-          <select
-            value={severity}
-            onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
-            className="text-xs rounded-md border border-border bg-secondary px-2 py-2 text-foreground"
-          >
-            <option value="">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
+          <Select value={severity || "all"} onValueChange={(v) => { setSeverity(v === "all" ? "" : v); setPage(1); }}>
+            <SelectTrigger className="text-xs h-8 w-36 border-border bg-secondary">
+              <SelectValue placeholder="All Severities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Severities</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
           {(patchStatus !== "all" || vendor || severity) && (
             <button type="button" onClick={resetFilters} className="text-xs text-muted-foreground hover:text-foreground underline">
               Clear
@@ -317,9 +342,12 @@ export default function PatchTracker() {
 
       {/* Table */}
       {isError ? (
-        <div className="text-center py-20 text-destructive">
-          <AlertTriangle className="h-10 w-10 mx-auto mb-3" />
-          <p>Failed to load patches. Please try again.</p>
+        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load patches</h3>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            An unexpected error occurred. Please try again later.
+          </p>
         </div>
       ) : isLoading ? (
         <div className="space-y-2">
@@ -336,8 +364,8 @@ export default function PatchTracker() {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-white/5 bg-card/30 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-white/5 bg-card/30 overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
                 <th className="px-4 py-3 w-8">
@@ -350,15 +378,30 @@ export default function PatchTracker() {
                 </th>
                 <th className="text-left px-4 py-3">Advisory</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Vendor</th>
-                <th className="text-left px-4 py-3">Severity</th>
-                <th className="text-left px-4 py-3 hidden lg:table-cell">CVSS</th>
+                <th
+                  className="text-left px-4 py-3 cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort("severity")}
+                >
+                  Severity {sortBy === "severity" ? (sortDir === "desc" ? "↓" : "↑") : <span className="opacity-30">↕</span>}
+                </th>
+                <th
+                  className="text-left px-4 py-3 hidden lg:table-cell cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort("cvss")}
+                >
+                  CVSS {sortBy === "cvss" ? (sortDir === "desc" ? "↓" : "↑") : <span className="opacity-30">↕</span>}
+                </th>
                 <th className="text-left px-4 py-3">Patch</th>
                 <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3 hidden lg:table-cell">Published</th>
+                <th
+                  className="text-left px-4 py-3 hidden lg:table-cell cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort("published")}
+                >
+                  Published {sortBy === "published" ? (sortDir === "desc" ? "↓" : "↑") : <span className="opacity-30">↕</span>}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {data!.items.map((item, idx) => {
+              {(data?.items ?? []).map((item, idx) => {
                 const isHighlighted = item.id === highlightId;
                 const isSelected = selected.has(item.id);
                 return (
@@ -424,27 +467,16 @@ export default function PatchTracker() {
 
       {/* Pagination */}
       {(data?.totalPages ?? 0) > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1.5 text-xs rounded border border-border hover:bg-secondary disabled:opacity-40"
-          >
-            Previous
-          </button>
-          <span className="text-xs text-muted-foreground">
-            Page {page} of {data?.totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
-            disabled={page === (data?.totalPages ?? 1)}
-            className="px-3 py-1.5 text-xs rounded border border-border hover:bg-secondary disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
+        <Pagination
+          currentPage={page}
+          totalPages={data?.totalPages ?? 1}
+          totalItems={data?.total ?? 0}
+          itemsPerPage={20}
+          onPageChange={(p) => {
+            setPage(p);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
       )}
     </div>
   );

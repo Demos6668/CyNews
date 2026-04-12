@@ -106,6 +106,7 @@ async function ftsSearchSingleType(
   }
 
   if (type === "threat") {
+    // Fragment injects after the last AND condition, before ORDER BY
     const threatScopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
     const result = await executeWithStatementTimeout<{
       id: number; title: string; summary: string;
@@ -141,7 +142,7 @@ async function ftsSearchSingleType(
       }));
   }
 
-  // advisory
+  // advisory — fragment injects after the last AND condition, before ORDER BY
   const advisoryScopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
   const result = await executeWithStatementTimeout<{
     id: number; title: string; description: string;
@@ -357,7 +358,7 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
       throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
     }
 
-    const scope = query.scope as "local" | "global" | undefined;
+    const scope: "local" | "global" | undefined = query.scope;
     const cacheKey = `search:${query.q}:${query.type ?? ""}:${query.limit ?? 20}:${scope ?? ""}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) {

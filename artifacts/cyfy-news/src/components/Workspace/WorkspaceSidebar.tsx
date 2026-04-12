@@ -163,10 +163,10 @@ export function WorkspaceSidebar({
         <div className="p-4 border-t border-border">
           <button
             onClick={onCreateNew}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-primary/30 text-primary transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            Add Workspace
+            <Plus className="w-3.5 h-3.5" />
+            New workspace
           </button>
         </div>
       )}

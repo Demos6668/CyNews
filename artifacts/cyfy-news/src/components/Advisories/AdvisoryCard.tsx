@@ -61,7 +61,7 @@ export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showChec
                 {selected && <Check className="h-3 w-3" />}
               </button>
             )}
-            <CvssChip score={item.cvssScore} />
+            <CvssChip score={item.cvssScore} showLabel />
             <div className="min-w-0">
               <a
                 href={`https://nvd.nist.gov/vuln/detail/${item.cveId}`}

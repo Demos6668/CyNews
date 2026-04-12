@@ -2,11 +2,27 @@ import { useSearch } from "@workspace/api-client-react";
 import { useSearch as useWouterSearch } from "wouter";
 import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate, stripHtml } from "@/lib/utils";
-import { Search as SearchIcon, ChevronRight, AlertTriangle } from "lucide-react";
+import { Search as SearchIcon, ChevronRight, AlertTriangle, Clock } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { highlightMatch } from "@/lib/highlightMatch";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
+
+const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
+
+function getAgeLabel(publishedAt: string): string | null {
+  const ageMs = Date.now() - new Date(publishedAt).getTime();
+  if (ageMs < MS_PER_YEAR) return null;
+  const years = Math.floor(ageMs / MS_PER_YEAR);
+  return years === 1 ? "1 year old" : `${years} years old`;
+}
+
+function cleanSummary(summary: string | undefined | null): string {
+  const text = stripHtml(summary ?? "").trim();
+  if (/^information published\.?$/i.test(text)) return "";
+  return text;
+}
 
 type ResultType = "all" | "news" | "advisory" | "threat";
 
@@ -64,7 +80,9 @@ export default function Search() {
   const query = urlParams.get("q") || "";
   const scopeParam = urlParams.get("scope");
   const scope = scopeParam === "local" || scopeParam === "global" ? scopeParam : undefined;
-  const [typeFilter, setTypeFilter] = useState<ResultType>("all");
+  const typeFromUrl = urlParams.get("type") as ResultType;
+  const typeFilter: ResultType = (["all", "news", "advisory", "threat"] as ResultType[]).includes(typeFromUrl) ? typeFromUrl : "all";
+  usePageTitle(query ? `Search: ${query}` : "Search");
   const [displayLimit, setDisplayLimit] = useState(10);
 
   // Reset display limit when query or filter changes
@@ -130,7 +148,11 @@ export default function Search() {
             return (
               <button
                 key={value}
-                onClick={() => setTypeFilter(value)}
+                onClick={() => {
+                  const params = new URLSearchParams(searchString);
+                  if (value === "all") { params.delete("type"); } else { params.set("type", value); }
+                  setLocation(`/search?${params.toString()}`);
+                }}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
                   active
@@ -190,13 +212,29 @@ export default function Search() {
                       {result.severity?.toUpperCase() ?? "INFO"}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{formatDate(result.publishedAt)}</span>
+                    {(() => {
+                      const ageLabel = getAgeLabel(result.publishedAt);
+                      return ageLabel ? (
+                        <span className="flex items-center gap-1 text-[10px] font-medium text-amber-500/80 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                          <Clock className="h-2.5 w-2.5" />
+                          {ageLabel}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">
                     <HighlightedText text={result.title} query={query} />
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    <HighlightedText text={stripHtml(result.summary ?? "")} query={query} />
-                  </p>
+                  {(() => {
+                    const summary = cleanSummary(result.summary);
+                    return summary ? (
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        <HighlightedText text={summary} query={query} />
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground/50 italic">Details pending NVD processing</p>
+                    );
+                  })()}
                 </div>
                 <ChevronRight className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </div>
@@ -206,7 +244,7 @@ export default function Search() {
             <div className="flex justify-center pt-2">
               <button
                 onClick={() => setDisplayLimit((prev) => prev + 10)}
-                className="px-6 py-2 text-sm border border-border/60 hover:border-primary/40 hover:text-primary transition-colors"
+                className="px-6 py-2 text-sm border border-border/60 rounded-md hover:border-primary/40 hover:text-primary transition-colors"
               >
                 Load more ({filteredResults.length - displayLimit} remaining)
               </button>

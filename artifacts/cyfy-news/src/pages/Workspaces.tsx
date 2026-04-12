@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Building2, Globe, Plus, Trash2, Star, AlertTriangle } from "lucide-react";
+import { Building2, Globe, Plus, Trash2, Star, AlertTriangle, Calendar } from "lucide-react";
 import { useListWorkspaces, useDeleteWorkspace } from "@workspace/api-client-react";
 import { CreateWorkspaceModal } from "@/components/Workspace";
 import { useCreateWorkspace } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/shared";
 import { toast } from "sonner";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { useLocation } from "wouter";
 
 interface WorkspaceCard {
   id: string;
@@ -13,9 +15,12 @@ interface WorkspaceCard {
   domain: string;
   description?: string | null;
   isDefault?: boolean;
+  createdAt?: string | null;
 }
 
 export default function Workspaces() {
+  usePageTitle("Workspaces");
+  const [, setLocation] = useLocation();
   const [showCreate, setShowCreate] = useState(false);
   const { data: workspaces = [], isLoading, refetch } = useListWorkspaces();
   const { mutateAsync: createWs } = useCreateWorkspace();
@@ -60,6 +65,7 @@ export default function Workspaces() {
 
   const handleActivate = (ws: WorkspaceCard) => {
     window.dispatchEvent(new CustomEvent("cyfy:select-workspace", { detail: { id: ws.id } }));
+    setLocation("/");
   };
 
   if (isLoading) {
@@ -145,6 +151,13 @@ export default function Workspaces() {
 
               {ws.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{ws.description}</p>
+              )}
+
+              {ws.createdAt && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Created {new Date(ws.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                </p>
               )}
 
               <div className="flex items-center gap-2 mt-auto pt-2">

@@ -7,6 +7,7 @@ import { useLocation, useSearch } from "wouter";
 import { AlertTriangle, FileQuestion } from "lucide-react";
 import type { NewsItem, GetNewsScope } from "@workspace/api-client-react";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const NEWS_CATEGORY_OPTIONS = [
   "Ransomware",
@@ -27,7 +28,8 @@ const NEWS_CATEGORY_OPTIONS = [
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export default function NewsPage({ scope }: { scope: GetNewsScope }) {
-  const [, setLocation] = useLocation();
+  usePageTitle(scope === "local" ? "Local News" : "Global News");
+  const [pathname, setLocation] = useLocation();
   const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [severities, setSeverities] = useState<string[]>([]);
@@ -35,7 +37,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(undefined);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
@@ -159,7 +161,7 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const totalItems = data?.total ?? 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-sans tracking-tight capitalize">
@@ -180,37 +182,38 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
         </div>
       </div>
 
-      <FilterSection
-        variant="news"
-        severities={severities}
-        categories={categories}
-        categoryOptions={NEWS_CATEGORY_OPTIONS}
-        onToggleSeverity={toggleSeverity}
-        onToggleCategory={toggleCategory}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onDateChange={(from, to) => {
-          setDateFrom(from);
-          setDateTo(to);
-        }}
-        onApplyPreset={applyPreset}
-        onClearAll={clearFilters}
-        showFilters={showFilters}
-        onShowFiltersToggle={() => setShowFilters(!showFilters)}
-        activeCount={activeFilterCount}
-      />
-
-      {hasActiveFilters && (
-        <ActiveFilterBar
-          filters={[
-            ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
-            ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
-            ...(dateFrom ? [{ key: "dateFrom", label: `From ${dateFrom}`, color: "status" as const, onRemove: () => setDateFrom(undefined) }] : []),
-            ...(dateTo ? [{ key: "dateTo", label: `To ${dateTo}`, color: "status" as const, onRemove: () => setDateTo(undefined) }] : []),
-          ]}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 space-y-2">
+        <FilterSection
+          variant="news"
+          severities={severities}
+          categories={categories}
+          categoryOptions={NEWS_CATEGORY_OPTIONS}
+          onToggleSeverity={toggleSeverity}
+          onToggleCategory={toggleCategory}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateChange={(from, to) => {
+            setDateFrom(from);
+            setDateTo(to);
+          }}
+          onApplyPreset={applyPreset}
           onClearAll={clearFilters}
+          showFilters={showFilters}
+          onShowFiltersToggle={() => setShowFilters(!showFilters)}
+          activeCount={activeFilterCount}
         />
-      )}
+        {hasActiveFilters && (
+          <ActiveFilterBar
+            filters={[
+              ...severities.map((s): ActiveFilter => ({ key: `sev-${s}`, label: s.toUpperCase(), color: "severity", onRemove: () => toggleSeverity(s) })),
+              ...categories.map((c): ActiveFilter => ({ key: `cat-${c}`, label: c, color: "category", onRemove: () => toggleCategory(c) })),
+              ...(dateFrom ? [{ key: "dateFrom", label: `From ${dateFrom}`, color: "status" as const, onRemove: () => setDateFrom(undefined) }] : []),
+              ...(dateTo ? [{ key: "dateTo", label: `To ${dateTo}`, color: "status" as const, onRemove: () => setDateTo(undefined) }] : []),
+            ]}
+            onClearAll={clearFilters}
+          />
+        )}
+      </div>
 
       {isError ? (
         <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
@@ -249,7 +252,12 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
         <>
           <NewsList
             items={data?.items ?? []}
-            onItemClick={(item) => setSelectedItem(item)}
+            onItemClick={(item) => {
+              setSelectedItem(item);
+              const params = new URLSearchParams(searchString);
+              params.set("open", String(item.id));
+              setLocation(`${pathname}?${params.toString()}`);
+            }}
           />
           {totalPages >= 1 && (
             <Pagination
@@ -267,7 +275,13 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
       <NewsDetail
         item={selectedItem}
         isOpen={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => {
+          setSelectedItem(null);
+          const params = new URLSearchParams(searchString);
+          params.delete("open");
+          const qs = params.toString();
+          setLocation(`${pathname}${qs ? `?${qs}` : ""}`);
+        }}
       />
     </div>
   );

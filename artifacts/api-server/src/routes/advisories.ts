@@ -105,7 +105,7 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     const total = totalResult[0]?.count ?? 0;
     const totalCritical = criticalResult[0]?.count ?? 0;
     const totalHigh = highResult[0]?.count ?? 0;
-    const page = query.page ?? 1;
+    const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 
@@ -134,8 +134,10 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
     const timeframe = rawQuery.timeframe;
     const page = Math.max(1, parseInt(rawQuery.page ?? "1", 10));
     const limit = Math.min(parseInt(rawQuery.limit ?? "20", 10), 100);
+    const sortBy = rawQuery.sortBy as "severity" | "cvss" | "published" | undefined;
+    const sortDir = rawQuery.sortDir === "asc" ? "asc" : "desc";
 
-    const cacheKey = `patches:${patchStatus ?? ""}:${vendor ?? ""}:${severity ?? ""}:${timeframe ?? ""}:${page}:${limit}`;
+    const cacheKey = `patches:${patchStatus ?? ""}:${vendor ?? ""}:${severity ?? ""}:${timeframe ?? ""}:${page}:${limit}:${sortBy ?? ""}:${sortDir}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) { res.json(cached); return; }
 
@@ -144,9 +146,10 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
       or(eq(advisoriesTable.patchAvailable, true), eq(advisoriesTable.status, "patched")) as SQL,
     ];
 
-    if (patchStatus === "available") conditions.push(eq(advisoriesTable.patchAvailable, true), sql`${advisoriesTable.status} != 'patched'`);
+    if (patchStatus === "available") conditions.push(eq(advisoriesTable.patchAvailable, true), eq(advisoriesTable.status, "new"));
     else if (patchStatus === "applied") conditions.push(eq(advisoriesTable.status, "patched"));
-    else if (patchStatus === "pending") conditions.push(eq(advisoriesTable.patchAvailable, true), sql`${advisoriesTable.status} != 'patched'`);
+    // "pending" = patch is being actively reviewed/tested (under_review)
+    else if (patchStatus === "pending") conditions.push(eq(advisoriesTable.status, "under_review"));
 
     if (vendor) conditions.push(eq(advisoriesTable.vendor, vendor));
     if (severity) {
@@ -164,11 +167,24 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
     const total = totalResult?.count ?? 0;
     const offset = (page - 1) * limit;
 
+    const orderExpr: SQL = (() => {
+      const dir = sortDir === "asc" ? sql`ASC` : sql`DESC`;
+      if (sortBy === "cvss") return sql`${advisoriesTable.cvssScore} ${dir} NULLS LAST`;
+      if (sortBy === "published") return sql`${advisoriesTable.publishedAt} ${dir}`;
+      if (sortBy === "severity") return sql`CASE ${advisoriesTable.severity}
+        WHEN 'critical' THEN 4
+        WHEN 'high' THEN 3
+        WHEN 'medium' THEN 2
+        WHEN 'low' THEN 1
+        ELSE 0 END ${dir}`;
+      return sql`${advisoriesTable.publishedAt} DESC`;
+    })();
+
     const items = await db
       .select()
       .from(advisoriesTable)
       .where(where)
-      .orderBy(sql`${advisoriesTable.publishedAt} DESC`)
+      .orderBy(orderExpr)
       .limit(limit)
       .offset(offset);
 
@@ -275,7 +291,7 @@ router.get("/advisories", asyncHandler(async (req: Request, res: Response) => {
       .where(where);
 
     const total = totalResult?.count ?? 0;
-    const page = query.page ?? 1;
+    const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(query.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 

@@ -76,8 +76,11 @@ export function ActivityStream({ items, initialLimit = 8 }: ActivityStreamProps)
                   <p className="text-sm font-medium text-white truncate">
                     {activity.title}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                     {activity.type.toUpperCase()}
+                    <span className="font-semibold capitalize" style={{ color: dot }}>
+                      {activity.severity}
+                    </span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
