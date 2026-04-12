@@ -197,13 +197,16 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
  * Returns daily critical/high/medium/low counts for the last 7 days.
  * Lightweight endpoint — no Zod validation, 5-minute cache.
  */
-router.get("/dashboard/severity-trend", asyncHandler(async (_req: Request, res: Response) => {
-  const cacheKey = "dashboard:severity-trend:7d";
+router.get("/dashboard/severity-trend", asyncHandler(async (req: Request, res: Response) => {
+  const scope = req.query.scope as string | undefined;
+  const cacheKey = `dashboard:severity-trend:7d:${scope ?? "all"}`;
   const cached = apiCache.get<object>(cacheKey);
   if (cached) { res.json(cached); return; }
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const scopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
 
   const [newsRows, threatRows] = await Promise.all([
     db.execute<{ day: string; severity: string; cnt: number }>(sql`
@@ -211,7 +214,7 @@ router.get("/dashboard/severity-trend", asyncHandler(async (_req: Request, res: 
              severity,
              count(*)::int AS cnt
       FROM news_items
-      WHERE published_at >= ${sevenDaysAgo}
+      WHERE published_at >= ${sevenDaysAgo} ${scopeFilter}
       GROUP BY 1, 2
     `),
     db.execute<{ day: string; severity: string; cnt: number }>(sql`
@@ -219,7 +222,7 @@ router.get("/dashboard/severity-trend", asyncHandler(async (_req: Request, res: 
              severity,
              count(*)::int AS cnt
       FROM threat_intel
-      WHERE published_at >= ${sevenDaysAgo}
+      WHERE published_at >= ${sevenDaysAgo} ${scopeFilter}
       GROUP BY 1, 2
     `),
   ]);

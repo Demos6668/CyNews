@@ -200,7 +200,7 @@ export async function matchThreatsToWorkspace(workspaceId: string): Promise<Thre
   const INSERT_CHUNK_SIZE = 50;
   for (let index = 0; index < newMatches.length; index += INSERT_CHUNK_SIZE) {
     const chunk = newMatches.slice(index, index + INSERT_CHUNK_SIZE);
-    await db.insert(workspaceThreatMatchesTable).values(chunk);
+    await db.insert(workspaceThreatMatchesTable).values(chunk).onConflictDoNothing();
   }
 
   const durationMs = Date.now() - startedAt;

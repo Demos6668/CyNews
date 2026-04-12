@@ -85,7 +85,7 @@ router.get("/threats/export", asyncHandler(async (req: Request, res: Response) =
 
     const where = (conditions.length > 0 ? and(...conditions) : sql`true`) ?? sql`true`;
 
-    const MAX_EXPORT_ROWS = 10_000;
+    const MAX_EXPORT_ROWS = 500;
     const items = await db
       .select()
       .from(threatIntelTable)

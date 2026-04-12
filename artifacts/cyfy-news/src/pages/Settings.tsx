@@ -68,6 +68,8 @@ export default function Settings() {
 
   // Local draft state for profile fields (save on button click)
   const [profileNameDraft, setProfileNameDraft] = useState(profileName);
+  // Local draft for refreshInterval — committed on blur to avoid writing on every keystroke
+  const [refreshIntervalDraft, setRefreshIntervalDraft] = useState(refreshInterval);
   const [departmentDraft, setDepartmentDraft] = useState(department);
 
   const tabs = [
@@ -253,8 +255,13 @@ export default function Settings() {
                       type="number"
                       min={10}
                       max={300}
-                      value={refreshInterval}
-                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                      value={refreshIntervalDraft}
+                      onChange={(e) => setRefreshIntervalDraft(Number(e.target.value))}
+                      onBlur={() => {
+                        const clamped = Math.min(300, Math.max(10, refreshIntervalDraft));
+                        setRefreshIntervalDraft(clamped);
+                        setRefreshInterval(clamped);
+                      }}
                       className="w-24 text-center"
                     />
                   </div>

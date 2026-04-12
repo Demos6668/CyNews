@@ -140,6 +140,7 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
     if (cached) { res.json(cached); return; }
 
     const conditions: SQL[] = [
+      displayableAdvisorySql,
       or(eq(advisoriesTable.patchAvailable, true), eq(advisoriesTable.status, "patched")) as SQL,
     ];
 
@@ -193,7 +194,7 @@ router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, r
     }
     const { patchAvailable, patchUrl, status } = parsed.data;
 
-    const updateFields: Partial<typeof advisoriesTable.$inferInsert> = {};
+    const updateFields: Partial<typeof advisoriesTable.$inferInsert> = { updatedAt: new Date() };
     if (patchAvailable !== undefined) updateFields.patchAvailable = patchAvailable;
     if (patchUrl !== undefined) updateFields.patchUrl = patchUrl ?? null;
     if (status) updateFields.status = status;

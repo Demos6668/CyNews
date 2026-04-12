@@ -42,7 +42,11 @@ export default function ThreatIntel() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
 
+  // Hydrate filter state from URL once on mount only.
+  const hydratedRef = useRef(false);
   useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     const initial = getInitialFiltersFromUrl(searchString);
     if (
       initial.severities.length ||

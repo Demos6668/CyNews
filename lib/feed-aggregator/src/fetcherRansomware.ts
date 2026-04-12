@@ -3,7 +3,7 @@
  */
 
 import { db, threatIntelTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
 import { fetchWithTimeout } from "./fetchWithTimeout";
@@ -28,21 +28,42 @@ export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<voi
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as RansomwareVictim[];
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    let added = 0;
-    for (const v of (data ?? []).slice(0, 30)) {
+
+    // Filter by date before hitting the DB
+    const eligible = (data ?? []).slice(0, 30).filter((v) => {
       const pubDate = v.published ? new Date(v.published) : new Date(v.discovered ?? Date.now());
-      if (pubDate.getTime() < weekAgo) continue;
+      return pubDate.getTime() >= weekAgo;
+    });
+
+    if (eligible.length === 0) return;
+
+    // Pre-compute sourceUrls so we can batch-lookup in one query
+    const eligibleWithUrl = eligible.map((v) => {
       const victimName = v.post_title ?? "Unknown";
       const sourceUrl = v.post_url && v.post_url.startsWith("http")
         ? v.post_url
         : `https://www.ransomware.live/#/group/${encodeURIComponent(v.group_name ?? "unknown")}?v=${encodeURIComponent(victimName)}`;
-      const existing = await db.select({ id: threatIntelTable.id }).from(threatIntelTable).where(eq(threatIntelTable.sourceUrl, sourceUrl)).limit(1);
-      if (existing.length > 0) continue;
+      return { v, victimName, sourceUrl };
+    });
+
+    // Batch-check existing records in a single query instead of N individual SELECTs
+    const sourceUrls = eligibleWithUrl.map((e) => e.sourceUrl);
+    const existingRows = await db
+      .select({ sourceUrl: threatIntelTable.sourceUrl })
+      .from(threatIntelTable)
+      .where(inArray(threatIntelTable.sourceUrl, sourceUrls));
+    const existingSet = new Set(existingRows.map((r) => r.sourceUrl));
+
+    // Build new inserts without any per-item DB queries
+    const toInsert: (typeof threatIntelTable.$inferInsert)[] = [];
+    for (const { v, victimName, sourceUrl } of eligibleWithUrl) {
+      if (existingSet.has(sourceUrl)) continue;
+      const pubDate = v.published ? new Date(v.published) : new Date(v.discovered ?? Date.now());
       let scope = detectScopeFromCountry(v.country);
       const fullText = `${victimName} ${v.group_name} ${v.description ?? ""} ${v.country ?? ""}`;
       const indiaDetails = indiaDetector.getIndiaDetails(fullText, { country: v.country });
       if (indiaDetails.isIndia) scope = "local";
-      await db.insert(threatIntelTable).values({
+      toInsert.push({
         title: `Ransomware: ${victimName} by ${v.group_name}`,
         summary: `${victimName} attacked by ${v.group_name}${v.country ? `. Country: ${v.country}` : ""}`,
         description: (v.description ?? `Victim: ${victimName}\nGroup: ${v.group_name}\nCountry: ${v.country ?? "Unknown"}`).slice(0, 5000),
@@ -60,11 +81,14 @@ export async function fetchRansomwareLive(result: FeedUpdateResult): Promise<voi
         references: [],
         status: "active",
         publishedAt: pubDate,
-      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
-      added++;
+      });
     }
-    result.ransomwareLive += added;
-    if (added > 0) logger.info(`[Ransomware.live] ${added} new items`);
+
+    if (toInsert.length > 0) {
+      await db.insert(threatIntelTable).values(toInsert).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
+    }
+    result.ransomwareLive += toInsert.length;
+    if (toInsert.length > 0) logger.info(`[Ransomware.live] ${toInsert.length} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "Ransomware.live", error: msg });

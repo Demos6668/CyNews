@@ -3,7 +3,7 @@
  */
 
 import { db, threatIntelTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
 import { fetchWithTimeout } from "./fetchWithTimeout";
@@ -19,11 +19,22 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { urls?: Array<{ id: string; url: string; threat?: string; date_added?: string; url_info_from_api?: { host?: string } }> };
     const urls = data.urls ?? [];
-    let added = 0;
+
+    if (urls.length === 0) return;
+
+    // Batch-check existing records in a single query instead of N individual SELECTs
+    const sourceUrls = urls.map((u) => `https://urlhaus.abuse.ch/url/${u.id}/`);
+    const existingRows = await db
+      .select({ sourceUrl: threatIntelTable.sourceUrl })
+      .from(threatIntelTable)
+      .where(inArray(threatIntelTable.sourceUrl, sourceUrls));
+    const existingSet = new Set(existingRows.map((r) => r.sourceUrl));
+
+    // Build new inserts without any per-item DB queries
+    const toInsert: (typeof threatIntelTable.$inferInsert)[] = [];
     for (const u of urls) {
       const sourceUrl = `https://urlhaus.abuse.ch/url/${u.id}/`;
-      const existing = await db.select({ id: threatIntelTable.id }).from(threatIntelTable).where(eq(threatIntelTable.sourceUrl, sourceUrl)).limit(1);
-      if (existing.length > 0) continue;
+      if (existingSet.has(sourceUrl)) continue;
       const host = u.url_info_from_api?.host ?? new URL(u.url).hostname;
       const title = `Malicious URL: ${u.url.slice(0, 60)}...`;
       const summary = `Threat: ${u.threat ?? "malware"}. Host: ${host}`;
@@ -31,7 +42,7 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
       const indiaDetails = indiaDetector.getIndiaDetails(`${title} ${summary} ${description}`);
       const isIndiaDomain = host.endsWith(".in") || host.includes(".gov.in") || host.includes(".co.in");
       const isIndia = indiaDetails.isIndia || isIndiaDomain;
-      await db.insert(threatIntelTable).values({
+      toInsert.push({
         title,
         summary,
         description,
@@ -50,11 +61,14 @@ export async function fetchURLhaus(result: FeedUpdateResult): Promise<void> {
         references: [],
         status: "active",
         publishedAt: u.date_added ? new Date(u.date_added) : new Date(),
-      }).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
-      added++;
+      });
     }
-    result.urlhaus += added;
-    if (added > 0) logger.info(`[URLhaus] ${added} new items`);
+
+    if (toInsert.length > 0) {
+      await db.insert(threatIntelTable).values(toInsert).onConflictDoNothing({ target: threatIntelTable.sourceUrl });
+    }
+    result.urlhaus += toInsert.length;
+    if (toInsert.length > 0) logger.info(`[URLhaus] ${toInsert.length} new items`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push({ source: "URLhaus", error: msg });

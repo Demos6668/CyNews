@@ -54,7 +54,7 @@ function markPatched(id: number, status: string): Promise<void> {
   return fetch(`${apiBase}/advisories/${id}/patch-status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, patchAvailable: status !== "patched" }),
+    body: JSON.stringify({ status }),
   }).then((r) => {
     if (!r.ok) throw new Error("Failed to update status");
   });

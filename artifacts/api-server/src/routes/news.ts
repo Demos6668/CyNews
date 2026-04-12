@@ -109,7 +109,8 @@ router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response)
       .select()
       .from(newsItemsTable)
       .where(eq(newsItemsTable.bookmarked, true))
-      .orderBy(sql`${newsItemsTable.publishedAt} DESC`);
+      .orderBy(sql`${newsItemsTable.publishedAt} DESC`)
+      .limit(100);
 
     const data = GetBookmarkedNewsResponse.parse({
       items: items.map(formatNewsItem),

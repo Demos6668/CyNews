@@ -24,6 +24,8 @@ const NEWS_CATEGORY_OPTIONS = [
   "Disinformation",
 ];
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+
 export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
@@ -37,7 +39,13 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  // Hydrate filter state from URL once on mount only.
+  // Using a ref guard prevents re-running when useFilterParamsSync writes back to the URL,
+  // which would otherwise cause an extra render cycle.
+  const hydratedRef = useRef(false);
   useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     const initial = getInitialFiltersFromUrl(searchString);
     if (
       initial.severities.length ||
@@ -105,13 +113,19 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     limit,
   });
 
-  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
+  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID).
+  // Falls back to a direct fetch if the item isn't in the current page.
   useEffect(() => {
     const openId = new URLSearchParams(searchString).get("open");
-    if (!openId || !data?.items?.length) return;
+    if (!openId) return;
     const id = parseInt(openId, 10);
-    const match = data.items.find((n) => n.id === id);
-    if (match) setSelectedItem(match);
+    if (isNaN(id)) return;
+    const inPage = data?.items?.find((n) => n.id === id);
+    if (inPage) { setSelectedItem(inPage); return; }
+    fetch(`${API_BASE}/news/${id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((item: NewsItem | null) => { if (item) setSelectedItem(item); })
+      .catch(() => undefined);
   }, [data?.items, searchString]);
 
   const activeFilterCount =

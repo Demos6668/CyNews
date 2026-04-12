@@ -3,6 +3,7 @@
  * Fetches advisories from RSS feeds and optionally enriches with full page content.
  */
 
+import { createHash } from "node:crypto";
 import Parser from "rss-parser";
 import { load } from "cheerio";
 import { logger } from "./logger";
@@ -72,7 +73,8 @@ function extractAdvisoryId(url: string, title?: string): string {
   const titleMatch = title?.match(/CIVA-\d{4}-\d+|CIAD-\d{4}-\d+|CISA-\d{4}-\d+|CIVN-\d{4}-\d+/i);
   if (titleMatch) return titleMatch[0].toUpperCase();
 
-  return `CERTIN-${Date.now()}`;
+  // Use a URL-derived hash for a stable fallback (Date.now() would change across runs causing duplicates)
+  return `CERTIN-${createHash("sha1").update(url).digest("hex").slice(0, 8).toUpperCase()}`;
 }
 
 function categorizeAdvisory(advisoryId: string, title?: string): string {
