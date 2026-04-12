@@ -43,7 +43,7 @@ export default function Advisories() {
   const [statuses, setStatuses] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(true);
-  const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
   const [scope, setScope] = useState<"local" | "global">("global");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);

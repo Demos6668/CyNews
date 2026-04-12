@@ -37,7 +37,7 @@ export default function ThreatIntel() {
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [groupBy, setGroupBy] = useState<string | undefined>(undefined);
-  const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
   const [scope, setScope] = useState<"local" | "global">("global");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);

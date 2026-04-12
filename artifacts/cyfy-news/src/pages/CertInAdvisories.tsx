@@ -16,7 +16,7 @@ export default function CertInAdvisories() {
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkEmailExportOpen, setBulkEmailExportOpen] = useState(false);
-  const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const [timeframe, setTimeframe] = useState<TimeframeValue>("7d");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
