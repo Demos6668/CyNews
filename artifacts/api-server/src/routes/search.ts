@@ -56,14 +56,17 @@ async function executeWithStatementTimeout<T extends Record<string, unknown>>(
   });
 }
 
+/** PostgreSQL tsquery reserved words — treated as boolean operators, not lexemes. */
+const RESERVED_TSQUERY_WORDS = new Set(["and", "or", "not"]);
+
 /** Convert a user query into a PostgreSQL tsquery string.
- *  Splits on whitespace, strips non-alphanumeric chars, joins with &. */
+ *  Splits on whitespace, strips non-alphanumeric chars, filters reserved words, joins with &. */
 function toTsQuery(input: string): string {
   const terms = input
     .trim()
     .split(/\s+/)
     .map((t) => t.replace(/[^\w-]/g, ""))
-    .filter((t) => t.length >= 2);
+    .filter((t) => t.length >= 2 && !RESERVED_TSQUERY_WORDS.has(t.toLowerCase()));
   if (terms.length === 0) return "";
   return terms.map((t) => `${t}:*`).join(" & ");
 }
@@ -72,8 +75,10 @@ async function ftsSearchSingleType(
   type: "news" | "threat" | "advisory",
   tsQuery: string,
   limit: number,
+  scope?: "local" | "global",
 ): Promise<SearchResultItem[]> {
   if (type === "news") {
+    const scopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
     const result = await executeWithStatementTimeout<{
       id: number; title: string; summary: string; type: string;
       severity: string; source: string; scope: string; published_at: Date; rank: number;
@@ -89,6 +94,7 @@ async function ftsSearchSingleType(
         setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(summary, '')), 'B')
       ) @@ to_tsquery('english', ${tsQuery})
+      ${scopeFilter}
       ORDER BY rank DESC, published_at DESC
       LIMIT ${limit}
     `);
@@ -171,8 +177,17 @@ async function ilikeSearchSingleType(
   type: "news" | "threat" | "advisory",
   searchTerm: string,
   limit: number,
+  scope?: "local" | "global",
 ): Promise<SearchResultItem[]> {
   if (type === "news") {
+    const textFilter = or(
+      ilike(newsItemsTable.title, searchTerm),
+      ilike(newsItemsTable.summary, searchTerm),
+      ilike(newsItemsTable.source, searchTerm),
+    );
+    const whereClause = scope
+      ? and(textFilter, sql`${newsItemsTable.scope} = ${scope}`)
+      : textFilter;
     const rows = await db
       .select({
         id: newsItemsTable.id, title: newsItemsTable.title,
@@ -182,11 +197,7 @@ async function ilikeSearchSingleType(
         publishedAt: newsItemsTable.publishedAt,
       })
       .from(newsItemsTable)
-      .where(or(
-        ilike(newsItemsTable.title, searchTerm),
-        ilike(newsItemsTable.summary, searchTerm),
-        ilike(newsItemsTable.source, searchTerm),
-      ))
+      .where(whereClause)
       .orderBy(sql`${newsItemsTable.publishedAt} DESC`)
       .limit(limit);
 
@@ -264,16 +275,17 @@ async function searchSingleType(
   rawQuery: string,
   searchTerm: string,
   limit: number,
+  scope?: "local" | "global",
 ): Promise<SearchResultItem[]> {
   const tsQuery = rawQuery.length >= FTS_MIN_LENGTH ? toTsQuery(rawQuery) : "";
   const useFts = tsQuery.length > 0;
 
   if (!useFts) {
-    return ilikeSearchSingleType(type, searchTerm, limit);
+    return ilikeSearchSingleType(type, searchTerm, limit, scope);
   }
 
   try {
-    const results = await ftsSearchSingleType(type, tsQuery, limit);
+    const results = await ftsSearchSingleType(type, tsQuery, limit, scope);
     if (results.length > 0) {
       return results;
     }
@@ -285,7 +297,7 @@ async function searchSingleType(
     }
   }
 
-  return ilikeSearchSingleType(type, searchTerm, limit);
+  return ilikeSearchSingleType(type, searchTerm, limit, scope);
 }
 
 /** Deduplicate results by normalized title within each type.
@@ -305,11 +317,12 @@ async function searchAllTypes(
   rawQuery: string,
   searchTerm: string,
   limit: number,
+  scope?: "local" | "global",
 ): Promise<SearchResultItem[]> {
   // Fetch 2× per type so the merge/rank step has enough candidates after dedup
   const typeLimit = limit * 2;
   const [newsResults, threatResults, advisoryResults] = await Promise.all([
-    searchSingleType("news", rawQuery, searchTerm, typeLimit),
+    searchSingleType("news", rawQuery, searchTerm, typeLimit, scope),
     searchSingleType("threat", rawQuery, searchTerm, typeLimit),
     searchSingleType("advisory", rawQuery, searchTerm, typeLimit),
   ]);
@@ -331,7 +344,8 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
       throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
     }
 
-    const cacheKey = `search:${query.q}:${query.type ?? ""}:${query.limit ?? 20}`;
+    const scope = query.scope as "local" | "global" | undefined;
+    const cacheKey = `search:${query.q}:${query.type ?? ""}:${query.limit ?? 20}:${scope ?? ""}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) {
       logger.debug({ query: query.q, type: query.type ?? "all", durationMs: Date.now() - startedAt }, "search cache hit");
@@ -348,9 +362,10 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     if (query.type) {
       const t = query.type as "news" | "threat" | "advisory";
       // Fetch extra to absorb dedup losses within a single type
-      results = await searchSingleType(t, query.q, searchTerm, limit * 2);
+      const typeScope = t === "news" ? scope : undefined;
+      results = await searchSingleType(t, query.q, searchTerm, limit * 2, typeScope);
     } else {
-      results = await searchAllTypes(query.q, searchTerm, limit);
+      results = await searchAllTypes(query.q, searchTerm, limit, scope);
     }
 
     const deduped = deduplicateResults(results).slice(0, limit);

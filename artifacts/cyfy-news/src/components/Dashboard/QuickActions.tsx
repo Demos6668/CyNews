@@ -8,7 +8,8 @@ interface QuickActionsProps {
 
 export function QuickActions({ className }: QuickActionsProps) {
   const [location, setLocation] = useLocation();
-  const scope = location === "/news/global" ? "global" : "local";
+  const scope: "local" | "global" | null =
+    location === "/news/local" ? "local" : location === "/news/global" ? "global" : null;
 
   return (
     <div

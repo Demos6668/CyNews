@@ -110,11 +110,20 @@ export function RecentlyViewedDrawer({
 
                 return (
                   <li key={`${item.type}-${item.id}`}>
-                    <button
-                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group flex items-start gap-3"
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group flex items-start gap-3 cursor-pointer"
                       onClick={() => {
                         onSelect(item);
                         onClose();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelect(item);
+                          onClose();
+                        }
                       }}
                     >
                       <div className="mt-0.5 shrink-0 relative">
@@ -147,7 +156,7 @@ export function RecentlyViewedDrawer({
                       >
                         <X className="h-3 w-3" />
                       </button>
-                    </button>
+                    </div>
                   </li>
                 );
               })}

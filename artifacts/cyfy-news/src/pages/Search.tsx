@@ -60,14 +60,17 @@ function HighlightedText({ text, query, className }: HighlightedTextProps) {
 export default function Search() {
   const [, setLocation] = useLocation();
   const searchString = useWouterSearch();
-  const query = new URLSearchParams(searchString).get("q") || "";
+  const urlParams = new URLSearchParams(searchString);
+  const query = urlParams.get("q") || "";
+  const scopeParam = urlParams.get("scope");
+  const scope = scopeParam === "local" || scopeParam === "global" ? scopeParam : undefined;
   const [typeFilter, setTypeFilter] = useState<ResultType>("all");
   const [displayLimit, setDisplayLimit] = useState(10);
 
   // Reset display limit when query or filter changes
   useEffect(() => { setDisplayLimit(10); }, [query, typeFilter]);
 
-  const searchParams = { q: query };
+  const searchParams = scope ? { q: query, scope } : { q: query };
   const { data, isLoading, isError, error } = useSearch(searchParams, {
     query: {
       enabled: query.length > 0,
@@ -111,7 +114,9 @@ export default function Search() {
         </h1>
         {!isLoading && !isError && (
           <span className="text-sm text-muted-foreground">
-            {countByType.all} result{countByType.all !== 1 ? "s" : ""}
+            {countByType.all >= 20
+              ? `Showing top ${countByType.all} results`
+              : `${countByType.all} result${countByType.all !== 1 ? "s" : ""}`}
           </span>
         )}
       </div>

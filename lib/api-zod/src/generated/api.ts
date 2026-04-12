@@ -695,6 +695,7 @@ export const SearchQueryParams = zod.object({
   q: zod.coerce.string(),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   limit: zod.coerce.number().default(searchQueryLimitDefault),
+  scope: zod.enum(["local", "global"]).optional(),
 });
 
 export const SearchResponse = zod.object({
