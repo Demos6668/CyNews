@@ -18,6 +18,7 @@ export function NewsCard({ item, onClick }: NewsCardProps) {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["/api/news"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/news/bookmarked"] });
       },
     },
   });

@@ -226,6 +226,8 @@ router.post("/news", asyncHandler(async (req: Request, res: Response) => {
       })
       .returning();
 
+    apiCache.invalidate("news:");
+    apiCache.invalidate("dashboard:");
     const data = GetNewsByIdResponse.parse(formatNewsItem(inserted));
     res.status(201).json(data);
 }));
@@ -271,6 +273,8 @@ router.put("/news/:id", asyncHandler(async (req: Request, res: Response) => {
       .where(eq(newsItemsTable.id, id))
       .returning();
 
+    apiCache.invalidate("news:");
+    apiCache.invalidate("dashboard:");
     const data = GetNewsByIdResponse.parse(formatNewsItem(updated));
     res.json(data);
 }));
@@ -288,6 +292,8 @@ router.delete("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     }
 
     await db.delete(newsItemsTable).where(eq(newsItemsTable.id, params.id));
+    apiCache.invalidate("news:");
+    apiCache.invalidate("dashboard:");
     res.status(204).send();
 }));
 
@@ -309,6 +315,7 @@ router.post("/news/:id/bookmark", asyncHandler(async (req: Request, res: Respons
       .where(eq(newsItemsTable.id, params.id))
       .returning();
 
+    apiCache.invalidate("news:");
     const data = ToggleBookmarkResponse.parse({
       id: updated.id,
       bookmarked: updated.bookmarked,

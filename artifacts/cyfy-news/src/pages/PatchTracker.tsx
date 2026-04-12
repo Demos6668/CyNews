@@ -47,7 +47,10 @@ function fetchPatches(params: {
   if (params.severity) q.set("severity", params.severity);
   q.set("page", String(params.page));
   q.set("limit", "20");
-  return fetch(`${apiBase}/advisories/patches?${q.toString()}`).then((r) => r.json());
+  return fetch(`${apiBase}/advisories/patches?${q.toString()}`).then((r) => {
+    if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
+    return r.json() as Promise<PatchResponse>;
+  });
 }
 
 function markPatched(id: number, status: string): Promise<void> {
@@ -138,6 +141,7 @@ export default function PatchTracker() {
 
   const [patchStatus, setPatchStatus] = useState<PatchStatus>("all");
   const [vendor, setVendor] = useState("");
+  const [vendorDraft, setVendorDraft] = useState("");
   const [severity, setSeverity] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -168,7 +172,7 @@ export default function PatchTracker() {
 
   const handleStatusChange = useCallback(
     (id: number, status: string) => mutation.mutate({ id, status }),
-    [mutation],
+    [mutation.mutate],
   );
 
   const handleBulkAction = useCallback(
@@ -240,8 +244,10 @@ export default function PatchTracker() {
           {/* Vendor filter */}
           <input
             type="text"
-            value={vendor}
-            onChange={(e) => { setVendor(e.target.value); setPage(1); }}
+            value={vendorDraft}
+            onChange={(e) => setVendorDraft(e.target.value)}
+            onBlur={() => { setVendor(vendorDraft); setPage(1); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { setVendor(vendorDraft); setPage(1); } }}
             placeholder="Vendor..."
             className="text-xs rounded-md border border-border bg-secondary px-2 py-2 text-foreground placeholder:text-muted-foreground w-28"
           />

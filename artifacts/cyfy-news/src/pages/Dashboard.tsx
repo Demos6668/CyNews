@@ -8,7 +8,7 @@ import { LayoutDashboard } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { NewsCard, NewsDetail } from "@/components/News";
 import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream, IndiaStatsPanel, SeverityTrendChart } from "@/components/Dashboard";
-import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
+import { TimeframeSelector, TabSwitch, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { usePreference } from "@/hooks/usePreferences";
 
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [refreshInterval] = usePreference("refreshInterval");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
+  const [scope, setScope] = useState<"local" | "global">("global");
   const pollMs = autoRefresh ? refreshInterval * 1000 : false;
   const statsParams = { timeframe };
   const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
@@ -87,6 +88,7 @@ export default function Dashboard() {
           <>
             <RefreshCountdown nextUpdate={nextUpdate} isRefreshing={isRefreshing} />
             <FeedStatus />
+            <TabSwitch value={scope} onChange={setScope} showIndiaLabel />
             <TimeframeSelector value={timeframe} onChange={setTimeframe} />
             <QuickActions />
           </>
@@ -216,7 +218,7 @@ export default function Dashboard() {
 
       <ActivityStream items={stats?.recentActivity ?? []} />
 
-      <SeverityTrendChart />
+      <SeverityTrendChart scope={scope} />
 
       <NewsDetail
         item={selectedNews}

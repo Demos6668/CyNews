@@ -327,15 +327,16 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     const startedAt = Date.now();
     const query = SearchQueryParams.parse(req.query);
 
+    if (query.q.length < MIN_SEARCH_LENGTH || query.q.length > MAX_SEARCH_LENGTH) {
+      throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
+    }
+
     const cacheKey = `search:${query.q}:${query.type ?? ""}:${query.limit ?? 20}`;
     const cached = apiCache.get<object>(cacheKey);
     if (cached) {
       logger.debug({ query: query.q, type: query.type ?? "all", durationMs: Date.now() - startedAt }, "search cache hit");
       res.json(cached);
       return;
-    }
-    if (query.q.length < MIN_SEARCH_LENGTH || query.q.length > MAX_SEARCH_LENGTH) {
-      throw new ValidationError(`Search query must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters`);
     }
 
     const limit = Math.min(query.limit ?? 20, 100);

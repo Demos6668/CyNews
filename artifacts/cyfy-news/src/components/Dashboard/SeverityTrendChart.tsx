@@ -14,10 +14,15 @@ interface TrendDay {
 
 const apiBase = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
 
-function useSeverityTrend() {
+function useSeverityTrend(scope?: string) {
   return useQuery<{ days: TrendDay[] }>({
-    queryKey: ["severity-trend"],
-    queryFn: () => fetch(`${apiBase}/dashboard/severity-trend`).then((r) => r.json()),
+    queryKey: ["severity-trend", scope ?? "all"],
+    queryFn: () => {
+      const url = scope
+        ? `${apiBase}/dashboard/severity-trend?scope=${encodeURIComponent(scope)}`
+        : `${apiBase}/dashboard/severity-trend`;
+      return fetch(url).then((r) => r.json());
+    },
     staleTime: 5 * 60_000,
   });
 }
@@ -27,8 +32,8 @@ function formatDay(dateStr: string) {
   return d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
 }
 
-export function SeverityTrendChart() {
-  const { data, isLoading } = useSeverityTrend();
+export function SeverityTrendChart({ scope }: { scope?: string }) {
+  const { data, isLoading } = useSeverityTrend(scope);
 
   if (isLoading) return <Skeleton className="h-56 w-full" />;
   if (!data?.days.length) return null;

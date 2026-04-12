@@ -22,8 +22,8 @@ export function highlightMatch(text: string, query: string): MatchSegment[] {
 
   return parts
     .filter((p) => p.length > 0)
-    .map((part) => ({
-      text: part,
-      highlight: regex.test(part),
-    }));
+    .map((part) => {
+      regex.lastIndex = 0;
+      return { text: part, highlight: regex.test(part) };
+    });
 }

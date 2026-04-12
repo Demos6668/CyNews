@@ -17,6 +17,8 @@ import type { ThreatIntelItem } from "@workspace/api-client-react";
 import { ThreatCard, ThreatModal, ThreatTimeline, ThreatGroupView } from "@/components/Threats";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+
 const THREAT_CATEGORY_OPTIONS = [
   "Ransomware",
   "Vulnerability Exploitation",
@@ -109,10 +111,15 @@ export default function ThreatIntel() {
   // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
   useEffect(() => {
     const openId = new URLSearchParams(searchString).get("open");
-    if (!openId || !data?.items?.length) return;
+    if (!openId) return;
     const id = parseInt(openId, 10);
-    const match = data.items.find((t) => t.id === id);
-    if (match) setSelectedItem(match);
+    if (isNaN(id)) return;
+    const inPage = data?.items?.find((t) => t.id === id);
+    if (inPage) { setSelectedItem(inPage); return; }
+    fetch(`${API_BASE}/threats/${id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((item: ThreatIntelItem | null) => { if (item) setSelectedItem(item); })
+      .catch(() => undefined);
   }, [data?.items, searchString]);
 
   const activeFilterCount = severities.length + categories.length;

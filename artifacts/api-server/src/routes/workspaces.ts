@@ -174,6 +174,11 @@ router.delete("/workspaces/:id/products/:productId", validate({ params: RemovePr
       )
       .limit(1);
 
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
     await db
       .delete(workspaceProductsTable)
       .where(
@@ -183,7 +188,7 @@ router.delete("/workspaces/:id/products/:productId", validate({ params: RemovePr
         )
       );
 
-    if (product?.productName) {
+    if (product.productName) {
       await db
         .delete(workspaceThreatMatchesTable)
         .where(

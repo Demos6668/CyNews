@@ -11,6 +11,8 @@ import { BulkEmailExportModal } from "@/components/Export";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 import { exportAdvisoriesBulk } from "@/lib/exportApi";
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+
 export default function CertInAdvisories() {
   const searchString = useSearch();
   const [selectedItem, setSelectedItem] = useState<Advisory | null>(null);
@@ -20,7 +22,10 @@ export default function CertInAdvisories() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  const hydratedRef = useRef(false);
   useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     const initial = getInitialFiltersFromUrl(searchString);
     if (initial.timeframe) setTimeframe(initial.timeframe as TimeframeValue);
     if (initial.page) setPage(initial.page);
@@ -43,11 +48,24 @@ export default function CertInAdvisories() {
   }, [timeframe]);
 
   const certInTimeframe = timeframe === "all" ? "90d" : timeframe;
+  const isCappedTo90d = timeframe === "all";
   const { data: certInData, isLoading: certInLoading, isError: certInError } = useGetCertInAdvisories({
     timeframe: certInTimeframe,
     page,
     limit,
   });
+
+  // Deep-link: ?open=ID or ?open=CERTIN-xxxxx
+  useEffect(() => {
+    const openId = new URLSearchParams(searchString).get("open");
+    if (!openId) return;
+    const inPage = certInData?.data?.find((a) => String(a.id) === openId || a.certInId === openId);
+    if (inPage) { setSelectedItem(inPage); return; }
+    fetch(`${API_BASE}/advisories/${encodeURIComponent(openId)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((item: Advisory | null) => { if (item) setSelectedItem(item); })
+      .catch(() => undefined);
+  }, [certInData?.data, searchString]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
@@ -126,6 +144,12 @@ export default function CertInAdvisories() {
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
         </div>
       </div>
+
+      {isCappedTo90d && (
+        <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-2">
+          Showing up to the last 90 days — CERT-In archives beyond 90 days are not indexed.
+        </p>
+      )}
 
       <section className="rounded-xl overflow-hidden border-2 border-orange-500/30 bg-gradient-to-r from-orange-500/10 via-card to-card">
         <div className="px-6 py-4 border-b border-orange-500/20 bg-gradient-to-r from-orange-500/20 to-transparent">
