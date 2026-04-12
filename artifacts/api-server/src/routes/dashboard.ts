@@ -66,7 +66,11 @@ router.get("/dashboard/stats", validate({ query: GetDashboardStatsQueryParams })
       ),
       db.select({ count: sql<number>`count(*)::int` })
         .from(advisoriesTable)
-        .where(and(eq(advisoriesTable.patchAvailable, true), ne(advisoriesTable.status, "patched"))),
+        .where(
+          scope
+            ? and(eq(advisoriesTable.patchAvailable, true), ne(advisoriesTable.status, "patched"), gte(advisoriesTable.publishedAt, dateFilter), eq(advisoriesTable.scope, scope as "local" | "global"))
+            : and(eq(advisoriesTable.patchAvailable, true), ne(advisoriesTable.status, "patched"), gte(advisoriesTable.publishedAt, dateFilter))
+        ),
       db.select({
         id: newsItemsTable.id,
         title: newsItemsTable.title,

@@ -193,13 +193,16 @@ router.get("/threats", asyncHandler(async (req: Request, res: Response) => {
 
     if (groupBy) {
       const MAX_ITEMS_PER_GROUP = 20;
+      // Cap grouped queries: load at most 2 000 rows to prevent OOM on large datasets.
+      const GROUP_QUERY_LIMIT = 2000;
 
-      // Fetch all matching items once, then group in memory (avoids N+1 queries for small-medium datasets)
+      // Fetch matching items once, then group in memory (avoids N+1 queries for small-medium datasets)
       const allItems = await db
         .select()
         .from(threatIntelTable)
         .where(where as SQL)
-        .orderBy(sql`${threatIntelTable.publishedAt} DESC`);
+        .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
+        .limit(GROUP_QUERY_LIMIT);
 
       const groupMap = new Map<string, typeof allItems>();
       for (const item of allItems) {

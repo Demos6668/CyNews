@@ -25,7 +25,7 @@ function getResultPath(result: { type: string; id: number; scope?: string }): st
       const newsScope = result.scope === "local" ? "local" : "global";
       return `/news/${newsScope}?open=${result.id}&timeframe=all`;
     }
-    case "advisory":  return `/advisories?open=${result.id}`;
+    case "advisory":  return `/advisories?open=${result.id}&timeframe=all`;
     case "threat":    return `/threat-intel?open=${result.id}&timeframe=all`;
     default:          return "/";
   }

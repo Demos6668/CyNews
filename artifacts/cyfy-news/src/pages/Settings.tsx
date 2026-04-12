@@ -1,8 +1,9 @@
-import { useState } from "react";
 import { Card, CardContent, Button, Input } from "@/components/ui/shared";
 import { User, Bell, Shield, Key, Sun, Moon, Monitor, RefreshCw, Clock, Rss, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
+import { useState } from "react";
+import { usePreference } from "@/hooks/usePreferences";
 
 type SettingsTab = "profile" | "notifications" | "preferences" | "api";
 
@@ -57,12 +58,17 @@ function ApiKeysTab() {
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
-  const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("cyfy-auto-refresh") !== "false");
-  const [desktopNotifications, setDesktopNotifications] = useState(() => localStorage.getItem("cyfy-desktop-notifications") === "true");
-  const [criticalOnly, setCriticalOnly] = useState(() => localStorage.getItem("cyfy-critical-only") === "true");
-  const [refreshInterval, setRefreshInterval] = useState(() => localStorage.getItem("cyfy-refresh-interval") ?? "60");
-  const [profileName, setProfileName] = useState(() => localStorage.getItem("cyfy-profile-name") ?? "Lead Analyst 01");
-  const [department, setDepartment] = useState(() => localStorage.getItem("cyfy-department") ?? "Global Threat Intelligence");
+
+  const [autoRefresh, setAutoRefresh] = usePreference("autoRefresh");
+  const [desktopNotifications, setDesktopNotifications] = usePreference("desktopNotifications");
+  const [criticalOnly, setCriticalOnly] = usePreference("criticalOnly");
+  const [refreshInterval, setRefreshInterval] = usePreference("refreshInterval");
+  const [profileName, setProfileName] = usePreference("profileName");
+  const [department, setDepartment] = usePreference("department");
+
+  // Local draft state for profile fields (save on button click)
+  const [profileNameDraft, setProfileNameDraft] = useState(profileName);
+  const [departmentDraft, setDepartmentDraft] = useState(department);
 
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },
@@ -102,7 +108,7 @@ export default function Settings() {
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Display Name</label>
-                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                    <Input value={profileNameDraft} onChange={(e) => setProfileNameDraft(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Email Address</label>
@@ -110,11 +116,11 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Department</label>
-                    <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
+                    <Input value={departmentDraft} onChange={(e) => setDepartmentDraft(e.target.value)} />
                   </div>
                   <Button className="mt-4" onClick={() => {
-                    localStorage.setItem("cyfy-profile-name", profileName);
-                    localStorage.setItem("cyfy-department", department);
+                    setProfileName(profileNameDraft);
+                    setDepartment(departmentDraft);
                   }}>Save Changes</Button>
                 </CardContent>
               </Card>
@@ -153,13 +159,10 @@ export default function Settings() {
                     onCheckedChange={(checked) => {
                       if (checked && "Notification" in window) {
                         Notification.requestPermission().then((perm) => {
-                          const granted = perm === "granted";
-                          setDesktopNotifications(granted);
-                          localStorage.setItem("cyfy-desktop-notifications", String(granted));
+                          setDesktopNotifications(perm === "granted");
                         });
                       } else {
                         setDesktopNotifications(checked);
-                        localStorage.setItem("cyfy-desktop-notifications", String(checked));
                       }
                     }}
                   />
@@ -171,7 +174,7 @@ export default function Settings() {
                       Only notify for critical and high severity items
                     </p>
                   </div>
-                  <Switch checked={criticalOnly} onCheckedChange={(v) => { setCriticalOnly(v); localStorage.setItem("cyfy-critical-only", String(v)); }} />
+                  <Switch checked={criticalOnly} onCheckedChange={setCriticalOnly} />
                 </div>
               </CardContent>
             </Card>
@@ -234,7 +237,7 @@ export default function Settings() {
                         </p>
                       </div>
                     </div>
-                    <Switch checked={autoRefresh} onCheckedChange={(v) => { setAutoRefresh(v); localStorage.setItem("cyfy-auto-refresh", String(v)); }} />
+                    <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -251,7 +254,7 @@ export default function Settings() {
                       min={10}
                       max={300}
                       value={refreshInterval}
-                      onChange={(e) => { setRefreshInterval(e.target.value); localStorage.setItem("cyfy-refresh-interval", e.target.value); }}
+                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
                       className="w-24 text-center"
                     />
                   </div>

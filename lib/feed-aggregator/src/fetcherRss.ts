@@ -1189,7 +1189,9 @@ export async function fetchRssFeeds(
       if (threatBatch.length > 0)
         await db.insert(threatIntelTable).values(threatBatch)
           .onConflictDoNothing({ target: threatIntelTable.sourceUrl });
-      if (advisoryBatch.length > 0) await db.insert(advisoriesTable).values(advisoryBatch);
+      if (advisoryBatch.length > 0)
+        await db.insert(advisoriesTable).values(advisoryBatch)
+          .onConflictDoNothing();
 
       result.rssNews += newsBatch.length;
       result.rssThreats += threatBatch.length;

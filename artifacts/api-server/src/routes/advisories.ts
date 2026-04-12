@@ -1,10 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
 import type { SQL } from "drizzle-orm";
+
+const PatchStatusBody = z.object({
+  patchAvailable: z.boolean().optional(),
+  patchUrl: z.string().url().nullable().optional(),
+  status: z.enum(["new", "under_review", "patched", "dismissed"]).optional(),
+}).refine(
+  (d) => d.patchAvailable !== undefined || d.patchUrl !== undefined || d.status !== undefined,
+  { message: "At least one of patchAvailable, patchUrl, or status must be provided" }
+);
 import {
   displayableAdvisorySql,
   isDisplayableAdvisory,
@@ -176,17 +186,17 @@ router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, r
     const id = Number(req.params.id);
     if (isNaN(id) || !Number.isInteger(id)) { res.status(400).json({ error: "Invalid advisory ID" }); return; }
 
-    const { patchAvailable, patchUrl, status } = req.body as { patchAvailable?: boolean; patchUrl?: string; status?: string };
-    const validStatuses = ["new", "under_review", "patched", "dismissed"];
-    if (status && !validStatuses.includes(status)) {
-      res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+    const parsed = PatchStatusBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
       return;
     }
+    const { patchAvailable, patchUrl, status } = parsed.data;
 
     const updateFields: Partial<typeof advisoriesTable.$inferInsert> = {};
     if (patchAvailable !== undefined) updateFields.patchAvailable = patchAvailable;
-    if (patchUrl !== undefined) updateFields.patchUrl = patchUrl;
-    if (status) updateFields.status = status as "new" | "under_review" | "patched" | "dismissed";
+    if (patchUrl !== undefined) updateFields.patchUrl = patchUrl ?? null;
+    if (status) updateFields.status = status;
 
     const [updated] = await db
       .update(advisoriesTable)
@@ -196,8 +206,11 @@ router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, r
 
     if (!updated) { res.status(404).json({ error: "Advisory not found" }); return; }
 
-    // Invalidate related caches
-    apiCache.invalidate();
+    // Invalidate only advisory-related cache keys to avoid flushing unrelated entries
+    apiCache.invalidate("advisories:");
+    apiCache.invalidate("certin:");
+    apiCache.invalidate("patches:");
+    apiCache.invalidate("dashboard:");
     res.json({ success: true, advisory: updated });
 }));
 

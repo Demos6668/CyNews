@@ -23,8 +23,10 @@ import {
 
 const router: IRouter = Router();
 
+const MAX_BULK_IDS = 50;
+
 const BulkAdvisoriesBody = z.object({
-  ids: z.array(z.number().int().positive()).optional(),
+  ids: z.array(z.number().int().positive()).max(MAX_BULK_IDS).optional(),
   timeframe: z.string().optional(),
   scope: z.enum(["local", "global"]).optional(),
   vendor: z.string().optional(),
@@ -44,11 +46,10 @@ const ExportEmailBody = z.object({
 });
 
 const ExportEmailBatchBody = z.object({
-  advisoryIds: z.array(z.number().int().positive()),
+  advisoryIds: z.array(z.number().int().positive()).max(MAX_BULK_IDS),
   templateId: z.string().optional(),
   format: z.enum(["html", "text"]).optional(),
 });
-const MAX_BULK_IDS = 50;
 
 function convertHtmlToPlainText(html: string): string {
   if (!html || typeof html !== "string") return "";

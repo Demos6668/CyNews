@@ -103,13 +103,23 @@ export default function Advisories() {
     excludeCertIn: true,
   });
 
-  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID)
+  // Auto-open detail when navigated from Search or Recently Viewed (?open=ID).
+  // If the item isn't on the current page (e.g. deep link with timeframe=all
+  // but item is buried), fall back to fetching it directly by ID.
   useEffect(() => {
     const openId = new URLSearchParams(searchString).get("open");
-    if (!openId || !data?.items?.length) return;
+    if (!openId) return;
     const id = parseInt(openId, 10);
-    const match = data.items.find((a) => a.id === id);
-    if (match) setSelectedItem(match);
+    if (isNaN(id)) return;
+
+    const inPage = data?.items?.find((a) => a.id === id);
+    if (inPage) { setSelectedItem(inPage); return; }
+
+    // Not in current page — fetch directly
+    fetch(`${API_BASE}/advisories/${id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((item: Advisory | null) => { if (item) setSelectedItem(item); })
+      .catch(() => undefined);
   }, [data?.items, searchString]);
 
   const activeFilterCount = severities.length + statuses.length + vendors.length;

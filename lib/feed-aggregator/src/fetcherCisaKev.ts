@@ -3,7 +3,7 @@
  */
 
 import { db, advisoriesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
 import { fetchWithTimeout } from "./fetchWithTimeout";
@@ -17,58 +17,72 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { vulnerabilities?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription?: string; requiredAction?: string }> };
     const vulns = data.vulnerabilities ?? [];
+    const batch = vulns.slice(0, 50).filter((v) => (v.cveID ?? "").startsWith("CVE-"));
+
+    if (batch.length === 0) return;
+
+    const cveIds = batch.map((v) => v.cveID);
+    const sourceUrl = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog";
+
+    // Batch-load all existing rows for these CVE IDs (1 query instead of N)
+    const existingRows = await db
+      .select({
+        id: advisoriesTable.id,
+        cveId: advisoriesTable.cveId,
+        source: advisoriesTable.source,
+        sourceUrl: advisoriesTable.sourceUrl,
+        summary: advisoriesTable.summary,
+        content: advisoriesTable.content,
+        category: advisoriesTable.category,
+        cveIds: advisoriesTable.cveIds,
+      })
+      .from(advisoriesTable)
+      .where(inArray(advisoriesTable.cveId, cveIds));
+
+    const existingMap = new Map(existingRows.map((r) => [r.cveId, r]));
+
     let added = 0;
-    for (const v of vulns.slice(0, 50)) {
-      const cveId = v.cveID ?? "";
-      if (!cveId.startsWith("CVE-")) continue;
+    const newInserts: (typeof advisoriesTable.$inferInsert)[] = [];
+
+    for (const v of batch) {
+      const cveId = v.cveID;
       const fullText = `${v.vulnerabilityName ?? ""} ${v.shortDescription ?? ""} ${v.vendorProject ?? ""} ${v.product ?? ""}`;
       const indiaDetails = indiaDetector.getIndiaDetails(fullText);
-      const sourceUrl = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog";
       const description = v.shortDescription ?? `Known Exploited Vulnerability: ${cveId}. See CISA KEV catalog.`;
       const affectedProducts = [`${v.vendorProject ?? ""} ${v.product ?? ""}`.trim() || "Unknown"];
       const requiredAction = v.requiredAction ?? "";
       const patchAvailable = /apply|patch|update|upgrade|install|remediat/i.test(requiredAction);
       const recommendations = [requiredAction || "Review CISA KEV remediation guidance and prioritize patching or mitigation."];
-      const existing = await db
-        .select({
-          id: advisoriesTable.id,
-          source: advisoriesTable.source,
-          sourceUrl: advisoriesTable.sourceUrl,
-          summary: advisoriesTable.summary,
-          content: advisoriesTable.content,
-          category: advisoriesTable.category,
-          cveIds: advisoriesTable.cveIds,
-        })
-        .from(advisoriesTable)
-        .where(eq(advisoriesTable.cveId, cveId))
-        .limit(1);
-      if (existing.length > 0) {
-        const current = existing[0];
+
+      const existing = existingMap.get(cveId);
+      if (existing) {
         const needsBackfill =
-          !current.source ||
-          !current.sourceUrl ||
-          !current.summary ||
-          !current.content ||
-          !current.category ||
-          !Array.isArray(current.cveIds) ||
-          current.cveIds.length === 0;
+          !existing.source ||
+          !existing.sourceUrl ||
+          !existing.summary ||
+          !existing.content ||
+          !existing.category ||
+          !Array.isArray(existing.cveIds) ||
+          existing.cveIds.length === 0;
 
         if (needsBackfill) {
+          // Update is rare — keep individual UPDATE per row
           await db
             .update(advisoriesTable)
             .set({
-              source: current.source ?? "CISA KEV",
-              sourceUrl: current.sourceUrl ?? sourceUrl,
-              summary: current.summary ?? description,
-              content: current.content ?? description,
-              category: current.category ?? "Known Exploited Vulnerability",
-              cveIds: Array.isArray(current.cveIds) && current.cveIds.length > 0 ? current.cveIds : [cveId],
+              source: existing.source ?? "CISA KEV",
+              sourceUrl: existing.sourceUrl ?? sourceUrl,
+              summary: existing.summary ?? description,
+              content: existing.content ?? description,
+              category: existing.category ?? "Known Exploited Vulnerability",
+              cveIds: Array.isArray(existing.cveIds) && existing.cveIds.length > 0 ? existing.cveIds : [cveId],
             })
-            .where(eq(advisoriesTable.id, current.id));
+            .where(inArray(advisoriesTable.id, [existing.id]));
         }
         continue;
       }
-      await db.insert(advisoriesTable).values({
+
+      newInserts.push({
         cveId,
         title: v.vulnerabilityName ?? cveId,
         description,
@@ -95,6 +109,11 @@ export async function fetchCisaKev(result: FeedUpdateResult): Promise<void> {
       });
       added++;
     }
+
+    if (newInserts.length > 0) {
+      await db.insert(advisoriesTable).values(newInserts).onConflictDoNothing();
+    }
+
     result.advisories += added;
     if (added > 0) logger.info(`[CISA KEV] ${added} new advisories`);
   } catch (err) {

@@ -3,7 +3,7 @@
  */
 
 import { db, advisoriesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
 import { fetchWithTimeout } from "./fetchWithTimeout";
@@ -34,12 +34,39 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       }>;
     };
     const vulns = data.vulnerabilities ?? [];
+
+    const eligible = vulns.filter((v) => {
+      const cveId = v.cve.id ?? "";
+      return cveId.startsWith("CVE-") && v.cve.vulnStatus !== "Rejected";
+    });
+
+    if (eligible.length === 0) return;
+
+    const cveIds = eligible.map((v) => v.cve.id);
+
+    // Batch-load all existing rows for these CVE IDs (1 query instead of N)
+    const existingRows = await db
+      .select({
+        id: advisoriesTable.id,
+        cveId: advisoriesTable.cveId,
+        source: advisoriesTable.source,
+        sourceUrl: advisoriesTable.sourceUrl,
+        summary: advisoriesTable.summary,
+        content: advisoriesTable.content,
+        category: advisoriesTable.category,
+        cveIds: advisoriesTable.cveIds,
+      })
+      .from(advisoriesTable)
+      .where(inArray(advisoriesTable.cveId, cveIds));
+
+    const existingMap = new Map(existingRows.map((r) => [r.cveId, r]));
+
     let added = 0;
-    for (const v of vulns) {
+    const newInserts: (typeof advisoriesTable.$inferInsert)[] = [];
+
+    for (const v of eligible) {
       const cve = v.cve;
-      const cveId = cve.id ?? "";
-      if (!cveId.startsWith("CVE-")) continue;
-      if (cve.vulnStatus === "Rejected") continue;
+      const cveId = cve.id;
       const description = cve.descriptions?.find((d) => d.lang === "en")?.value ?? "";
       const indiaDetails = indiaDetector.getIndiaDetails(description);
       let cvssScore = 0;
@@ -55,46 +82,35 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       const patchRef = refs.find((r) => r.tags?.some((t) => /patch|fix|update|vendor advisory/i.test(t)));
       const patchAvailable = patchRef !== undefined;
       const patchUrl = patchRef?.url && patchRef.url !== sourceUrl ? patchRef.url : null;
-      const existing = await db
-        .select({
-          id: advisoriesTable.id,
-          source: advisoriesTable.source,
-          sourceUrl: advisoriesTable.sourceUrl,
-          summary: advisoriesTable.summary,
-          content: advisoriesTable.content,
-          category: advisoriesTable.category,
-          cveIds: advisoriesTable.cveIds,
-        })
-        .from(advisoriesTable)
-        .where(eq(advisoriesTable.cveId, cveId))
-        .limit(1);
-      if (existing.length > 0) {
-        const current = existing[0];
+
+      const existing = existingMap.get(cveId);
+      if (existing) {
         const needsBackfill =
-          !current.source ||
-          !current.sourceUrl ||
-          !current.summary ||
-          !current.content ||
-          !current.category ||
-          !Array.isArray(current.cveIds) ||
-          current.cveIds.length === 0;
+          !existing.source ||
+          !existing.sourceUrl ||
+          !existing.summary ||
+          !existing.content ||
+          !existing.category ||
+          !Array.isArray(existing.cveIds) ||
+          existing.cveIds.length === 0;
 
         if (needsBackfill) {
           await db
             .update(advisoriesTable)
             .set({
-              source: current.source ?? "NVD",
-              sourceUrl: current.sourceUrl ?? sourceUrl,
-              summary: current.summary ?? summary,
-              content: current.content ?? content,
-              category: current.category ?? "Vulnerability",
-              cveIds: Array.isArray(current.cveIds) && current.cveIds.length > 0 ? current.cveIds : [cveId],
+              source: existing.source ?? "NVD",
+              sourceUrl: existing.sourceUrl ?? sourceUrl,
+              summary: existing.summary ?? summary,
+              content: existing.content ?? content,
+              category: existing.category ?? "Vulnerability",
+              cveIds: Array.isArray(existing.cveIds) && existing.cveIds.length > 0 ? existing.cveIds : [cveId],
             })
-            .where(eq(advisoriesTable.id, current.id));
+            .where(inArray(advisoriesTable.id, [existing.id]));
         }
         continue;
       }
-      await db.insert(advisoriesTable).values({
+
+      newInserts.push({
         cveId,
         title: description ? `${cveId}: ${description.slice(0, 80).replace(/\n/g, " ")}` : cveId,
         description: description || `Vulnerability ${cveId}. See NVD for details.`,
@@ -121,6 +137,11 @@ export async function fetchNVD(result: FeedUpdateResult): Promise<void> {
       });
       added++;
     }
+
+    if (newInserts.length > 0) {
+      await db.insert(advisoriesTable).values(newInserts).onConflictDoNothing();
+    }
+
     result.nvd += added;
     if (added > 0) logger.info(`[NVD] ${added} new advisories`);
   } catch (err) {

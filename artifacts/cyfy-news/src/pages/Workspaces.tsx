@@ -5,6 +5,7 @@ import { CreateWorkspaceModal } from "@/components/Workspace";
 import { useCreateWorkspace } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/shared";
+import { toast } from "sonner";
 
 interface WorkspaceCard {
   id: string;
@@ -26,27 +27,35 @@ export default function Workspaces() {
     description?: string;
     products?: Array<{ id: number; name: string; vendor?: string; version?: string; category: string }>;
   }) => {
-    await createWs({
-      data: {
-        name: data.name,
-        domain: data.domain,
-        description: data.description,
-        products: data.products?.map((p) => ({
-          name: p.name,
-          vendor: p.vendor,
-          version: p.version,
-          category: p.category,
-        })),
-      },
-    });
-    refetch();
-    setShowCreate(false);
+    try {
+      await createWs({
+        data: {
+          name: data.name,
+          domain: data.domain,
+          description: data.description,
+          products: data.products?.map((p) => ({
+            name: p.name,
+            vendor: p.vendor,
+            version: p.version,
+            category: p.category,
+          })),
+        },
+      });
+      refetch();
+      setShowCreate(false);
+    } catch {
+      toast.error("Failed to create workspace. Please try again.");
+    }
   };
 
   const handleDelete = async (ws: WorkspaceCard) => {
     if (!window.confirm(`Delete workspace "${ws.name}"? This cannot be undone.`)) return;
-    await deleteWs({ id: ws.id });
-    refetch();
+    try {
+      await deleteWs({ id: ws.id });
+      refetch();
+    } catch {
+      toast.error("Failed to delete workspace. Please try again.");
+    }
   };
 
   const handleActivate = (ws: WorkspaceCard) => {
