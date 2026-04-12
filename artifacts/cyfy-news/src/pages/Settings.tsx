@@ -2,7 +2,7 @@ import { Card, CardContent, Button, Input } from "@/components/ui/shared";
 import { User, Bell, Shield, Key, Sun, Moon, Monitor, RefreshCw, Clock, Rss, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePreference } from "@/hooks/usePreferences";
 
 type SettingsTab = "profile" | "notifications" | "preferences" | "api";
@@ -71,6 +71,11 @@ export default function Settings() {
   // Local draft for refreshInterval — committed on blur to avoid writing on every keystroke
   const [refreshIntervalDraft, setRefreshIntervalDraft] = useState(refreshInterval);
   const [departmentDraft, setDepartmentDraft] = useState(department);
+
+  // Keep drafts in sync when the underlying preference updates (e.g. another tab)
+  useEffect(() => { setProfileNameDraft(profileName); }, [profileName]);
+  useEffect(() => { setDepartmentDraft(department); }, [department]);
+  useEffect(() => { setRefreshIntervalDraft(refreshInterval); }, [refreshInterval]);
 
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },

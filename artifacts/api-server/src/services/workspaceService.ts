@@ -86,7 +86,7 @@ export async function createWorkspace(data: WorkspaceInput) {
 
   if (data.products?.length) {
     for (const product of data.products) {
-      await addProduct(workspace.id, product);
+      await addProduct(workspace.id, product, { skipMatch: true });
     }
   }
 
@@ -96,7 +96,8 @@ export async function createWorkspace(data: WorkspaceInput) {
 
 export async function addProduct(
   workspaceId: string,
-  product: ProductInput
+  product: ProductInput,
+  options?: { skipMatch?: boolean }
 ): Promise<{ id: string }> {
   const keywords = generateKeywords(product);
   const [row] = await db
@@ -112,7 +113,9 @@ export async function addProduct(
     .returning();
 
   if (!row) throw new AppError(500, "Failed to add product");
-  await matchThreatsToWorkspace(workspaceId);
+  if (!options?.skipMatch) {
+    await matchThreatsToWorkspace(workspaceId);
+  }
   return { id: row.id };
 }
 

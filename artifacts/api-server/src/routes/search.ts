@@ -75,7 +75,7 @@ async function ftsSearchSingleType(
   type: "news" | "threat" | "advisory",
   tsQuery: string,
   limit: number,
-  scope?: "local" | "global",
+  scope?: "local" | "global" | undefined,
 ): Promise<SearchResultItem[]> {
   if (type === "news") {
     const scopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
@@ -106,6 +106,7 @@ async function ftsSearchSingleType(
   }
 
   if (type === "threat") {
+    const threatScopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
     const result = await executeWithStatementTimeout<{
       id: number; title: string; summary: string;
       severity: string; source: string; source_url: string | null; published_at: Date; rank: number;
@@ -127,6 +128,7 @@ async function ftsSearchSingleType(
         AND btrim(source) <> ''
         AND source_url IS NOT NULL
         AND btrim(source_url) <> ''
+      ${threatScopeFilter}
       ORDER BY rank DESC, published_at DESC
       LIMIT ${limit}
     `);
@@ -140,6 +142,7 @@ async function ftsSearchSingleType(
   }
 
   // advisory
+  const advisoryScopeFilter = scope ? sql` AND scope = ${scope}` : sql``;
   const result = await executeWithStatementTimeout<{
     id: number; title: string; description: string;
     severity: string; vendor: string; source: string | null; source_url: string | null; published_at: Date; rank: number;
@@ -161,6 +164,7 @@ async function ftsSearchSingleType(
       AND btrim(source) <> ''
       AND source_url IS NOT NULL
       AND btrim(source_url) <> ''
+    ${advisoryScopeFilter}
     ORDER BY rank DESC, published_at DESC
     LIMIT ${limit}
   `);
@@ -210,6 +214,14 @@ async function ilikeSearchSingleType(
   }
 
   if (type === "threat") {
+    const threatTextFilter = or(
+      ilike(threatIntelTable.title, searchTerm),
+      ilike(threatIntelTable.summary, searchTerm),
+      ilike(threatIntelTable.description, searchTerm),
+    );
+    const threatWhereClause = scope
+      ? and(displayableThreatSql, threatTextFilter, sql`${threatIntelTable.scope} = ${scope}`)
+      : and(displayableThreatSql, threatTextFilter);
     const rows = await db
       .select({
         id: threatIntelTable.id, title: threatIntelTable.title,
@@ -219,14 +231,7 @@ async function ilikeSearchSingleType(
         publishedAt: threatIntelTable.publishedAt,
       })
       .from(threatIntelTable)
-      .where(and(
-        displayableThreatSql,
-        or(
-          ilike(threatIntelTable.title, searchTerm),
-          ilike(threatIntelTable.summary, searchTerm),
-          ilike(threatIntelTable.description, searchTerm),
-        ),
-      ))
+      .where(threatWhereClause)
       .orderBy(sql`${threatIntelTable.publishedAt} DESC`)
       .limit(limit);
 
@@ -240,6 +245,14 @@ async function ilikeSearchSingleType(
   }
 
   // advisory
+  const advisoryTextFilter = or(
+    ilike(advisoriesTable.title, searchTerm),
+    ilike(advisoriesTable.cveId, searchTerm),
+    ilike(advisoriesTable.vendor, searchTerm),
+  );
+  const advisoryWhereClause = scope
+    ? and(displayableAdvisorySql, advisoryTextFilter, sql`${advisoriesTable.scope} = ${scope}`)
+    : and(displayableAdvisorySql, advisoryTextFilter);
   const rows = await db
     .select({
       id: advisoriesTable.id, title: advisoriesTable.title,
@@ -250,14 +263,7 @@ async function ilikeSearchSingleType(
       publishedAt: advisoriesTable.publishedAt,
     })
     .from(advisoriesTable)
-    .where(and(
-      displayableAdvisorySql,
-      or(
-        ilike(advisoriesTable.title, searchTerm),
-        ilike(advisoriesTable.cveId, searchTerm),
-        ilike(advisoriesTable.vendor, searchTerm),
-      ),
-    ))
+    .where(advisoryWhereClause)
     .orderBy(sql`${advisoriesTable.publishedAt} DESC`)
     .limit(limit);
 
@@ -330,8 +336,8 @@ async function searchAllTypes(
   const typeLimit = limit * 2;
   const [newsResults, threatResults, advisoryResults] = await Promise.all([
     searchSingleType("news", rawQuery, searchTerm, typeLimit, scope),
-    searchSingleType("threat", rawQuery, searchTerm, typeLimit),
-    searchSingleType("advisory", rawQuery, searchTerm, typeLimit),
+    searchSingleType("threat", rawQuery, searchTerm, typeLimit, scope),
+    searchSingleType("advisory", rawQuery, searchTerm, typeLimit, scope),
   ]);
 
   const combined = [...newsResults, ...threatResults, ...advisoryResults];
@@ -369,8 +375,7 @@ router.get("/search", asyncHandler(async (req: Request, res: Response) => {
     if (query.type) {
       const t = query.type as "news" | "threat" | "advisory";
       // Fetch extra to absorb dedup losses within a single type
-      const typeScope = t === "news" ? scope : undefined;
-      results = await searchSingleType(t, query.q, searchTerm, limit * 2, typeScope);
+      results = await searchSingleType(t, query.q, searchTerm, limit * 2, scope);
     } else {
       results = await searchAllTypes(query.q, searchTerm, limit, scope);
     }

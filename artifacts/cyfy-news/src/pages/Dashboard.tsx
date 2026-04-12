@@ -68,7 +68,7 @@ export default function Dashboard() {
   ];
 
   const timeframeLabel = getTimeframeLabel(timeframe);
-  const patchesAvailable = (stats as typeof stats & { patchesAvailable?: number }).patchesAvailable ?? 0;
+  const patchesAvailable = stats.patchesAvailable ?? 0;
   const statCards = [
     { title: `Total Threats (${timeframe === "all" ? "All" : timeframeLabel})`, value: stats.totalThreatsToday, icon: Crosshair, color: "text-primary", bg: "bg-primary/10", href: undefined },
     { title: "Active Advisories", value: stats.activeAdvisories, icon: ShieldAlert, color: "text-accent", bg: "bg-accent/10", href: undefined },

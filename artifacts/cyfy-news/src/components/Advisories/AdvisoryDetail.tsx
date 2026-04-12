@@ -131,7 +131,7 @@ export function AdvisoryDetail({ item, isOpen, onClose }: AdvisoryDetailProps) {
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `${item.cveId}-advisory.html`;
+                  a.download = `${item.cveId || `advisory-${item.id}`}-advisory.html`;
                   a.click();
                   window.URL.revokeObjectURL(url);
                 }}
