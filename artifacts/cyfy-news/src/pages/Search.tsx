@@ -82,7 +82,7 @@ export default function Search() {
   const scope = scopeParam === "local" || scopeParam === "global" ? scopeParam : undefined;
   const typeFromUrl = urlParams.get("type") as ResultType;
   const typeFilter: ResultType = (["all", "news", "advisory", "threat"] as ResultType[]).includes(typeFromUrl) ? typeFromUrl : "all";
-  usePageTitle(query ? `Search: ${query}` : "Search");
+  usePageTitle(query ? `Search: ${query.slice(0, 50)}` : "Search");
   const [displayLimit, setDisplayLimit] = useState(10);
 
   // Reset display limit when query or filter changes

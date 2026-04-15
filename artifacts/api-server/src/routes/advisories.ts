@@ -126,16 +126,26 @@ router.get("/advisories/cert-in", asyncHandler(async (req: Request, res: Respons
     res.json(data);
 }));
 
+const GetPatchesQueryParams = z.object({
+  patchStatus: z.enum(["available", "applied", "pending"]).optional(),
+  vendor: z.string().max(200).optional(),
+  severity: z.string().max(100).optional(),
+  timeframe: z.string().max(10).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.enum(["severity", "cvss", "published"]).optional(),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
+});
+
 router.get("/advisories/patches", asyncHandler(async (req: Request, res: Response) => {
-    const rawQuery = req.query as Record<string, string>;
-    const patchStatus = rawQuery.patchStatus; // "available" | "applied" | "pending"
-    const vendor = rawQuery.vendor;
-    const severity = rawQuery.severity;
-    const timeframe = rawQuery.timeframe;
-    const page = Math.max(1, parseInt(rawQuery.page ?? "1", 10));
-    const limit = Math.min(parseInt(rawQuery.limit ?? "20", 10), 100);
-    const sortBy = rawQuery.sortBy as "severity" | "cvss" | "published" | undefined;
-    const sortDir = rawQuery.sortDir === "asc" ? "asc" : "desc";
+    const parsed = GetPatchesQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid query parameters" });
+      return;
+    }
+    const { patchStatus, vendor, severity, timeframe, sortBy, sortDir } = parsed.data;
+    const page = parsed.data.page;
+    const limit = parsed.data.limit;
 
     const cacheKey = `patches:${patchStatus ?? ""}:${vendor ?? ""}:${severity ?? ""}:${timeframe ?? ""}:${page}:${limit}:${sortBy ?? ""}:${sortDir}`;
     const cached = apiCache.get<object>(cacheKey);

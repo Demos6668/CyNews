@@ -22,7 +22,7 @@ import {
   advisoriesTable,
   threatIntelTable,
 } from "@workspace/db";
-import { sql, and, gte, inArray, ilike, or, eq } from "drizzle-orm";
+import { sql, and, gte, inArray, ilike, or, eq, ne } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +75,9 @@ server.tool(
   async ({ query, type, scope, limit }) => {
     const q = query.trim();
     const pattern = `%${q}%`;
+    // Fetch 2× per type so the merge-then-slice doesn't systematically starve
+    // lower-priority types when a single type dominates the top results.
+    const fetchLimit = type === "all" ? limit * 2 : limit;
     const results: Array<{
       id: number; title: string; summary: string;
       type: string; severity: string; publishedAt: string; scope?: string;
@@ -93,7 +96,7 @@ server.tool(
         severity: newsItemsTable.severity,
         publishedAt: newsItemsTable.publishedAt,
         scope: newsItemsTable.scope,
-      }).from(newsItemsTable).where(and(...conditions)).orderBy(sql`${newsItemsTable.publishedAt} DESC`).limit(limit);
+      }).from(newsItemsTable).where(and(...conditions)).orderBy(sql`${newsItemsTable.publishedAt} DESC`).limit(fetchLimit);
       results.push(...rows.map(r => ({ ...r, type: "news", publishedAt: r.publishedAt.toISOString() })));
     }
 
@@ -116,7 +119,7 @@ server.tool(
         severity: advisoriesTable.severity,
         publishedAt: advisoriesTable.publishedAt,
         scope: advisoriesTable.scope,
-      }).from(advisoriesTable).where(and(...conditions)).orderBy(sql`${advisoriesTable.publishedAt} DESC`).limit(limit);
+      }).from(advisoriesTable).where(and(...conditions)).orderBy(sql`${advisoriesTable.publishedAt} DESC`).limit(fetchLimit);
       results.push(...rows.map(r => ({ ...r, type: "advisory", publishedAt: r.publishedAt.toISOString() })));
     }
 
@@ -138,7 +141,7 @@ server.tool(
         severity: threatIntelTable.severity,
         publishedAt: threatIntelTable.publishedAt,
         scope: threatIntelTable.scope,
-      }).from(threatIntelTable).where(and(...conditions)).orderBy(sql`${threatIntelTable.publishedAt} DESC`).limit(limit);
+      }).from(threatIntelTable).where(and(...conditions)).orderBy(sql`${threatIntelTable.publishedAt} DESC`).limit(fetchLimit);
       results.push(...rows.map(r => ({ ...r, type: "threat", publishedAt: r.publishedAt.toISOString() })));
     }
 
@@ -234,7 +237,7 @@ server.tool(
       const patch = r.patchAvailable ? `✓ Patch ${r.status === "patched" ? "applied" : "available"}` : "✗ No patch";
       const products = (r.affectedProducts as string[]).slice(0, 3).join(", ");
       return [
-        `${i + 1}. ${r.cveId} — ${r.severity.toUpperCase()} (CVSS ${r.cvssScore.toFixed(1)})`,
+        `${i + 1}. ${r.cveId} — ${r.severity.toUpperCase()} (CVSS ${r.cvssScore != null ? r.cvssScore.toFixed(1) : "N/A"})`,
         `   ${r.title}`,
         `   Vendor: ${r.vendor} | ${patch}${r.patchUrl ? ` → ${r.patchUrl}` : ""}`,
         products ? `   Affects: ${products}` : null,
@@ -394,10 +397,14 @@ server.tool(
     const highCount = (tBySev.high ?? 0) + (aBySev.high ?? 0);
     const patchesAvailable = patchCount[0]?.count ?? 0;
 
+    // Thresholds: 1+ critical = at least HIGH; 5+ critical = CRITICAL.
+    // 1+ high = ELEVATED; 5+ high (with no critical) = HIGH.
+    const CRITICAL_THRESHOLD = 5;
+    const HIGH_THRESHOLD = 5;
     const threatLevel =
-      criticalCount >= 5 ? "CRITICAL" :
+      criticalCount >= CRITICAL_THRESHOLD ? "CRITICAL" :
       criticalCount >= 1 ? "HIGH" :
-      highCount >= 5 ? "HIGH" :
+      highCount >= HIGH_THRESHOLD ? "HIGH" :
       highCount >= 1 ? "ELEVATED" : "NORMAL";
 
     const lines = [
@@ -443,7 +450,7 @@ server.tool(
       ) as SQL);
     }
     if (vendor) conditions.push(ilike(advisoriesTable.vendor, `%${vendor}%`));
-    if (unpatched_only) conditions.push(sql`${advisoriesTable.status} != 'patched'`);
+    if (unpatched_only) conditions.push(ne(advisoriesTable.status, "patched"));
 
     const rows = await db.select({
       id: advisoriesTable.id,
@@ -473,7 +480,7 @@ server.tool(
         : `✗ No patch released — Status: ${r.status}`;
       const products = (r.affectedProducts as string[]).slice(0, 4).join(", ");
       return [
-        `${i + 1}. ${r.cveId} | CVSS ${r.cvssScore.toFixed(1)} | ${r.severity.toUpperCase()}`,
+        `${i + 1}. ${r.cveId} | CVSS ${r.cvssScore != null ? r.cvssScore.toFixed(1) : "N/A"} | ${r.severity.toUpperCase()}`,
         `   ${r.title}`,
         `   Vendor: ${r.vendor}`,
         `   ${patchLine}`,
