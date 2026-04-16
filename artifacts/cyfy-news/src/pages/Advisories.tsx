@@ -1,12 +1,12 @@
 import { useGetAdvisories } from "@workspace/api-client-react";
 import { AdvisoryList, AdvisoryDetail } from "@/components/Advisories";
 import { Skeleton, Button } from "@/components/ui/shared";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, ActiveFilterBar, EmptyState, ErrorState, SavedViewsButton, KeyboardShortcutsModal, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch, useLocation } from "wouter";
-import { ShieldAlert, AlertTriangle, Download, ChevronDown, Mail, FileDown } from "lucide-react";
+import { ShieldAlert, Download, ChevronDown, Mail, FileDown } from "lucide-react";
 import type { Advisory } from "@workspace/api-client-react";
-import { EmptyState } from "@/components/Common";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,7 +101,10 @@ export default function Advisories() {
     );
   }, []);
 
-  const { data, isLoading, isError, error } = useGetAdvisories({
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+
+  const { data, isLoading, isError, error, refetch } = useGetAdvisories({
     scope,
     severity: severities.length > 0 ? severities.join(",") : undefined,
     status: statuses.length > 0 ? statuses.join(",") : undefined,
@@ -179,6 +182,23 @@ export default function Advisories() {
 
   const totalPages = data?.totalPages ?? 0;
   const totalItems = data?.total ?? 0;
+  const items = (data?.items ?? []) as Advisory[];
+
+  useKeyboardShortcuts({
+    onItemDown: () => setFocusedIndex((i) => Math.min(i + 1, items.length - 1)),
+    onItemUp: () => setFocusedIndex((i) => Math.max(i - 1, 0)),
+    onItemOpen: () => {
+      const item = items[focusedIndex];
+      if (item) {
+        setSelectedItem(item);
+        const params = new URLSearchParams(searchString);
+        params.set("open", String(item.id));
+        setLocation(`${pathname}?${params.toString()}`);
+      }
+    },
+    onHelpToggle: () => setShowHelp((v) => !v),
+    enabled: !selectedItem,
+  });
 
   const handleExportAll = async () => {
     try {
@@ -241,6 +261,19 @@ export default function Advisories() {
             Export All ({timeframe})
           </Button>
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+          <SavedViewsButton
+            page="advisories"
+            currentFilters={{ severities, statuses, vendors, timeframe, scope, page, limit }}
+            onApplyView={(f) => {
+              if (Array.isArray(f.severities)) setSeverities(f.severities as string[]);
+              if (Array.isArray(f.statuses)) setStatuses(f.statuses as string[]);
+              if (Array.isArray(f.vendors)) setVendors(f.vendors as string[]);
+              if (f.timeframe) setTimeframe(f.timeframe as TimeframeValue);
+              if (f.scope) setScope(f.scope as "local" | "global");
+              if (typeof f.page === "number") setPage(f.page);
+              if (typeof f.limit === "number") setLimit(f.limit);
+            }}
+          />
         </div>
       </div>
 
@@ -273,13 +306,11 @@ export default function Advisories() {
       </div>
 
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load advisories</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {error instanceof Error ? error.message : "An unexpected error occurred. Please try again later."}
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load advisories"
+          message={error instanceof Error ? error.message : "An unexpected error occurred. Please try again later."}
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-56 rounded-xl" />)}
@@ -301,7 +332,8 @@ export default function Advisories() {
       ) : (
         <>
           <AdvisoryList
-            items={data?.items ?? []}
+            items={items}
+            focusedIndex={focusedIndex}
             onItemClick={(item) => {
               setSelectedItem(item);
               const params = new URLSearchParams(searchString);
@@ -343,6 +375,8 @@ export default function Advisories() {
         isOpen={bulkEmailExportOpen}
         onClose={() => setBulkEmailExportOpen(false)}
       />
+
+      <KeyboardShortcutsModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }

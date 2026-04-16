@@ -5,7 +5,8 @@ import {
   workspaceProductsTable,
   workspaceThreatMatchesTable,
 } from "@workspace/db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, or } from "drizzle-orm";
+import { optionalAuth, requireAuth, DEFAULT_ORG_ID } from "../middlewares/tenantContext";
 import {
   createWorkspace,
   addProduct,
@@ -33,10 +34,18 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/workspaces", asyncHandler(async (req: Request, res: Response) => {
+router.get("/workspaces", optionalAuth, asyncHandler(async (req: Request, res: Response) => {
+    // When org context is available, filter to the org's workspaces.
+    // Fall back to showing all workspaces in unauthenticated/legacy mode.
+    const orgId = req.ctx?.orgId;
     const rows = await db
       .select()
       .from(workspacesTable)
+      .where(
+        orgId
+          ? eq(workspacesTable.orgId, orgId)
+          : or(isNull(workspacesTable.orgId), eq(workspacesTable.orgId, DEFAULT_ORG_ID))
+      )
       .orderBy(desc(workspacesTable.isDefault), asc(workspacesTable.name));
 
     res.json(rows.map((r) => ({
@@ -50,13 +59,18 @@ router.get("/workspaces", asyncHandler(async (req: Request, res: Response) => {
     })));
 }));
 
-router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
+router.get("/workspaces/:id", optionalAuth, validate({ params: GetWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
+    const orgId = req.ctx?.orgId;
 
     const [workspace] = await db
       .select()
       .from(workspacesTable)
-      .where(eq(workspacesTable.id, id))
+      .where(
+        orgId
+          ? and(eq(workspacesTable.id, id), eq(workspacesTable.orgId, orgId))
+          : eq(workspacesTable.id, id)
+      )
       .limit(1);
 
     if (!workspace) {
@@ -81,13 +95,15 @@ router.get("/workspaces/:id", validate({ params: GetWorkspaceParams }), asyncHan
     });
 }));
 
-router.post("/workspaces", validate({ body: CreateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
+router.post("/workspaces", requireAuth, validate({ body: CreateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
     const { name, domain, description, products } = req.body;
+    const orgId = req.ctx!.orgId;
 
     const workspace = await createWorkspace({
       name,
       domain,
       description: description ?? undefined,
+      orgId,
       products: Array.isArray(products) ? products : undefined,
     });
 

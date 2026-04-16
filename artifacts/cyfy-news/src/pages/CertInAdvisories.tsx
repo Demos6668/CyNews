@@ -1,7 +1,7 @@
 import { useGetCertInAdvisories } from "@workspace/api-client-react";
 import { AdvisoryDetail, CertInAdvisoryCard } from "@/components/Advisories";
 import { Button } from "@/components/ui/shared";
-import { TimeframeSelector, Pagination, type TimeframeValue } from "@/components/Common";
+import { TimeframeSelector, Pagination, ErrorState, type TimeframeValue } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearch, useLocation } from "wouter";
 import { ShieldAlert, Download, ExternalLink, RefreshCw, Mail, FileDown } from "lucide-react";
@@ -54,7 +54,7 @@ export default function CertInAdvisories() {
 
   const certInTimeframe = timeframe === "all" ? "90d" : timeframe;
   const isCappedTo90d = timeframe === "all";
-  const { data: certInData, isLoading: certInLoading, isError: certInError } = useGetCertInAdvisories({
+  const { data: certInData, isLoading: certInLoading, isError: certInError, refetch: certInRefetch } = useGetCertInAdvisories({
     timeframe: certInTimeframe,
     page,
     limit,
@@ -181,11 +181,11 @@ export default function CertInAdvisories() {
         </div>
         <div className="p-6">
           {certInError ? (
-            <div className="text-center py-12">
-              <ShieldAlert className="w-12 h-12 text-destructive mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load CERT-In advisories</h3>
-              <p className="text-muted-foreground text-sm">Please check your connection and try again.</p>
-            </div>
+            <ErrorState
+              title="Failed to load CERT-In advisories"
+              message="Please check your connection and try again."
+              onRetry={() => void certInRefetch()}
+            />
           ) : certInLoading ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="w-6 h-6 text-orange-500 animate-spin" />

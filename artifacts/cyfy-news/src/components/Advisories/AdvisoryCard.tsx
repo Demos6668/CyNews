@@ -15,6 +15,8 @@ interface AdvisoryCardProps {
   selected?: boolean;
   onToggleSelect?: (id: number) => void;
   showCheckbox?: boolean;
+  /** Visual highlight for keyboard-focused state (j/k navigation). */
+  focused?: boolean;
 }
 
 async function handleExportAdvisory(id: number) {
@@ -31,7 +33,7 @@ async function handleExportAdvisory(id: number) {
   window.URL.revokeObjectURL(url);
 }
 
-export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showCheckbox }: AdvisoryCardProps) {
+export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showCheckbox, focused }: AdvisoryCardProps) {
   const products = item.affectedProducts ?? [];
   const visibleProducts = products.slice(0, 3);
   const extraProducts = products.length - visibleProducts.length;
@@ -41,7 +43,8 @@ export function AdvisoryCard({ item, onClick, selected, onToggleSelect, showChec
       onClick={onClick}
       className={cn(
         "h-full overflow-hidden flex flex-col cursor-pointer group card-spec",
-        `severity-${item.severity}`
+        `severity-${item.severity}`,
+        focused && "ring-2 ring-primary ring-offset-1 ring-offset-background"
       )}
     >
       <div className="p-4 flex flex-col h-full gap-3">

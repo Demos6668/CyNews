@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, newsItemsTable } from "@workspace/db";
 import { insertNewsItemSchema } from "@workspace/db/schema";
+import { bookmarksRepo } from "@workspace/db/repos";
 import { eq, sql, and, gte, lte, inArray } from "drizzle-orm";
+import { requireAuth } from "../middlewares/tenantContext";
 import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
@@ -104,16 +106,33 @@ ${rssItems}
     res.send(rss);
 }));
 
-router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response) => {
+router.get(
+  "/news/bookmarked",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const ctx = req.ctx!;
+    const bookmarkedIds = await bookmarksRepo.listNewsItemIds(ctx);
+
+    if (bookmarkedIds.length === 0) {
+      const data = GetBookmarkedNewsResponse.parse({
+        items: [], total: 0, page: 1, limit: 100, totalPages: 1,
+      });
+      res.json(data);
+      return;
+    }
+
     const items = await db
       .select()
       .from(newsItemsTable)
-      .where(eq(newsItemsTable.bookmarked, true))
-      .orderBy(sql`${newsItemsTable.publishedAt} DESC`)
-      .limit(100);
+      .where(inArray(newsItemsTable.id, bookmarkedIds))
+      .orderBy(sql`${newsItemsTable.publishedAt} DESC`);
 
+    const bookmarkedSet = new Set(bookmarkedIds);
     const data = GetBookmarkedNewsResponse.parse({
-      items: items.map(formatNewsItem),
+      items: items.map((item) => ({
+        ...formatNewsItem(item),
+        bookmarked: bookmarkedSet.has(item.id),
+      })),
       total: items.length,
       page: 1,
       limit: 100,
@@ -121,7 +140,8 @@ router.get("/news/bookmarked", asyncHandler(async (_req: Request, res: Response)
     });
 
     res.json(data);
-}));
+  })
+);
 
 router.get("/news", asyncHandler(async (req: Request, res: Response) => {
     const rawQuery = { ...req.query } as Record<string, unknown>;
@@ -297,31 +317,38 @@ router.delete("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     res.status(204).send();
 }));
 
-router.post("/news/:id/bookmark", asyncHandler(async (req: Request, res: Response) => {
+router.post(
+  "/news/:id/bookmark",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const params = ToggleBookmarkParams.parse({ id: Number(req.params.id) });
+    const ctx = req.ctx!;
 
     const [item] = await db
-      .select()
+      .select({ id: newsItemsTable.id })
       .from(newsItemsTable)
-      .where(eq(newsItemsTable.id, params.id));
+      .where(eq(newsItemsTable.id, params.id))
+      .limit(1);
 
     if (!item) {
       throw new NotFoundError("News item not found");
     }
 
-    const [updated] = await db
-      .update(newsItemsTable)
-      .set({ bookmarked: !item.bookmarked })
-      .where(eq(newsItemsTable.id, params.id))
-      .returning();
+    // Toggle: if already bookmarked → remove; else → add.
+    const alreadyBookmarked = await bookmarksRepo.isBookmarked(ctx, params.id);
+    if (alreadyBookmarked) {
+      await bookmarksRepo.remove(ctx, params.id);
+    } else {
+      await bookmarksRepo.add(ctx, params.id);
+    }
 
-    apiCache.invalidate("news:");
     const data = ToggleBookmarkResponse.parse({
-      id: updated.id,
-      bookmarked: updated.bookmarked,
+      id: params.id,
+      bookmarked: !alreadyBookmarked,
     });
 
     res.json(data);
-}));
+  })
+);
 
 export default router;

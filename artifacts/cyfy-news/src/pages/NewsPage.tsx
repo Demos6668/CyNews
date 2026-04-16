@@ -1,10 +1,11 @@
 import { useGetNews } from "@workspace/api-client-react";
 import { NewsList, NewsDetail } from "@/components/News";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, ErrorState, SavedViewsButton, KeyboardShortcutsModal, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { Skeleton } from "@/components/ui/shared";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { AlertTriangle, FileQuestion } from "lucide-react";
+import { FileQuestion } from "lucide-react";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { NewsItem, GetNewsScope } from "@workspace/api-client-react";
 import { useFilterParamsSync, getInitialFiltersFromUrl } from "@/hooks/useFilterParams";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -104,7 +105,9 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
     );
   }, []);
 
-  const { data, isLoading, isError, error } = useGetNews({
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const { data, isLoading, isError, error, refetch } = useGetNews({
     scope,
     severity: severities.length > 0 ? severities.join(",") : undefined,
     category: categories.length > 0 ? categories.join(",") : undefined,
@@ -159,6 +162,18 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
 
   const totalPages = data?.totalPages ?? 0;
   const totalItems = data?.total ?? 0;
+  const newsItems = data?.items ?? [];
+
+  useKeyboardShortcuts({
+    onItemDown: () => setFocusedIndex((i) => Math.min(i + 1, newsItems.length - 1)),
+    onItemUp: () => setFocusedIndex((i) => Math.max(i - 1, 0)),
+    onItemOpen: () => {
+      const item = newsItems[focusedIndex];
+      if (item) setSelectedItem(item as typeof item);
+    },
+    onHelpToggle: () => setShowHelp((v) => !v),
+    enabled: !selectedItem,
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -174,6 +189,19 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
 
         <div className="flex items-center gap-4">
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+          <SavedViewsButton
+            page={`news/${scope}`}
+            currentFilters={{ severities, categories, dateFrom, dateTo, timeframe, page, limit }}
+            onApplyView={(f) => {
+              if (Array.isArray(f.severities)) setSeverities(f.severities as string[]);
+              if (Array.isArray(f.categories)) setCategories(f.categories as string[]);
+              if (typeof f.dateFrom === "string") setDateFrom(f.dateFrom);
+              if (typeof f.dateTo === "string") setDateTo(f.dateTo);
+              if (f.timeframe) setTimeframe(f.timeframe as TimeframeValue);
+              if (typeof f.page === "number") setPage(f.page);
+              if (typeof f.limit === "number") setLimit(f.limit);
+            }}
+          />
           <TabSwitch
             value={scope}
             onChange={(v) => setLocation(`/news/${v}`)}
@@ -216,17 +244,11 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
       </div>
 
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">
-            Failed to load news
-          </h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {error instanceof Error
-              ? error.message
-              : "An unexpected error occurred. Please try again later."}
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load news"
+          message={error instanceof Error ? error.message : "An unexpected error occurred. Please try again later."}
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -283,6 +305,8 @@ export default function NewsPage({ scope }: { scope: GetNewsScope }) {
           setLocation(`${pathname}${qs ? `?${qs}` : ""}`);
         }}
       />
+
+      <KeyboardShortcutsModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }

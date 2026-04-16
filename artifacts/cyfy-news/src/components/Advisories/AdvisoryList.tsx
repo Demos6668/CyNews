@@ -9,6 +9,8 @@ interface AdvisoryListProps {
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
   showCheckboxes?: boolean;
+  /** Index of the keyboard-focused item (j/k navigation). */
+  focusedIndex?: number;
 }
 
 export function AdvisoryList({
@@ -18,6 +20,7 @@ export function AdvisoryList({
   selectedIds,
   onToggleSelect,
   showCheckboxes,
+  focusedIndex,
 }: AdvisoryListProps) {
   return (
     <div
@@ -26,7 +29,7 @@ export function AdvisoryList({
         className
       )}
     >
-      {items.map((item) => (
+      {items.map((item, idx) => (
         <AdvisoryCard
           key={item.id}
           item={item}
@@ -34,6 +37,7 @@ export function AdvisoryList({
           selected={selectedIds?.has(item.id)}
           onToggleSelect={onToggleSelect}
           showCheckbox={showCheckboxes}
+          focused={focusedIndex === idx}
         />
       ))}
     </div>

@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Wrench, ExternalLink, CheckCircle, AlertTriangle, Clock, ChevronDown } from "lucide-react";
-import { SeverityBadge } from "@/components/Common/SeverityBadge";
+import { SeverityBadge, ErrorState, Pagination } from "@/components/Common";
 import { Skeleton } from "@/components/ui/shared";
-import { Pagination } from "@/components/Common";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch as useWouterSearch } from "wouter";
@@ -342,13 +341,11 @@ export default function PatchTracker() {
 
       {/* Table */}
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load patches</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            An unexpected error occurred. Please try again later.
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load patches"
+          message="An unexpected error occurred. Please try again later."
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}

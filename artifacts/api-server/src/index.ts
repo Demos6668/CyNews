@@ -1,10 +1,23 @@
+// ─── Sentry MUST be initialised before any other module ──────────────────────
+// Import and call initSentry() as the first executable statement so that
+// Sentry can instrument all subsequently loaded modules.
+import { initSentry } from "./lib/sentry";
+initSentry();
+// ─────────────────────────────────────────────────────────────────────────────
+
 import http from "http";
 import { WebSocketServer } from "ws";
 import { timingSafeEqual } from "crypto";
 import { config } from "dotenv";
 import { resolve } from "path";
 
+// Load .env as early as possible (fallback for environments that don't use
+// the --env-file flag, e.g. running tests directly).
 config({ path: resolve(import.meta.dirname, "../../../.env") });
+
+import { validateEnv } from "@workspace/config";
+const env = validateEnv();
+
 import app from "./app";
 import { ensureMasterWorkspace } from "./services/workspaceService";
 import { createFeedScheduler } from "./services/feedScheduler";
@@ -13,10 +26,7 @@ import { setScheduler } from "./routes/scheduler";
 import { pool } from "@workspace/db";
 import { logger } from "./lib/logger";
 
-const rawPort = process.env["PORT"];
-if (!rawPort) throw new Error("PORT environment variable is required");
-const port = Number(rawPort);
-if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${rawPort}"`);
+const { PORT: port } = env;
 
 const server = http.createServer(app);
 
@@ -49,18 +59,25 @@ wss.on("close", () => clearInterval(heartbeatTimer));
 
 wss.on("connection", (ws: any, req: import("http").IncomingMessage) => {
   // Validate API key on WebSocket connect if configured
-  const apiKey = process.env.API_KEY;
+  const apiKey = env.API_KEY;
   if (apiKey) {
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
     const providedKey = url.searchParams.get("api_key") ?? req.headers["x-api-key"];
-    if (!providedKey || typeof providedKey !== "string" || providedKey.length !== apiKey.length || !timingSafeEqual(Buffer.from(providedKey), Buffer.from(apiKey))) {
+    if (
+      !providedKey ||
+      typeof providedKey !== "string" ||
+      providedKey.length !== apiKey.length ||
+      !timingSafeEqual(Buffer.from(providedKey), Buffer.from(apiKey))
+    ) {
       ws.close(4001, "Unauthorized");
       return;
     }
   }
 
   ws.isAlive = true;
-  ws.on("pong", () => { ws.isAlive = true; });
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.send(
     JSON.stringify({
@@ -109,20 +126,28 @@ ensureMasterWorkspace()
 
     scheduler.start();
 
-    const isProd = process.env.NODE_ENV === "production";
-    if (isProd && !process.env.API_KEY) {
+    const isProd = env.NODE_ENV === "production";
+    if (isProd && !env.API_KEY) {
       logger.warn("API_KEY not set — all write operations are unprotected");
     }
-    if (isProd && !process.env.CORS_ORIGINS) {
+    if (isProd && !env.CORS_ORIGINS) {
       logger.warn("CORS_ORIGINS not set — requests from any origin are allowed");
+    }
+    if (isProd && !env.SENTRY_DSN) {
+      logger.warn("SENTRY_DSN not set — error tracking is disabled");
     }
 
     server.listen(port, () => {
-      logger.info({
-        port,
-        nodeEnv: process.env.NODE_ENV ?? "development",
-        apiKeyConfigured: !!process.env.API_KEY,
-        corsOrigins: process.env.CORS_ORIGINS || "all (unrestricted)",
-      }, "Server startup complete");
+      logger.info(
+        {
+          port,
+          nodeEnv: env.NODE_ENV,
+          apiKeyConfigured: !!env.API_KEY,
+          sentryEnabled: !!env.SENTRY_DSN,
+          singleTenant: env.SINGLE_TENANT,
+          corsOrigins: env.CORS_ORIGINS || "all (unrestricted)",
+        },
+        "Server startup complete"
+      );
     });
   });

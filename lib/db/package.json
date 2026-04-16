@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./repos": "./src/repos/index.ts"
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
@@ -14,7 +15,8 @@
     "migrate:india": "node ./run-migration.cjs ./migrations/002_add_india_fields.sql",
     "migrate:advisory-scope": "node ./run-migration.cjs ./migrations/003_add_advisory_scope.sql",
     "migrate:cert-in": "node ./run-migration.cjs ./migrations/004_add_cert_in_advisory_fields.sql",
-    "migrate:retention": "node ./run-migration.cjs ./migrations/011_add_retention_tables.sql"
+    "migrate:retention": "node ./run-migration.cjs ./migrations/011_add_retention_tables.sql",
+    "migrate:multitenancy": "node ./run-migration.cjs ./migrations/014_add_multitenancy_tables.sql"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

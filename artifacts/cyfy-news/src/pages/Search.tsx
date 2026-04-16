@@ -2,12 +2,13 @@ import { useSearch } from "@workspace/api-client-react";
 import { useSearch as useWouterSearch } from "wouter";
 import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate, stripHtml } from "@/lib/utils";
-import { Search as SearchIcon, ChevronRight, AlertTriangle, Clock } from "lucide-react";
+import { Search as SearchIcon, ChevronRight, Clock } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { highlightMatch } from "@/lib/highlightMatch";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { ErrorState } from "@/components/Common";
 
 const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
 
@@ -89,7 +90,7 @@ export default function Search() {
   useEffect(() => { setDisplayLimit(10); }, [query, typeFilter]);
 
   const searchParams = scope ? { q: query, scope } : { q: query };
-  const { data, isLoading, isError, error } = useSearch(searchParams, {
+  const { data, isLoading, isError, error, refetch } = useSearch(searchParams, {
     query: {
       enabled: query.length > 0,
       queryKey: ["/api/search", searchParams],
@@ -173,13 +174,11 @@ export default function Search() {
       )}
 
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">Search failed</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {error instanceof Error ? error.message : "An unexpected error occurred. Please try again."}
-          </p>
-        </div>
+        <ErrorState
+          title="Search failed"
+          message={error instanceof Error ? error.message : "An unexpected error occurred. Please try again."}
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (

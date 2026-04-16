@@ -9,6 +9,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { globalErrorHandler } from "./middlewares/errorHandler";
 import { writeAuth, apiKeyAuth } from "./middlewares/auth";
+import { authHandler } from "./lib/auth";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -62,6 +63,10 @@ if (process.env.NODE_ENV !== "test") {
   }));
 }
 
+// Stripe webhook requires raw body for signature verification
+// Must be BEFORE the json() middleware so it gets the raw Buffer.
+app.use("/api/billing/webhook", express.raw({ type: "application/json", limit: "2mb" }));
+
 // Body parsing with size limits
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
@@ -99,6 +104,10 @@ app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
+
+// Better Auth — handles /api/auth/* (sign-in, sign-up, verify, reset)
+// Must be mounted BEFORE the write-auth middleware so auth routes are public.
+app.all("/api/auth/*path", authHandler);
 
 // Authentication: protect write operations and sensitive endpoints
 app.use("/api/scheduler", apiKeyAuth);

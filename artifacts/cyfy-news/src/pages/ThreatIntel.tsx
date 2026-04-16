@@ -1,7 +1,7 @@
 import { useGetThreats } from "@workspace/api-client-react";
 import { Skeleton, Button, Card, CardContent } from "@/components/ui/shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, type TimeframeValue, type ActiveFilter } from "@/components/Common";
+import { TabSwitch, TimeframeSelector, FilterSection, Pagination, EmptyState, ActiveFilterBar, ErrorState, type TimeframeValue, type ActiveFilter } from "@/components/Common";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -9,7 +9,6 @@ import {
   Download,
   Terminal,
   Network,
-  AlertTriangle,
   List,
   LayoutGrid,
   Layers,
@@ -106,7 +105,7 @@ export default function ThreatIntel() {
     );
   }, []);
 
-  const { data, isLoading, isError, error } = useGetThreats({
+  const { data, isLoading, isError, error, refetch } = useGetThreats({
     scope,
     severity: severities.length > 0 ? severities.join(",") : undefined,
     category: categories.length > 0 ? categories.join(",") : undefined,
@@ -319,17 +318,11 @@ export default function ThreatIntel() {
       </h2>
 
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">
-            Failed to load threat intelligence
-          </h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {error instanceof Error
-              ? error.message
-              : "An unexpected error occurred. Please try again later."}
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load threat intelligence"
+          message={error instanceof Error ? error.message : "An unexpected error occurred. Please try again later."}
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (

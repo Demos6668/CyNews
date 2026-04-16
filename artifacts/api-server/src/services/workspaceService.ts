@@ -31,6 +31,7 @@ export interface WorkspaceInput {
   name: string;
   domain: string;
   description?: string;
+  orgId?: string;
   products?: ProductInput[];
 }
 
@@ -75,6 +76,7 @@ export async function createWorkspace(data: WorkspaceInput) {
       name: data.name,
       domain: data.domain,
       description: data.description ?? null,
+      orgId: data.orgId ?? null,
     })
     .returning();
 

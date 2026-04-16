@@ -4,23 +4,47 @@ interface UseKeyboardShortcutsOptions {
   onSearchFocus?: () => void;
   onItemDown?: () => void;
   onItemUp?: () => void;
+  onItemOpen?: () => void;
+  onBookmark?: () => void;
+  onHelpToggle?: () => void;
   enabled?: boolean;
 }
 
 /**
- * Global keyboard shortcuts for CYFY News Board:
- * - / : Focus search bar
- * - j : Navigate to next item (when applicable)
- * - k : Navigate to previous item (when applicable)
+ * Global keyboard shortcuts for CyNews list pages:
+ *
+ * j / ↓  — next item
+ * k / ↑  — previous item
+ * o / Enter — open selected item
+ * b      — bookmark/unbookmark selected item
+ * /      — focus search bar
+ * ?      — toggle keyboard shortcut help
  */
 export function useKeyboardShortcuts({
   onSearchFocus,
   onItemDown,
   onItemUp,
+  onItemOpen,
+  onBookmark,
+  onHelpToggle,
   enabled = true,
 }: UseKeyboardShortcutsOptions) {
-  const handlersRef = useRef({ onSearchFocus, onItemDown, onItemUp });
-  handlersRef.current = { onSearchFocus, onItemDown, onItemUp };
+  const handlersRef = useRef({
+    onSearchFocus,
+    onItemDown,
+    onItemUp,
+    onItemOpen,
+    onBookmark,
+    onHelpToggle,
+  });
+  handlersRef.current = {
+    onSearchFocus,
+    onItemDown,
+    onItemUp,
+    onItemOpen,
+    onBookmark,
+    onHelpToggle,
+  };
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -36,22 +60,37 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      if (e.key === "/") {
-        e.preventDefault();
-        handlersRef.current.onSearchFocus?.();
-        return;
-      }
+      // Allow modifier keys to pass through
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      if (e.key === "j" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        handlersRef.current.onItemDown?.();
-        return;
-      }
-
-      if (e.key === "k" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        handlersRef.current.onItemUp?.();
-        return;
+      switch (e.key) {
+        case "/":
+          e.preventDefault();
+          handlersRef.current.onSearchFocus?.();
+          break;
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          handlersRef.current.onItemDown?.();
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          handlersRef.current.onItemUp?.();
+          break;
+        case "o":
+        case "Enter":
+          e.preventDefault();
+          handlersRef.current.onItemOpen?.();
+          break;
+        case "b":
+          e.preventDefault();
+          handlersRef.current.onBookmark?.();
+          break;
+        case "?":
+          e.preventDefault();
+          handlersRef.current.onHelpToggle?.();
+          break;
       }
     },
     [enabled]

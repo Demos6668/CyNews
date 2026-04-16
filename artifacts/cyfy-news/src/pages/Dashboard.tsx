@@ -8,7 +8,7 @@ import { LayoutDashboard } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { NewsCard, NewsDetail } from "@/components/News";
 import { StatsCard, ThreatMeter, QuickActions, RefreshCountdown, FeedStatus, StatusStrip, ActivityStream, IndiaStatsPanel, SeverityTrendChart } from "@/components/Dashboard";
-import { TimeframeSelector, getTimeframeLabel, PageHeader, type TimeframeValue } from "@/components/Common";
+import { TimeframeSelector, getTimeframeLabel, PageHeader, ErrorState, type TimeframeValue } from "@/components/Common";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { usePreference } from "@/hooks/usePreferences";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -22,11 +22,11 @@ export default function Dashboard() {
   const [timeframe, setTimeframe] = useState<TimeframeValue>("24h");
   const pollMs = autoRefresh ? refreshInterval * 1000 : false;
   const statsParams = { timeframe };
-  const { data: stats, isLoading: statsLoading, isError: statsError } = useGetDashboardStats(statsParams, {
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: statsRefetch } = useGetDashboardStats(statsParams, {
     query: { queryKey: getGetDashboardStatsQueryKey(statsParams), refetchInterval: pollMs },
   });
   const newsParams = { limit: 4, timeframe };
-  const { data: recentNews, isLoading: newsLoading, isError: newsError } = useGetNews(newsParams, {
+  const { data: recentNews, isLoading: newsLoading, isError: newsError, refetch: newsRefetch } = useGetNews(newsParams, {
     query: { queryKey: getGetNewsQueryKey(newsParams), refetchInterval: pollMs },
   });
   const localStatsParams = { timeframe, scope: "local" as const };
@@ -53,13 +53,11 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold font-sans">Threat Overview</h1>
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load dashboard</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            Unable to retrieve SOC metrics. Please check your connection and try again.
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load dashboard"
+          message="Unable to retrieve SOC metrics. Please check your connection and try again."
+          onRetry={() => void statsRefetch()}
+        />
       </div>
     );
   }
@@ -146,10 +144,11 @@ export default function Dashboard() {
             </h2>
           </div>
           {newsError ? (
-            <div className="p-8 bg-card rounded-xl border border-destructive/30 text-center">
-              <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
-              <p className="text-muted-foreground text-sm">Failed to load recent news.</p>
-            </div>
+            <ErrorState
+              title="Failed to load recent news"
+              message="Please check your connection and try again."
+              onRetry={() => void newsRefetch()}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {newsLoading ? (

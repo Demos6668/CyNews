@@ -8,6 +8,8 @@ import searchRouter from "./search";
 import exportRouter from "./export";
 import workspacesRouter from "./workspaces";
 import schedulerRouter from "./scheduler";
+import billingRouter from "./billing";
+import savedViewsRouter from "./savedViews";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use(newsRouter);
 router.use(advisoriesRouter);
 router.use(threatsRouter);
 router.use(searchRouter);
+router.use(billingRouter);
+router.use(savedViewsRouter);
 
 export default router;

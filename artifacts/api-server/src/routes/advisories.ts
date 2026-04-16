@@ -1,10 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, advisoriesTable } from "@workspace/db";
+import { orgAdvisoryStatusRepo } from "@workspace/db/repos";
 import { eq, sql, and, gte, inArray, or, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { getTimeframeStartDate } from "../lib/timeframe";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
 import { apiCache, CACHE_TTL } from "../lib/cache";
+import { requireAuth } from "../middlewares/tenantContext";
+import { requirePermission } from "../middlewares/rbac";
 import type { SQL } from "drizzle-orm";
 
 const PatchStatusBody = z.object({
@@ -209,9 +212,16 @@ router.get("/advisories/patches", asyncHandler(async (req: Request, res: Respons
     res.json(data);
 }));
 
-router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, res: Response) => {
+router.patch(
+  "/advisories/:id/patch-status",
+  requireAuth,
+  requirePermission("advisory:update_status"),
+  asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    if (isNaN(id) || !Number.isInteger(id)) { res.status(400).json({ error: "Invalid advisory ID" }); return; }
+    if (isNaN(id) || !Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid advisory ID" });
+      return;
+    }
 
     const parsed = PatchStatusBody.safeParse(req.body);
     if (!parsed.success) {
@@ -220,26 +230,36 @@ router.patch("/advisories/:id/patch-status", asyncHandler(async (req: Request, r
     }
     const { patchAvailable, patchUrl, status } = parsed.data;
 
-    const updateFields: Partial<typeof advisoriesTable.$inferInsert> = { updatedAt: new Date() };
-    if (patchAvailable !== undefined) updateFields.patchAvailable = patchAvailable;
-    if (patchUrl !== undefined) updateFields.patchUrl = patchUrl ?? null;
-    if (status) updateFields.status = status;
-
-    const [updated] = await db
-      .update(advisoriesTable)
-      .set(updateFields)
+    // Verify the advisory exists
+    const [advisory] = await db
+      .select({ id: advisoriesTable.id })
+      .from(advisoriesTable)
       .where(eq(advisoriesTable.id, id))
-      .returning({ id: advisoriesTable.id, status: advisoriesTable.status, patchAvailable: advisoriesTable.patchAvailable });
+      .limit(1);
 
-    if (!updated) { res.status(404).json({ error: "Advisory not found" }); return; }
+    if (!advisory) {
+      res.status(404).json({ error: "Advisory not found" });
+      return;
+    }
 
-    // Invalidate only advisory-related cache keys to avoid flushing unrelated entries
+    // Write to the per-org status table — preserves global advisory data for
+    // all other orgs. Falls back to global defaults when no row exists.
+    const ctx = req.ctx!;
+    const updated = await orgAdvisoryStatusRepo.upsert(ctx, id, {
+      ...(status !== undefined ? { status } : {}),
+      ...(patchAvailable !== undefined ? { patchAvailable } : {}),
+      ...(patchUrl !== undefined ? { patchUrl } : {}),
+    });
+
+    // Invalidate only advisory-related cache keys
     apiCache.invalidate("advisories:");
     apiCache.invalidate("certin:");
     apiCache.invalidate("patches:");
     apiCache.invalidate("dashboard:");
+
     res.json({ success: true, advisory: updated });
-}));
+  })
+);
 
 router.get("/advisories/vendors", asyncHandler(async (req: Request, res: Response) => {
     const cached = apiCache.get<object>("advisories:vendors");

@@ -3,9 +3,9 @@ import { useGetBookmarkedNews } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
 import { Skeleton, Button } from "@/components/ui/shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bookmark, AlertTriangle, Newspaper, Shield } from "lucide-react";
+import { Bookmark, Newspaper, Shield } from "lucide-react";
 import { NewsCard, NewsDetail } from "@/components/News";
-import { PageHeader } from "@/components/Common";
+import { PageHeader, ErrorState } from "@/components/Common";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { Link } from "wouter";
@@ -19,7 +19,7 @@ export default function Bookmarks() {
   const [scope, setScope] = useState<ScopeFilter>("all");
   const [sort, setSort] = useState<SortOrder>("newest");
 
-  const { data, isLoading, isError, error } = useGetBookmarkedNews();
+  const { data, isLoading, isError, error, refetch } = useGetBookmarkedNews();
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
@@ -72,13 +72,11 @@ export default function Bookmarks() {
       />
 
       {isError ? (
-        <div className="text-center py-20 bg-card rounded-xl border border-destructive/30">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load bookmarks</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {error instanceof Error ? error.message : "An unexpected error occurred."}
-          </p>
-        </div>
+        <ErrorState
+          title="Failed to load bookmarks"
+          message={error instanceof Error ? error.message : "An unexpected error occurred."}
+          onRetry={() => void refetch()}
+        />
       ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
