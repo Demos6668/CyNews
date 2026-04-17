@@ -11,6 +11,7 @@ import {
   hydrateRetentionMaintenanceStatus,
   runRetentionMaintenance,
 } from "./dataRetention";
+import { runMaintenanceSweeps } from "./maintenance";
 
 export interface SchedulerStatus {
   isRunning: boolean;
@@ -104,9 +105,10 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
 
   let feedCron: cron.ScheduledTask | null = null;
   let retentionCron: cron.ScheduledTask | null = null;
+  let maintenanceCron: cron.ScheduledTask | null = null;
 
   function start(): void {
-    logger.info("Scheduler starting - feed updates every 15 minutes, retention daily at 03:00");
+    logger.info("Scheduler starting - feed updates every 15 minutes, retention daily at 03:00, GC sweeps daily at 04:00");
     hydrateRetentionMaintenanceStatus().catch((err) =>
       logger.warn({ err }, "Unable to hydrate retention maintenance status"),
     );
@@ -117,6 +119,11 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
         logger.error({ err }, "Data retention task failed"),
       ),
     );
+    maintenanceCron = cron.schedule("0 4 * * *", () =>
+      runMaintenanceSweeps({ feedUpdateRunning: isRunning }).catch((err) =>
+        logger.error({ err }, "Maintenance sweeps failed"),
+      ),
+    );
     logger.info("Scheduler started");
   }
 
@@ -125,6 +132,8 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
     feedCron = null;
     retentionCron?.stop();
     retentionCron = null;
+    maintenanceCron?.stop();
+    maintenanceCron = null;
     logger.info("Scheduler stopped");
   }
 

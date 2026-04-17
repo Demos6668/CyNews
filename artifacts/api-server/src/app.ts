@@ -99,6 +99,46 @@ app.use("/api/news", (req: Request, res: Response, next: NextFunction) => {
 app.use("/api/export", writeLimiter);
 app.use("/api/threats/export", writeLimiter);
 
+// Tight rate limit for credential/auth endpoints (anti-brute-force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts, please try again later" },
+});
+app.use("/api/auth/sign-in", authLimiter);
+app.use("/api/auth/sign-up", authLimiter);
+app.use("/api/auth/email-otp", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
+app.use("/api/auth/verify-email", authLimiter);
+
+// Account deletion — 5 requests per hour
+const accountDeleteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many account deletion requests" },
+});
+app.use("/api/account", (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "DELETE") {
+    accountDeleteLimiter(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// Stripe webhook — burst protection (Stripe retries ~3× per event)
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many webhook requests" },
+});
+app.use("/api/billing/webhook", webhookLimiter);
+
 // Prevent browsers from caching API responses (server-side TTL cache handles freshness)
 app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Cache-Control", "no-store");

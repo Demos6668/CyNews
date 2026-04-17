@@ -16,6 +16,11 @@ export const workspacesTable = pgTable("workspaces", {
   orgId:       text("org_id").references(() => organizationsTable.id, { onDelete: "cascade" }),
   createdAt:   timestamp("created_at").defaultNow(),
   updatedAt:   timestamp("updated_at").defaultNow(),
+  /** Soft-delete: set when workspace deletion is scheduled. */
+  deletedAt:   timestamp("deleted_at"),
+  /** Hard-purge timestamp — row physically deleted after this date. */
+  purgeAfter:  timestamp("purge_after"),
 }, (t) => [
   index("workspaces_org_idx").on(t.orgId),
+  index("workspaces_purge_idx").on(t.purgeAfter),
 ]);

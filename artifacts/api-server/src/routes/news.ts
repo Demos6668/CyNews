@@ -223,7 +223,7 @@ router.get("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     res.json(data);
 }));
 
-router.post("/news", asyncHandler(async (req: Request, res: Response) => {
+router.post("/news", requireAuth, asyncHandler(async (req: Request, res: Response) => {
     const body = insertNewsItemSchema.parse(req.body);
     const [inserted] = await db
       .insert(newsItemsTable)
@@ -252,7 +252,7 @@ router.post("/news", asyncHandler(async (req: Request, res: Response) => {
     res.status(201).json(data);
 }));
 
-router.put("/news/:id", asyncHandler(async (req: Request, res: Response) => {
+router.put("/news/:id", requireAuth, asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const body = insertNewsItemSchema.partial().parse(req.body);
 
@@ -299,7 +299,7 @@ router.put("/news/:id", asyncHandler(async (req: Request, res: Response) => {
     res.json(data);
 }));
 
-router.delete("/news/:id", asyncHandler(async (req: Request, res: Response) => {
+router.delete("/news/:id", requireAuth, asyncHandler(async (req: Request, res: Response) => {
     const params = GetNewsByIdParams.parse({ id: Number(req.params.id) });
 
     const [item] = await db

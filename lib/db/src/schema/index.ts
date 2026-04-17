@@ -32,3 +32,6 @@ export * from "./alertRules";
 export * from "./auditLog";
 export * from "./stripeEvents";
 export * from "./usageDaily";
+
+// ── Data lifecycle ────────────────────────────────────────────────────────
+export * from "./deleteRequests";

@@ -116,8 +116,12 @@ router.post("/workspaces", requireAuth, validate({ body: CreateWorkspaceBody }),
     });
 }));
 
-router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
+router.put("/workspaces/:id", requireAuth, validate({ params: UpdateWorkspaceParams, body: UpdateWorkspaceBody }), asyncHandler(async (req: Request, res: Response) => {
+    const orgId = req.ctx!.orgId;
     const id = req.params.id as string;
+    const [owned] = await db.select({ id: workspacesTable.id }).from(workspacesTable)
+      .where(and(eq(workspacesTable.id, id), eq(workspacesTable.orgId, orgId))).limit(1);
+    if (!owned) throw new NotFoundError("Workspace not found");
 
     const { name, domain, description } = req.body;
     const updates: Record<string, unknown> = {};
@@ -132,20 +136,17 @@ router.put("/workspaces/:id", validate({ params: UpdateWorkspaceParams, body: Up
       .where(eq(workspacesTable.id, id))
       .returning();
 
-    if (!updated) {
-      throw new NotFoundError("Workspace not found");
-    }
-
     res.json(updated);
 }));
 
-router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
+router.delete("/workspaces/:id", requireAuth, validate({ params: DeleteWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
+    const orgId = req.ctx!.orgId;
 
     const [workspace] = await db
       .select()
       .from(workspacesTable)
-      .where(eq(workspacesTable.id, id))
+      .where(and(eq(workspacesTable.id, id), eq(workspacesTable.orgId, orgId)))
       .limit(1);
 
     if (!workspace) {
@@ -161,7 +162,7 @@ router.delete("/workspaces/:id", validate({ params: DeleteWorkspaceParams }), as
     res.json({ success: true });
 }));
 
-router.post("/workspaces/:id/products", validate({ params: AddProductParams, body: AddProductBody }), asyncHandler(async (req: Request, res: Response) => {
+router.post("/workspaces/:id/products", requireAuth, validate({ params: AddProductParams, body: AddProductBody }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const { name, vendor, version, category } = req.body;
 
@@ -175,7 +176,7 @@ router.post("/workspaces/:id/products", validate({ params: AddProductParams, bod
     res.status(201).json(product);
 }));
 
-router.delete("/workspaces/:id/products/:productId", validate({ params: RemoveProductParams }), asyncHandler(async (req: Request, res: Response) => {
+router.delete("/workspaces/:id/products/:productId", requireAuth, validate({ params: RemoveProductParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const productId = req.params.productId as string;
 
@@ -264,14 +265,14 @@ router.get("/workspaces/:id/feed", validate({ params: GetWorkspaceFeedParams, qu
     res.json({ items: formatted, total, page, limit });
 }));
 
-router.post("/workspaces/:id/match", validate({ params: MatchWorkspaceThreatsParams }), asyncHandler(async (req: Request, res: Response) => {
+router.post("/workspaces/:id/match", requireAuth, validate({ params: MatchWorkspaceThreatsParams }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
     const matches = await matchThreatsToWorkspace(id);
     res.json({ matchedCount: matches.length });
 }));
 
-router.put("/workspaces/:id/matches/:matchId", validate({ params: UpdateMatchParams, body: UpdateMatchBody }), asyncHandler(async (req: Request, res: Response) => {
+router.put("/workspaces/:id/matches/:matchId", requireAuth, validate({ params: UpdateMatchParams, body: UpdateMatchBody }), asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const matchId = req.params.matchId as string;
 

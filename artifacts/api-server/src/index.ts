@@ -42,6 +42,11 @@ function broadcast(event: string, data: unknown): void {
 const scheduler = createFeedScheduler(broadcast);
 setScheduler(scheduler);
 
+// Surface idle-client errors that would otherwise be swallowed silently
+pool.on("error", (err: Error) => {
+  logger.error({ err }, "Unexpected DB pool error on idle client");
+});
+
 // WebSocket heartbeat to detect stale connections
 const HEARTBEAT_INTERVAL = 30_000;
 const heartbeatTimer = setInterval(() => {
@@ -91,9 +96,14 @@ wss.on("connection", (ws: any, req: import("http").IncomingMessage) => {
   );
 });
 
-// Graceful shutdown
+// Graceful shutdown — order matters:
+//   1. Stop accepting new cron jobs / feed updates
+//   2. Close WebSocket clients
+//   3. Drain in-flight HTTP requests
+//   4. End DB pool (only after HTTP drains so in-flight queries complete)
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Shutting down gracefully");
+
   scheduler.stop();
   clearInterval(heartbeatTimer);
 
@@ -104,16 +114,24 @@ async function shutdown(signal: string): Promise<void> {
 
   await new Promise<void>((resolve) => {
     server.close(() => resolve());
-    setTimeout(() => resolve(), 5000); // Force after 5s
+    setTimeout(() => {
+      logger.warn("Graceful HTTP drain timed out — forcing close");
+      resolve();
+    }, 10_000);
   });
 
-  await pool.end().catch(() => {});
+  await pool.end().catch((err: Error) => {
+    logger.error({ err }, "Error closing DB pool");
+  });
+
   logger.info("Shutdown complete");
   process.exit(0);
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+// SIGHUP: log rotation signal — no action required but log it so it's visible
+process.on("SIGHUP", () => logger.info("SIGHUP received — log rotation event"));
 
 ensureMasterWorkspace()
   .catch((err) => logger.error({ err }, "Failed to ensure master workspace"))
