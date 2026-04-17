@@ -21,3 +21,5 @@ export { RouteErrorBoundary } from "./RouteErrorBoundary";
 export { ErrorState } from "./ErrorState";
 export { SavedViewsButton } from "./SavedViewsButton";
 export { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
+export { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+export { AccountDangerZone } from "./AccountDangerZone";

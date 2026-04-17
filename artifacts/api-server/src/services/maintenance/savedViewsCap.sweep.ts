@@ -13,19 +13,19 @@ export const savedViewsCapSweep: Sweep = {
 
     const client = await pool.connect();
     try {
-      // Find (org_id, user_id, page_key) groups that exceed their plan limit
+      // Find (org_id, user_id, page) groups that exceed their plan limit
       // by joining saved_views with organizations to get the plan tier.
       const overage = await client.query<{
         org_id: string;
         user_id: string;
-        page_key: string;
+        page: string;
         plan: string;
         row_count: number;
       }>(
-        `SELECT sv.org_id, sv.user_id, sv.page_key, o.plan, COUNT(*) AS row_count
+        `SELECT sv.org_id, sv.user_id, sv.page, o.plan, COUNT(*) AS row_count
          FROM saved_views sv
          JOIN organizations o ON o.id = sv.org_id
-         GROUP BY sv.org_id, sv.user_id, sv.page_key, o.plan
+         GROUP BY sv.org_id, sv.user_id, sv.page, o.plan
          HAVING COUNT(*) > 0`
       );
 
@@ -39,11 +39,11 @@ export const savedViewsCapSweep: Sweep = {
           `DELETE FROM saved_views
            WHERE id IN (
              SELECT id FROM saved_views
-             WHERE org_id = $1 AND user_id = $2 AND page_key = $3
+             WHERE org_id = $1 AND user_id = $2 AND page = $3
              ORDER BY created_at ASC
              LIMIT $4
            )`,
-          [row.org_id, row.user_id, row.page_key, excess]
+          [row.org_id, row.user_id, row.page, excess]
         );
         deleted += result.rowCount ?? 0;
       }

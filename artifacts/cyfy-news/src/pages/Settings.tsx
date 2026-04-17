@@ -1,5 +1,6 @@
 import { Card, CardContent, Button, Input } from "@/components/ui/shared";
-import { User, Bell, Shield, Key, Sun, Moon, Monitor, RefreshCw, Clock, Rss, Trash2 } from "lucide-react";
+import { AccountDangerZone } from "@/components/Common";
+import { User, Bell, Shield, Key, Sun, Moon, Monitor, RefreshCw, Clock, Rss } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
@@ -136,19 +137,7 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              <Card className="border-destructive/30 bg-destructive/5">
-                <div className="p-6">
-                  <h3 className="text-lg font-bold text-destructive mb-2">Danger Zone</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Actions here are permanent and cannot be undone.</p>
-                  <Button variant="destructive" onClick={() => {
-                    localStorage.clear();
-                    window.location.reload();
-                  }}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Clear Local Cache
-                  </Button>
-                </div>
-              </Card>
+              <AccountDangerZone />
             </>
           )}
 

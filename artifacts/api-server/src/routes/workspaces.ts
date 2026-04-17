@@ -15,6 +15,7 @@ import {
   updateWorkspaceMatch,
 } from "../services/workspaceService";
 import { asyncHandler, NotFoundError } from "../middlewares/errorHandler";
+import { scheduleSoftDelete, cancelSoftDelete } from "../services/softDelete";
 import { validate } from "../middlewares/validate";
 import {
   CreateWorkspaceBody,
@@ -158,8 +159,59 @@ router.delete("/workspaces/:id", requireAuth, validate({ params: DeleteWorkspace
       return;
     }
 
-    await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
-    res.json({ success: true });
+    if (process.env.WORKSPACE_SOFT_DELETE === "true") {
+      const result = await scheduleSoftDelete({
+        subjectType: "workspace",
+        subjectId: id,
+        requestedBy: req.ctx!.userId,
+        graceDays: 30,
+      });
+      res.json({ success: true, softDeleted: true, purgeAfter: result.purgeAfter.toISOString() });
+    } else {
+      await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
+      res.json({ success: true, softDeleted: false });
+    }
+}));
+
+router.post("/workspaces/:id/restore", requireAuth, validate({ params: GetWorkspaceParams }), asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const orgId = req.ctx!.orgId;
+
+    const [workspace] = await db
+      .select({ id: workspacesTable.id, deletedAt: workspacesTable.deletedAt })
+      .from(workspacesTable)
+      .where(and(eq(workspacesTable.id, id), eq(workspacesTable.orgId, orgId)))
+      .limit(1);
+
+    if (!workspace) throw new NotFoundError("Workspace not found");
+    if (!workspace.deletedAt) {
+      res.status(400).json({ error: "Workspace is not soft-deleted" });
+      return;
+    }
+
+    // Find and cancel the pending delete request
+    const { db: dbClient } = await import("@workspace/db");
+    const { deleteRequestsTable } = await import("@workspace/db/schema");
+    const [req_] = await dbClient
+      .select({ id: deleteRequestsTable.id })
+      .from(deleteRequestsTable)
+      .where(
+        and(
+          eq(deleteRequestsTable.subjectType, "workspace"),
+          eq(deleteRequestsTable.subjectId, id),
+          eq(deleteRequestsTable.state, "pending")
+        )
+      )
+      .limit(1);
+
+    if (req_) {
+      await cancelSoftDelete(req_.id, req.ctx!.userId);
+    } else {
+      // Manually clear soft-delete columns if no request record exists
+      await db.update(workspacesTable).set({ deletedAt: null, purgeAfter: null }).where(eq(workspacesTable.id, id));
+    }
+
+    res.json({ success: true, restored: true });
 }));
 
 router.post("/workspaces/:id/products", requireAuth, validate({ params: AddProductParams, body: AddProductBody }), asyncHandler(async (req: Request, res: Response) => {
