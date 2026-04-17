@@ -57,6 +57,74 @@ jobs:
       - name: Audit dependencies
         run: pnpm audit --prod --audit-level=high
 
+  e2e:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        shard: ["1/2", "2/2"]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cyfy
+          POSTGRES_PASSWORD: cyfy
+          POSTGRES_DB: cyfy_e2e
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (${{ matrix.browser }})
+        run: pnpm --filter @workspace/e2e exec playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Push DB schema
+        run: pnpm run db:push --force
+        env:
+          DATABASE_URL: postgres://cyfy:cyfy@localhost:5432/cyfy_e2e
+
+      - name: Run E2E tests
+        run: pnpm --filter @workspace/e2e run test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}
+        env:
+          CI: true
+          DATABASE_URL_E2E: postgres://cyfy:cyfy@localhost:5432/cyfy_e2e
+          BACKEND_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+          SINGLE_TENANT: "true"
+          BETTER_AUTH_TEST_MODE: "true"
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.browser }}-shard-${{ strategy.job-index }}
+          path: |
+            artifacts/e2e/test-results/
+            artifacts/e2e/playwright-report/
+          retention-days: 7
+
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
