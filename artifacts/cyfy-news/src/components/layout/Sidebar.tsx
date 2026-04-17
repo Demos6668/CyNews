@@ -39,19 +39,24 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setMobileOpen(false);
-      }
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+      if (event.matches) setMobileOpen(false);
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    setIsDesktop(mql.matches);
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
   }, []);
 
   const sidebarContent = (
@@ -71,17 +76,26 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
           )}
         </AnimatePresence>
         
-        <button 
+        <button
+          type="button"
           onClick={() => {
-            if (window.innerWidth < 1024) {
+            if (!isDesktop) {
               setMobileOpen(false);
             } else {
               onCollapsedChange?.(!collapsed);
             }
           }}
           className={cn("p-2 text-muted-foreground hover:text-white transition-colors", collapsed ? "mx-auto" : "ml-auto")}
+          aria-label={
+            !isDesktop
+              ? "Close navigation menu"
+              : collapsed
+                ? "Expand sidebar"
+                : "Collapse sidebar"
+          }
+          aria-expanded={isDesktop ? !collapsed : mobileOpen}
         >
-          {window.innerWidth < 1024 ? <X size={20} /> : collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+          {!isDesktop ? <X size={20} /> : collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
       </div>
 

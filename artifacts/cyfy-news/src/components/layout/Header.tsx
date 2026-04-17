@@ -184,14 +184,18 @@ export function Header() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded-lg px-2 py-1.5 hover:bg-white/5">
+            <button
+              type="button"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded-lg px-2 py-1.5 hover:bg-white/5"
+              aria-label={profileName ? `Account menu for ${profileName}` : "Account menu"}
+            >
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-secondary font-bold text-sm">
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4" aria-hidden="true" />
               </div>
               <span className="text-sm font-medium hidden sm:inline-block truncate max-w-[120px]">
                 {profileName}
               </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

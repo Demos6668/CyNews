@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import DOMPurify from "dompurify";
 import {
   X,
@@ -293,6 +293,19 @@ export function EmailExportModal({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState({ subject: false, body: false });
   const [activeTab, setActiveTab] = useState<"preview" | "customize" | "templates">("preview");
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
 
   const isCertIn = advisory?.isCertIn ?? advisory?.source === "CERT-In";
 
@@ -437,7 +450,12 @@ export function EmailExportModal({
         aria-hidden
       />
       <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
-        <div className="bg-card rounded-xl flex flex-col overflow-hidden shadow-2xl border border-border w-full max-w-4xl max-h-[90vh]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className="bg-card rounded-xl flex flex-col overflow-hidden shadow-2xl border border-border w-full max-w-4xl max-h-[90vh]"
+        >
         <div
           className={cn(
             "px-6 py-4 border-b border-border flex items-center justify-between",
@@ -452,9 +470,10 @@ export function EmailExportModal({
                 "w-6 h-6",
                 isCertIn ? "text-orange-500" : "text-primary"
               )}
+              aria-hidden="true"
             />
             <div>
-              <h2 className="text-lg font-bold text-foreground">
+              <h2 id={titleId} className="text-lg font-bold text-foreground">
                 Export as Email
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -462,8 +481,8 @@ export function EmailExportModal({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close email export dialog">
+            <X className="w-5 h-5" aria-hidden="true" />
           </Button>
         </div>
 

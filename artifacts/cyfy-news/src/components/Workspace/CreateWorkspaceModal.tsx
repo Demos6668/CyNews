@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,6 +73,15 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
     category: "Other",
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const titleId = useId();
+  const nameId = useId();
+  const domainId = useId();
+  const descriptionId = useId();
+  const productsLabelId = useId();
+  const productNameId = useId();
+  const productVendorId = useId();
+  const productVersionId = useId();
+  const productCategoryId = useId();
 
   const resetForm = () => {
     setFormData({ name: "", domain: "", description: "" });
@@ -116,20 +125,42 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
     onClose();
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        handleClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border rounded-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={handleClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border rounded-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-border">
-          <h2 className="text-xl font-semibold">Create Workspace</h2>
+          <h2 id={titleId} className="text-xl font-semibold">Create Workspace</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Workspace Name *</label>
+              <label htmlFor={nameId} className="block text-sm font-medium mb-2">Workspace Name *</label>
               <input
+                id={nameId}
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
@@ -139,8 +170,9 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Domain *</label>
+              <label htmlFor={domainId} className="block text-sm font-medium mb-2">Domain *</label>
               <input
+                id={domainId}
                 type="text"
                 value={formData.domain}
                 onChange={(e) => setFormData((p) => ({ ...p, domain: e.target.value }))}
@@ -150,8 +182,9 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
+              <label htmlFor={descriptionId} className="block text-sm font-medium mb-2">Description</label>
               <textarea
+                id={descriptionId}
                 value={formData.description}
                 onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
                 placeholder="Brief description..."
@@ -163,11 +196,12 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
 
           <div>
             <div className="flex items-center justify-between mb-4">
-              <label className="text-sm font-medium">Products & Technologies</label>
+              <span id={productsLabelId} className="text-sm font-medium">Products & Technologies</span>
               <button
                 type="button"
                 onClick={() => setShowSuggestions((s) => !s)}
                 className="text-xs text-primary hover:underline"
+                aria-expanded={showSuggestions}
               >
                 {showSuggestions ? "Hide suggestions" : "Show common products"}
               </button>
@@ -197,9 +231,9 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
             )}
 
             {products.length > 0 && (
-              <div className="mb-4 space-y-2">
+              <ul className="mb-4 space-y-2" aria-labelledby={productsLabelId}>
                 {products.map((p) => (
-                  <div
+                  <li
                     key={p.id}
                     className="flex items-center justify-between p-3 bg-background rounded-lg border border-border"
                   >
@@ -216,48 +250,64 @@ export function CreateWorkspaceModal({ isOpen, onClose, onCreate }: CreateWorksp
                       type="button"
                       onClick={() => handleRemoveProduct(p.id)}
                       className="text-destructive hover:bg-destructive/20 p-1 rounded"
+                      aria-label={`Remove ${p.name}`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
 
             <div className="p-4 bg-background rounded-lg border border-dashed border-border">
               <p className="text-xs text-muted-foreground mb-3">Add custom product:</p>
               <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Product name *"
-                  className="px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
-                />
-                <input
-                  type="text"
-                  value={newProduct.vendor}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, vendor: e.target.value }))}
-                  placeholder="Vendor"
-                  className="px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
-                />
-                <input
-                  type="text"
-                  value={newProduct.version}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, version: e.target.value }))}
-                  placeholder="Version (optional)"
-                  className="px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
-                />
-                <Select value={newProduct.category} onValueChange={(v) => setNewProduct((p) => ({ ...p, category: v }))}>
-                  <SelectTrigger className="text-sm h-10 border-border bg-card">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRODUCT_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <label htmlFor={productNameId} className="sr-only">Product name</label>
+                  <input
+                    id={productNameId}
+                    type="text"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Product name *"
+                    className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor={productVendorId} className="sr-only">Product vendor</label>
+                  <input
+                    id={productVendorId}
+                    type="text"
+                    value={newProduct.vendor}
+                    onChange={(e) => setNewProduct((p) => ({ ...p, vendor: e.target.value }))}
+                    placeholder="Vendor"
+                    className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor={productVersionId} className="sr-only">Product version</label>
+                  <input
+                    id={productVersionId}
+                    type="text"
+                    value={newProduct.version}
+                    onChange={(e) => setNewProduct((p) => ({ ...p, version: e.target.value }))}
+                    placeholder="Version (optional)"
+                    className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor={productCategoryId} className="sr-only">Product category</label>
+                  <Select value={newProduct.category} onValueChange={(v) => setNewProduct((p) => ({ ...p, category: v }))}>
+                    <SelectTrigger id={productCategoryId} className="text-sm h-10 border-border bg-card">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button
                 type="button"

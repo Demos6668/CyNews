@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { X, Mail, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,19 @@ export function BulkEmailExportModal({
   const [exports, setExports] = useState<BatchExportItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -123,7 +136,12 @@ export function BulkEmailExportModal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="fixed inset-4 md:inset-16 bg-card rounded-xl z-[61] flex flex-col overflow-hidden shadow-2xl border border-border">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="fixed inset-4 md:inset-16 bg-card rounded-xl z-[61] flex flex-col overflow-hidden shadow-2xl border border-border"
+      >
         <div
           className={cn(
             "px-6 py-4 border-b border-border flex items-center justify-between",
@@ -138,9 +156,10 @@ export function BulkEmailExportModal({
                 "w-6 h-6",
                 isCertIn ? "text-orange-500" : "text-primary"
               )}
+              aria-hidden="true"
             />
             <div>
-              <h2 className="text-lg font-bold text-foreground">
+              <h2 id={titleId} className="text-lg font-bold text-foreground">
                 Bulk Export as Email
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -148,8 +167,8 @@ export function BulkEmailExportModal({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close bulk export dialog">
+            <X className="w-5 h-5" aria-hidden="true" />
           </Button>
         </div>
 

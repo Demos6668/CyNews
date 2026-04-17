@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useId } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -116,17 +116,35 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 
 // Modal / Dialog basics
 export function Dialog({ isOpen, onClose, title, children }: { isOpen: boolean, onClose: () => void, title?: string, children: React.ReactNode }) {
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:items-center p-4">
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose} 
+        onClick={onClose}
         className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-all"
+        aria-hidden="true"
       />
-      <motion.div 
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -134,7 +152,7 @@ export function Dialog({ isOpen, onClose, title, children }: { isOpen: boolean, 
       >
         {title && (
           <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-            <h2 className="text-xl font-semibold leading-none tracking-tight">{title}</h2>
+            <h2 id={titleId} className="text-xl font-semibold leading-none tracking-tight">{title}</h2>
           </div>
         )}
         {children}

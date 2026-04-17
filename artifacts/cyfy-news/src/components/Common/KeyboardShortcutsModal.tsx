@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { X, Keyboard } from "lucide-react";
 
 interface ShortcutRow {
@@ -22,6 +22,8 @@ interface KeyboardShortcutsModalProps {
 }
 
 export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModalProps) {
+  const titleId = useId();
+
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -39,22 +41,26 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <Keyboard className="h-4 w-4 text-muted-foreground" />
+          <h2 id={titleId} className="text-base font-semibold flex items-center gap-2">
+            <Keyboard className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Keyboard Shortcuts
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            aria-label="Close keyboard shortcuts"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 

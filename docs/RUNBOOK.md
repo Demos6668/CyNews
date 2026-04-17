@@ -373,3 +373,55 @@ SQL, Neon), keep it enabled. Logical dumps from §10.2 are the independent
 second line — they survive a provider outage or account lockout that would
 take PITR offline.
 
+## 11. Accessibility
+
+**Target:** WCAG 2.1 A/AA across all production pages.
+
+### 11.1 Layered checks
+
+1. **Static (ESLint)** — `eslint-plugin-jsx-a11y` runs as part of `pnpm lint`
+   against `artifacts/cyfy-news/src/**`. Warns on missing labels, invalid
+   anchor targets, unassociated form controls, and other markup-level issues.
+2. **Dynamic (axe-core + Playwright)** — `artifacts/e2e/tests/accessibility.spec.ts`
+   runs `@axe-core/playwright` against the 10 primary pages (Dashboard,
+   News, Advisories, Threat Intel, CERT-In, Patches, Bookmarks, Workspaces,
+   Settings). The test fails the suite on any `critical` or `serious`
+   violation against tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, and
+   `best-practice`.
+3. **Manual review** — Screen reader smoke test (NVDA on Windows, VoiceOver
+   on macOS) before each release for new dialogs, forms, and navigation
+   changes.
+
+### 11.2 Baseline commitments already in place
+
+- Skip-to-content link in `AppLayout` targets `#main-content` on `<main>`.
+- All custom modals expose `role="dialog"`, `aria-modal="true"`,
+  `aria-labelledby`, and close on Escape. Destructive dialogs use
+  `role="alertdialog"` with `aria-describedby`.
+- Every form field has an associated `<label htmlFor>` (including visually
+  hidden labels where the placeholder is the only visual hint).
+- Icon-only buttons carry `aria-label`; their `<svg>` / `lucide` icons carry
+  `aria-hidden="true"`.
+- Navigation lists use `<nav aria-label>` with `aria-current="page"` on the
+  active link. Mobile layout switches are driven by
+  `matchMedia('(min-width: 1024px)')` — no SSR-unsafe `window.innerWidth` at
+  render time.
+
+### 11.3 Fixing axe failures
+
+When the accessibility suite fails in CI:
+
+1. The Playwright report includes each violation's `helpUrl`
+   (→ deque.com/axe) — start there.
+2. Reproduce locally: `pnpm --filter @workspace/e2e run test tests/accessibility.spec.ts`.
+3. If the rule is a false positive for our use case, add it to the per-test
+   `.disableRules([...])` list with a comment explaining why — do **not**
+   disable rules globally.
+
+### 11.4 Deploy checklist addendum
+
+In §9 before shipping, also confirm:
+
+- [ ] `pnpm lint` shows 0 errors (warnings may be triaged).
+- [ ] The accessibility E2E suite is green on the latest main.
+

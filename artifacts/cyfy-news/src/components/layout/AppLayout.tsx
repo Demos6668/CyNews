@@ -99,6 +99,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <div
         className={`flex flex-1 min-w-0 transition-[margin] duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-[260px]"}`}
@@ -115,7 +121,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <Header />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 lg:pb-8 custom-scrollbar">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 overflow-y-auto p-4 md:p-8 pl-16 lg:pl-4 pb-20 lg:pb-8 custom-scrollbar focus:outline-none"
+          >
             <div className="max-w-7xl mx-auto">
               {activeWorkspace?.isDefault ? (
                 children

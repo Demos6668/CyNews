@@ -11,6 +11,7 @@
     "install:browsers": "playwright install chromium firefox"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"

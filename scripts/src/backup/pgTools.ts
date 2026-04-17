@@ -39,6 +39,7 @@ export async function assertPgTool(tool: "pg_dump" | "pg_restore"): Promise<stri
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(
       `Unable to execute ${tool}. Ensure PostgreSQL client tools are installed and on PATH. Underlying error: ${msg}`,
+      { cause: err },
     );
   }
 }
