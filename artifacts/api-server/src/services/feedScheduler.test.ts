@@ -319,13 +319,13 @@ describe("feedScheduler", () => {
   });
 
   describe("stop", () => {
-    it("stops both cron tasks", () => {
+    it("stops all cron tasks", () => {
       const scheduler = createFeedScheduler(broadcast);
       scheduler.start();
       scheduler.stop();
 
-      // Two crons were created, both should be stopped
-      expect(mockStop).toHaveBeenCalledTimes(2);
+      // feed (15m), retention (03:00), maintenance sweeps (04:00) — all must stop
+      expect(mockStop).toHaveBeenCalledTimes(3);
     });
 
     it("is safe to call without start", () => {

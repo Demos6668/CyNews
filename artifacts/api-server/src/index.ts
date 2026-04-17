@@ -25,6 +25,8 @@ import { ensurePerformanceIndexes } from "./services/performanceIndexes";
 import { setScheduler } from "./routes/scheduler";
 import { pool } from "@workspace/db";
 import { logger } from "./lib/logger";
+import { dbPoolTotal, dbPoolIdle, dbPoolWaiting } from "./lib/metrics";
+import { captureException } from "./lib/sentry";
 
 const { PORT: port } = env;
 
@@ -46,6 +48,14 @@ setScheduler(scheduler);
 pool.on("error", (err: Error) => {
   logger.error({ err }, "Unexpected DB pool error on idle client");
 });
+
+// DB pool metrics — sample every 5s so Prometheus sees a live gauge.
+const poolMetricsTimer = setInterval(() => {
+  dbPoolTotal.set(pool.totalCount);
+  dbPoolIdle.set(pool.idleCount);
+  dbPoolWaiting.set(pool.waitingCount);
+}, 5_000);
+poolMetricsTimer.unref?.();
 
 // WebSocket heartbeat to detect stale connections
 const HEARTBEAT_INTERVAL = 30_000;
@@ -106,6 +116,7 @@ async function shutdown(signal: string): Promise<void> {
 
   scheduler.stop();
   clearInterval(heartbeatTimer);
+  clearInterval(poolMetricsTimer);
 
   wss.clients.forEach((ws: any) => {
     ws.close(1001, "Server shutting down");
@@ -132,6 +143,19 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 // SIGHUP: log rotation signal — no action required but log it so it's visible
 process.on("SIGHUP", () => logger.info("SIGHUP received — log rotation event"));
+
+// Process-level safety net — log and escalate, but don't exit: letting the
+// process keep running is safer than dropping every in-flight request because
+// a single background promise rejected. Fatal corruption is caught by the
+// container orchestrator via /livez.
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+  captureException(reason, { kind: "unhandledRejection" });
+});
+process.on("uncaughtException", (err: Error) => {
+  logger.error({ err }, "Uncaught exception");
+  captureException(err, { kind: "uncaughtException" });
+});
 
 ensureMasterWorkspace()
   .catch((err) => logger.error({ err }, "Failed to ensure master workspace"))

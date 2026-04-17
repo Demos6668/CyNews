@@ -12,6 +12,8 @@ import {
   runRetentionMaintenance,
 } from "./dataRetention";
 import { runMaintenanceSweeps } from "./maintenance";
+import { jobDuration, jobRunsTotal } from "../lib/metrics";
+import { captureException } from "../lib/sentry";
 
 export interface SchedulerStatus {
   isRunning: boolean;
@@ -43,12 +45,14 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
 
   async function runFeedUpdateTask(): Promise<void> {
     if (isRunning) {
+      jobRunsTotal.inc({ job: "feed-update", outcome: "skipped" });
       logger.warn("Previous update still running, skipping");
       return;
     }
     isRunning = true;
     stats.totalRuns++;
     const start = Date.now();
+    const endTimer = jobDuration.startTimer({ job: "feed-update" });
     logger.info("Feed update started");
 
     try {
@@ -64,16 +68,20 @@ export function createFeedScheduler(broadcast: BroadcastFn) {
       apiCache.invalidate("certin:");
       apiCache.invalidate("patches:");
       const duration = ((Date.now() - start) / 1000).toFixed(2);
+      jobRunsTotal.inc({ job: "feed-update", outcome: "success" });
       logger.info({ duration }, "Feed update complete");
     } catch (err) {
       stats.failedRuns++;
       stats.lastError = err instanceof Error ? err.message : String(err);
+      jobRunsTotal.inc({ job: "feed-update", outcome: "failure" });
       logger.error({ error: stats.lastError }, "Feed update failed");
+      captureException(err, { job: "feed-update" });
       broadcast("REFRESH_ERROR", {
         timestamp: new Date().toISOString(),
         error: stats.lastError,
       });
     } finally {
+      endTimer();
       isRunning = false;
     }
   }

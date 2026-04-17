@@ -11,6 +11,12 @@ import { globalErrorHandler } from "./middlewares/errorHandler";
 import { writeAuth, apiKeyAuth } from "./middlewares/auth";
 import { authHandler } from "./lib/auth";
 import { logger } from "./lib/logger";
+import {
+  registry as metricsRegistry,
+  httpRequestDuration,
+  httpRequestsTotal,
+  statusClass,
+} from "./lib/metrics";
 
 const app: Express = express();
 
@@ -42,6 +48,43 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-Request-Id", requestId);
   (req as any).id = requestId;
   next();
+});
+
+// HTTP metrics — measure duration and count by (method, route, status class).
+// Uses req.route.path after routing so `:id`-style params are normalised.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const startNs = process.hrtime.bigint();
+  res.on("finish", () => {
+    const route = (req.route?.path as string | undefined) ?? req.baseUrl ?? "unmatched";
+    const labels = {
+      method: req.method,
+      route: `${req.baseUrl ?? ""}${route}` || "unmatched",
+      status_class: statusClass(res.statusCode),
+    };
+    const durationSec = Number(process.hrtime.bigint() - startNs) / 1e9;
+    httpRequestDuration.observe(labels, durationSec);
+    httpRequestsTotal.inc(labels);
+  });
+  next();
+});
+
+// Prometheus /metrics endpoint — optionally gated by METRICS_TOKEN.
+app.get("/metrics", async (req: Request, res: Response) => {
+  const token = process.env.METRICS_TOKEN;
+  if (token) {
+    const auth = req.headers.authorization ?? "";
+    if (auth !== `Bearer ${token}`) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+  }
+  try {
+    res.setHeader("Content-Type", metricsRegistry.contentType);
+    res.send(await metricsRegistry.metrics());
+  } catch (err) {
+    logger.error({ err }, "Failed to render /metrics");
+    res.status(500).json({ error: "Failed to render metrics" });
+  }
 });
 
 // CORS - restrict to known origins in production

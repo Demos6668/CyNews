@@ -10,6 +10,8 @@
 
 import { pool } from "@workspace/db";
 import { logger } from "../../lib/logger";
+import { jobDuration, jobRowsProcessed, jobRunsTotal } from "../../lib/metrics";
+import { captureException } from "../../lib/sentry";
 import { sessionsSweep } from "./sessions.sweep";
 import { verificationsSweep } from "./verifications.sweep";
 import { invitesSweep } from "./invites.sweep";
@@ -73,22 +75,36 @@ export async function runMaintenanceSweeps(
 
   try {
     for (const sweep of SWEEPS) {
+      const endTimer = jobDuration.startTimer({ job: `sweep.${sweep.name}` });
       try {
         logger.info({ sweep: sweep.name }, "Maintenance sweep starting");
         const result = await sweep.run(ctx);
         results.push(result);
         totalDeleted += result.deleted;
+        jobRowsProcessed.inc({ job: `sweep.${sweep.name}`, kind: "deleted" }, result.deleted);
+        if (typeof result.archived === "number" && result.archived > 0) {
+          jobRowsProcessed.inc({ job: `sweep.${sweep.name}`, kind: "archived" }, result.archived);
+        }
         if (result.errors.length > 0) {
           failed++;
+          jobRunsTotal.inc({ job: `sweep.${sweep.name}`, outcome: "partial" });
           logger.warn({ sweep: sweep.name, errors: result.errors }, "Sweep completed with errors");
+          for (const errMessage of result.errors) {
+            captureException(new Error(errMessage), { sweep: sweep.name });
+          }
         } else {
+          jobRunsTotal.inc({ job: `sweep.${sweep.name}`, outcome: "success" });
           logger.info({ sweep: sweep.name, deleted: result.deleted, durationMs: result.durationMs }, "Sweep complete");
         }
       } catch (err) {
         failed++;
+        jobRunsTotal.inc({ job: `sweep.${sweep.name}`, outcome: "failure" });
         const message = err instanceof Error ? err.message : String(err);
         logger.error({ sweep: sweep.name, err: message }, "Sweep threw unexpected error");
+        captureException(err, { sweep: sweep.name });
         results.push({ sweep: sweep.name, scanned: 0, deleted: 0, archived: 0, durationMs: 0, errors: [message] });
+      } finally {
+        endTimer();
       }
     }
   } finally {

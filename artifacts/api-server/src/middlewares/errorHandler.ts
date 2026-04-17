@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
+import { captureException } from "../lib/sentry";
 
 /**
  * Custom error classes for standardized API error responses.
@@ -52,7 +53,7 @@ export function asyncHandler(
  */
 export function globalErrorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
@@ -65,7 +66,7 @@ export function globalErrorHandler(
     return;
   }
 
-  // Custom application errors
+  // Custom application errors — client-visible, not escalated to Sentry.
   if (err instanceof AppError) {
     const body: { error: string; details?: unknown } = { error: err.message };
     if (err instanceof ValidationError && err.details) {
@@ -75,6 +76,15 @@ export function globalErrorHandler(
     return;
   }
 
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "Internal server error" });
+  // Unknown errors — log and escalate to Sentry with request context.
+  const requestId = (req as unknown as { id?: string }).id;
+  logger.error({ err, requestId, method: req.method, url: req.originalUrl }, "Unhandled error");
+  captureException(err, {
+    requestId,
+    method: req.method,
+    url: req.originalUrl,
+    userId: req.ctx?.userId,
+    orgId: req.ctx?.orgId,
+  });
+  res.status(500).json({ error: "Internal server error", requestId });
 }

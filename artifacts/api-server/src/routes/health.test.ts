@@ -54,7 +54,8 @@ describe("Health routes", () => {
   describe("GET /api/healthz", () => {
     it("returns healthy when DB is connected", async () => {
       const res = await request(app).get("/api/healthz").expect(200);
-      expect(res.body).toEqual({ status: "healthy", db: "connected" });
+      expect(res.body).toMatchObject({ status: "healthy", db: "connected" });
+      expect(res.body.pool).toBeDefined();
     });
 
     it("returns 503 when DB is down", async () => {
