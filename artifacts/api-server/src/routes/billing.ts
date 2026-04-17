@@ -14,7 +14,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import Stripe from "stripe";
 import { db } from "@workspace/db";
-import { organizationsTable, stripeEventsTable } from "@workspace/db/schema";
+import { organizationsTable, stripeEventsTable, auditLogTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { asyncHandler } from "../middlewares/errorHandler";
@@ -294,8 +294,28 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const orgId = sub.metadata?.orgId;
       const plan = sub.metadata?.plan as PlanTier | undefined;
       if (orgId) {
-        const newPlan = sub.status === "active" ? (plan ?? "free") : "free";
+        const newPlan: PlanTier = sub.status === "active" ? (plan ?? "free") : "free";
+        const [current] = await db
+          .select({ plan: organizationsTable.plan })
+          .from(organizationsTable)
+          .where(eq(organizationsTable.id, orgId))
+          .limit(1);
         await activateSubscription(orgId, sub.customer as string, newPlan);
+        if (current && current.plan !== newPlan) {
+          await db.insert(auditLogTable).values({
+            orgId,
+            userId: null,
+            action: "billing.plan_changed",
+            metadata: {
+              from: current.plan,
+              to: newPlan,
+              source: "stripe.subscription.updated",
+              subscriptionStatus: sub.status,
+              subscriptionId: sub.id,
+            },
+            createdAt: new Date(),
+          });
+        }
       }
       break;
     }
@@ -304,7 +324,31 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const sub = event.data.object as Stripe.Subscription;
       const orgId = sub.metadata?.orgId;
       if (orgId) {
+        // Per product spec: downgrade to free WITHOUT scheduling org deletion.
+        // Account/org closure is a separate user-initiated flow (DELETE /api/account).
+        const [current] = await db
+          .select({ plan: organizationsTable.plan })
+          .from(organizationsTable)
+          .where(eq(organizationsTable.id, orgId))
+          .limit(1);
         await activateSubscription(orgId, sub.customer as string, "free");
+        await db.insert(auditLogTable).values({
+          orgId,
+          userId: null,
+          action: "billing.subscription_cancelled",
+          metadata: {
+            from: current?.plan ?? "unknown",
+            to: "free",
+            source: "stripe.subscription.deleted",
+            subscriptionId: sub.id,
+            cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+          },
+          createdAt: new Date(),
+        });
+        logger.info(
+          { orgId, subscriptionId: sub.id, previousPlan: current?.plan },
+          "Subscription cancelled — org downgraded to free tier (not purged)"
+        );
       }
       break;
     }

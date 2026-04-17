@@ -14,4 +14,8 @@ export interface Workspace {
   isDefault: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+  /** ISO timestamp when the workspace was soft-deleted (null if active). */
+  deletedAt?: string | null;
+  /** ISO timestamp when a soft-deleted workspace will be purged (null if active). */
+  purgeAfter?: string | null;
 }

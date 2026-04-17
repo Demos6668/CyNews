@@ -14,6 +14,8 @@ export interface DashboardStats {
   localThreatsToday: number;
   globalThreatsToday: number;
   activeAdvisories: number;
+  /** Count of available patches for the current workspace (zero-default). */
+  patchesAvailable?: number;
   criticalAlerts: number;
   highAlerts: number;
   resolvedIncidents: number;

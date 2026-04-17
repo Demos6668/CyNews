@@ -792,6 +792,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /workspaces/{id}/restore:
+    post:
+      operationId: restoreWorkspace
+      tags: [workspaces]
+      summary: Restore a soft-deleted workspace
+      description: Cancels a pending deletion and clears soft-delete markers on the workspace.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Workspace is not soft-deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Workspace not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /workspaces/{id}/products:
     post:
       operationId: addProduct
@@ -981,6 +1014,9 @@ components:
           type: integer
         activeAdvisories:
           type: integer
+        patchesAvailable:
+          type: integer
+          description: Count of available patches for the current workspace (zero-default).
         criticalAlerts:
           type: integer
         highAlerts:
@@ -1778,6 +1814,14 @@ components:
         updatedAt:
           type: string
           nullable: true
+        deletedAt:
+          type: string
+          nullable: true
+          description: ISO timestamp when the workspace was soft-deleted (null if active).
+        purgeAfter:
+          type: string
+          nullable: true
+          description: ISO timestamp when a soft-deleted workspace will be purged (null if active).
 
     WorkspaceDetail:
       allOf:

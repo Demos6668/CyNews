@@ -35,6 +35,12 @@ export const GetDashboardStatsResponse = zod.object({
   localThreatsToday: zod.number(),
   globalThreatsToday: zod.number(),
   activeAdvisories: zod.number(),
+  patchesAvailable: zod
+    .number()
+    .optional()
+    .describe(
+      "Count of available patches for the current workspace (zero-default).",
+    ),
   criticalAlerts: zod.number(),
   highAlerts: zod.number(),
   resolvedIncidents: zod.number(),
@@ -56,7 +62,6 @@ export const GetDashboardStatsResponse = zod.object({
         .describe("news or threat - for routing"),
     }),
   ),
-  patchesAvailable: zod.number().describe("Advisories with patches available but not yet applied"),
   indiaStats: zod
     .object({
       byState: zod
@@ -695,7 +700,6 @@ export const SearchQueryParams = zod.object({
   q: zod.coerce.string(),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   limit: zod.coerce.number().default(searchQueryLimitDefault),
-  scope: zod.enum(["local", "global"]).optional(),
 });
 
 export const SearchResponse = zod.object({
@@ -708,7 +712,6 @@ export const SearchResponse = zod.object({
       severity: zod.string(),
       source: zod.string(),
       publishedAt: zod.string(),
-      scope: zod.string().optional(),
     }),
   ),
   total: zod.number(),
@@ -776,6 +779,18 @@ export const ListWorkspacesResponseItem = zod.object({
   isDefault: zod.boolean(),
   createdAt: zod.string().nullish(),
   updatedAt: zod.string().nullish(),
+  deletedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp when the workspace was soft-deleted (null if active).",
+    ),
+  purgeAfter: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp when a soft-deleted workspace will be purged (null if active).",
+    ),
 });
 export const ListWorkspacesResponse = zod.array(ListWorkspacesResponseItem);
 
@@ -814,6 +829,18 @@ export const GetWorkspaceResponse = zod
     isDefault: zod.boolean(),
     createdAt: zod.string().nullish(),
     updatedAt: zod.string().nullish(),
+    deletedAt: zod
+      .string()
+      .nullish()
+      .describe(
+        "ISO timestamp when the workspace was soft-deleted (null if active).",
+      ),
+    purgeAfter: zod
+      .string()
+      .nullish()
+      .describe(
+        "ISO timestamp when a soft-deleted workspace will be purged (null if active).",
+      ),
   })
   .and(
     zod.object({
@@ -853,6 +880,18 @@ export const UpdateWorkspaceResponse = zod.object({
   isDefault: zod.boolean(),
   createdAt: zod.string().nullish(),
   updatedAt: zod.string().nullish(),
+  deletedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp when the workspace was soft-deleted (null if active).",
+    ),
+  purgeAfter: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp when a soft-deleted workspace will be purged (null if active).",
+    ),
 });
 
 /**
@@ -863,6 +902,18 @@ export const DeleteWorkspaceParams = zod.object({
 });
 
 export const DeleteWorkspaceResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * Cancels a pending deletion and clears soft-delete markers on the workspace.
+ * @summary Restore a soft-deleted workspace
+ */
+export const RestoreWorkspaceParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const RestoreWorkspaceResponse = zod.object({
   success: zod.boolean(),
 });
 

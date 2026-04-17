@@ -57,6 +57,8 @@ router.get("/workspaces", optionalAuth, asyncHandler(async (req: Request, res: R
       isDefault: r.isDefault ?? false,
       createdAt: r.createdAt?.toISOString() ?? null,
       updatedAt: r.updatedAt?.toISOString() ?? null,
+      deletedAt: r.deletedAt?.toISOString() ?? null,
+      purgeAfter: r.purgeAfter?.toISOString() ?? null,
     })));
 }));
 

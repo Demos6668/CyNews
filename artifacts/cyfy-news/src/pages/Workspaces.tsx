@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Building2, Globe, Plus, Trash2, Star, AlertTriangle, Calendar } from "lucide-react";
-import { useListWorkspaces, useDeleteWorkspace } from "@workspace/api-client-react";
+import { Building2, Globe, Plus, Trash2, Star, AlertTriangle, Calendar, RotateCcw, Clock } from "lucide-react";
+import {
+  useListWorkspaces,
+  useDeleteWorkspace,
+  useRestoreWorkspace,
+  useCreateWorkspace,
+} from "@workspace/api-client-react";
 import { CreateWorkspaceModal } from "@/components/Workspace";
-import { useCreateWorkspace } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/shared";
 import { toast } from "sonner";
@@ -16,6 +20,15 @@ interface WorkspaceCard {
   description?: string | null;
   isDefault?: boolean;
   createdAt?: string | null;
+  deletedAt?: string | null;
+  purgeAfter?: string | null;
+}
+
+function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (Number.isNaN(diffMs)) return null;
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 export default function Workspaces() {
@@ -25,6 +38,8 @@ export default function Workspaces() {
   const { data: workspaces = [], isLoading, refetch } = useListWorkspaces();
   const { mutateAsync: createWs } = useCreateWorkspace();
   const { mutateAsync: deleteWs } = useDeleteWorkspace();
+  const { mutateAsync: restoreWs, isPending: isRestoring } = useRestoreWorkspace();
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const handleCreate = async (data: {
     name: string;
@@ -64,8 +79,25 @@ export default function Workspaces() {
   };
 
   const handleActivate = (ws: WorkspaceCard) => {
+    if (ws.deletedAt) {
+      toast.error("Restore this workspace before viewing its feed.");
+      return;
+    }
     window.dispatchEvent(new CustomEvent("cyfy:select-workspace", { detail: { id: ws.id } }));
     setLocation("/");
+  };
+
+  const handleRestore = async (ws: WorkspaceCard) => {
+    setRestoringId(ws.id);
+    try {
+      await restoreWs({ id: ws.id });
+      toast.success(`"${ws.name}" has been restored.`);
+      refetch();
+    } catch {
+      toast.error("Failed to restore workspace. Please try again.");
+    } finally {
+      setRestoringId(null);
+    }
   };
 
   if (isLoading) {
@@ -124,61 +156,107 @@ export default function Workspaces() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {workspaces.map((ws) => (
+          {workspaces.map((ws) => {
+            const card = ws as WorkspaceCard;
+            const isDeleted = Boolean(card.deletedAt);
+            const daysLeft = daysUntil(card.purgeAfter);
+            const busy = restoringId === card.id && isRestoring;
+            return (
             <div
-              key={ws.id}
+              key={card.id}
               className={cn(
-                "group relative border border-border/60 rounded-xl p-5 flex flex-col gap-3 transition-colors bg-card",
-                "hover:border-primary/40 hover:bg-primary/5"
+                "group relative border rounded-xl p-5 flex flex-col gap-3 transition-colors",
+                isDeleted
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5"
               )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  {ws.isDefault ? (
+                  {card.isDefault ? (
                     <Globe className="w-5 h-5 shrink-0 text-primary" />
                   ) : (
-                    <Building2 className="w-5 h-5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <Building2
+                      className={cn(
+                        "w-5 h-5 shrink-0 transition-colors",
+                        isDeleted
+                          ? "text-destructive"
+                          : "text-muted-foreground group-hover:text-primary"
+                      )}
+                    />
                   )}
                   <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{ws.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{ws.domain}</p>
+                    <h3
+                      className={cn(
+                        "font-semibold truncate",
+                        isDeleted && "line-through text-muted-foreground"
+                      )}
+                    >
+                      {card.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate">{card.domain}</p>
                   </div>
                 </div>
-                {ws.isDefault && (
+                {card.isDefault && (
                   <Star className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
                 )}
               </div>
 
-              {ws.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">{ws.description}</p>
+              {card.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">{card.description}</p>
               )}
 
-              {ws.createdAt && (
+              {card.createdAt && !isDeleted && (
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  Created {new Date(ws.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                  Created {new Date(card.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                 </p>
               )}
 
+              {isDeleted && (
+                <div className="flex items-center gap-1.5 text-[11px] text-destructive">
+                  <Clock className="w-3 h-3 shrink-0" />
+                  <span>
+                    {daysLeft === null || daysLeft === 0
+                      ? "Scheduled for purge — restore now"
+                      : `Purges in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 mt-auto pt-2">
-                <button
-                  onClick={() => handleActivate(ws)}
-                  className="flex-1 text-sm py-1.5 border border-border/60 hover:border-primary/40 hover:text-primary transition-colors text-center"
-                >
-                  View feed
-                </button>
-                {!ws.isDefault && (
+                {isDeleted ? (
                   <button
-                    onClick={() => handleDelete(ws as WorkspaceCard)}
-                    className="p-1.5 border border-border/60 hover:border-destructive/50 hover:text-destructive transition-colors"
-                    title="Delete workspace"
+                    onClick={() => handleRestore(card)}
+                    disabled={busy}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <RotateCcw className={cn("w-3.5 h-3.5", busy && "animate-spin")} />
+                    {busy ? "Restoring…" : "Restore workspace"}
                   </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleActivate(card)}
+                      className="flex-1 text-sm py-1.5 border border-border/60 hover:border-primary/40 hover:text-primary transition-colors text-center"
+                    >
+                      View feed
+                    </button>
+                    {!card.isDefault && (
+                      <button
+                        onClick={() => handleDelete(card)}
+                        className="p-1.5 border border-border/60 hover:border-destructive/50 hover:text-destructive transition-colors"
+                        title="Delete workspace"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

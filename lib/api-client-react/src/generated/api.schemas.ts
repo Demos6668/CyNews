@@ -54,13 +54,13 @@ export interface DashboardStats {
   localThreatsToday: number;
   globalThreatsToday: number;
   activeAdvisories: number;
+  /** Count of available patches for the current workspace (zero-default). */
+  patchesAvailable?: number;
   criticalAlerts: number;
   highAlerts: number;
   resolvedIncidents: number;
   currentThreatLevel: DashboardStatsCurrentThreatLevel;
   recentActivity: ActivityItem[];
-  /** Advisories with patches available but not yet applied */
-  patchesAvailable?: number;
   /** India-specific stats when scope=local */
   indiaStats?: DashboardStatsIndiaStats;
 }
@@ -525,6 +525,10 @@ export interface Workspace {
   isDefault: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+  /** ISO timestamp when the workspace was soft-deleted (null if active). */
+  deletedAt?: string | null;
+  /** ISO timestamp when a soft-deleted workspace will be purged (null if active). */
+  purgeAfter?: string | null;
 }
 
 export interface Product {

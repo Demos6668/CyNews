@@ -14,5 +14,4 @@ export interface SearchResult {
   severity: string;
   source: string;
   publishedAt: string;
-  scope?: string;
 }

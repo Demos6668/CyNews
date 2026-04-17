@@ -2423,6 +2423,91 @@ export const useDeleteWorkspace = <
 };
 
 /**
+ * Cancels a pending deletion and clears soft-delete markers on the workspace.
+ * @summary Restore a soft-deleted workspace
+ */
+export const getRestoreWorkspaceUrl = (id: string) => {
+  return `/api/workspaces/${id}/restore`;
+};
+
+export const restoreWorkspace = async (
+  id: string,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getRestoreWorkspaceUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestoreWorkspaceMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreWorkspace>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreWorkspace>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["restoreWorkspace"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreWorkspace>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return restoreWorkspace(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestoreWorkspaceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreWorkspace>>
+>;
+
+export type RestoreWorkspaceMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Restore a soft-deleted workspace
+ */
+export const useRestoreWorkspace = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreWorkspace>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restoreWorkspace>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRestoreWorkspaceMutationOptions(options));
+};
+
+/**
  * @summary Add a product to workspace
  */
 export const getAddProductUrl = (id: string) => {
