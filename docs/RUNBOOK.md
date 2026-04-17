@@ -288,3 +288,88 @@ Before a production deploy:
 - [ ] Stripe webhook endpoint registered and `STRIPE_WEBHOOK_SECRET` rotated
 - [ ] Run `/livez`, `/healthz`, `/readyz` post-deploy
 - [ ] Scrape `/metrics` and confirm `http_requests_total` increments
+- [ ] Backup job running and last restore drill was green (see §10)
+
+---
+
+## 10. Backup & Disaster Recovery
+
+### 10.1 Targets
+
+| Objective | Target | Notes                                                          |
+|-----------|--------|----------------------------------------------------------------|
+| RPO       | 24h    | Daily logical backups. Managed-Postgres PITR, if available, tightens RPO to minutes. |
+| RTO       | 60min  | Time to restore the most recent daily dump into a fresh DB.    |
+
+### 10.2 Scheduling a daily backup
+
+The backup tool is packaged as a workspace script and relies on `pg_dump` from
+the `postgresql-client` package. Any cron host or Kubernetes `CronJob` can run:
+
+```bash
+DATABASE_URL=<prod-dsn> \
+BACKUP_DIR=/var/backups/cyfy \
+BACKUP_KEEP=14 \
+pnpm --filter @workspace/scripts run backup
+```
+
+Each run writes `<prefix>-<UTC-timestamp>.dump` (Postgres custom format, zstd
+level 9 compression) plus a `*.manifest.json` sidecar with `pg_dump` version
+and size. After a successful dump the retention sweep keeps the `BACKUP_KEEP`
+newest dumps and removes the rest (including their manifests).
+
+Push each dump to off-site storage (S3, GCS, etc.) immediately — a backup that
+only lives on the app host is not a backup.
+
+### 10.3 Restoring
+
+```bash
+RESTORE_TARGET_DATABASE_URL=<target-dsn> \
+pnpm --filter @workspace/scripts run restore -- /var/backups/cyfy/cyfy-20260417T060000Z.dump
+```
+
+Safeguards:
+
+- `RESTORE_TARGET_DATABASE_URL` is required — the tool refuses to fall back to
+  `DATABASE_URL` to prevent accidental production overwrites.
+- If the target DSN does not contain `localhost`, `127.0.0.1`, or the words
+  `test|dev|staging|local|restore|drill`, the tool exits unless
+  `RESTORE_ALLOW_PRODUCTION=1` is set.
+- Restores use `--clean --if-exists --exit-on-error` so a partial restore
+  aborts loudly.
+
+### 10.4 Verifying a backup archive
+
+Archive integrity is checked with `pg_restore --list` — a corrupt or truncated
+dump cannot produce a valid TOC:
+
+```bash
+pnpm --filter @workspace/scripts run verify-backup -- /var/backups/cyfy/cyfy-20260417T060000Z.dump
+```
+
+Exit 0 means the archive readable and contains at least `VERIFY_MIN_ENTRIES`
+(default 1) TOC entries.
+
+### 10.5 Automated restore drill
+
+`.github/workflows/backup-drill.yml` runs weekly (Mon 06:00 UTC) and on manual
+dispatch:
+
+1. Spin up `postgres:16` with `cyfy_source` + create `cyfy_restore` alongside.
+2. Apply migrations and seed `cyfy_source`.
+3. Take a backup via the workspace script.
+4. Verify the archive.
+5. Restore into `cyfy_restore`.
+6. Diff `count(*)` across `news_items`, `advisories`, `threat_intel` between
+   source and target. Mismatch fails the build.
+
+A red drill blocks the "last restore drill was green" item in §9 and is a
+production-readiness blocker. Re-run after every schema migration.
+
+### 10.6 Managed-Postgres PITR
+
+If your managed provider offers point-in-time recovery (Supabase, RDS, Cloud
+SQL, Neon), keep it enabled. Logical dumps from §10.2 are the independent
+second line — they survive a provider outage or account lockout that would
+take PITR offline.
+

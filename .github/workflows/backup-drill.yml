@@ -1,0 +1,99 @@
+name: Backup Restore Drill
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  drill:
+    name: Backup + Restore + Row-Count Diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cyfy
+          POSTGRES_PASSWORD: cyfy
+          POSTGRES_DB: cyfy_source
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      SOURCE_URL: postgres://cyfy:cyfy@localhost:5432/cyfy_source
+      TARGET_URL: postgres://cyfy:cyfy@localhost:5432/cyfy_restore
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create restore target database
+        run: psql "$SOURCE_URL" -c "CREATE DATABASE cyfy_restore;"
+
+      - name: Apply migrations to source
+        env:
+          DATABASE_URL: ${{ env.SOURCE_URL }}
+        run: pnpm --filter @workspace/scripts run migrate
+
+      - name: Seed source database
+        env:
+          DATABASE_URL: ${{ env.SOURCE_URL }}
+        run: pnpm --filter @workspace/scripts run seed
+
+      - name: Take backup
+        env:
+          DATABASE_URL: ${{ env.SOURCE_URL }}
+          BACKUP_DIR: ./backup-drill
+          BACKUP_KEEP: "2"
+        run: pnpm --filter @workspace/scripts run backup
+
+      - name: Verify backup archive integrity
+        run: |
+          BACKUP_FILE=$(ls -t scripts/backup-drill/cyfy-*.dump 2>/dev/null | head -1 || ls -t backup-drill/cyfy-*.dump | head -1)
+          echo "Verifying $BACKUP_FILE"
+          pnpm --filter @workspace/scripts exec tsx ./src/verify-backup.ts "$BACKUP_FILE"
+
+      - name: Restore into target database
+        env:
+          RESTORE_TARGET_DATABASE_URL: ${{ env.TARGET_URL }}
+        run: |
+          BACKUP_FILE=$(ls -t scripts/backup-drill/cyfy-*.dump 2>/dev/null | head -1 || ls -t backup-drill/cyfy-*.dump | head -1)
+          echo "Restoring $BACKUP_FILE into $RESTORE_TARGET_DATABASE_URL"
+          pnpm --filter @workspace/scripts exec tsx ./src/restore.ts "$BACKUP_FILE"
+
+      - name: Diff row counts between source and target
+        run: |
+          set -e
+          TABLES=(news_items advisories threat_intel)
+          for t in "${TABLES[@]}"; do
+            SRC=$(psql -At "$SOURCE_URL" -c "SELECT count(*) FROM $t;")
+            TGT=$(psql -At "$TARGET_URL" -c "SELECT count(*) FROM $t;")
+            echo "$t: source=$SRC target=$TGT"
+            if [ "$SRC" != "$TGT" ]; then
+              echo "Row-count mismatch for $t (source=$SRC, target=$TGT)" >&2
+              exit 1
+            fi
+          done

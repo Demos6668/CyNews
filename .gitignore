@@ -49,3 +49,9 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Database backups (see docs/RUNBOOK.md §10)
+backups/
+backup-drill/
+*.dump
+*.dump.manifest.json
