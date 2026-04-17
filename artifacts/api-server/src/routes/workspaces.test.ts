@@ -50,6 +50,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
             return {
               where: () => ({
                 limit: () => p(mockDbWorkspaces.slice(0, 1)),
+                orderBy: () => p(mockDbWorkspaces),
               }),
               orderBy: () => p(mockDbWorkspaces),
             };

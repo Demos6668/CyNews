@@ -69,13 +69,16 @@ vi.mock("@workspace/db", async (importOriginal) => {
             }
             return chainable(mockItems);
           }
-          return { where: () => Promise.resolve(countRow(0)) };
+          return chainable([] as unknown[]);
         },
       }),
       insert: () => ({
         values: () => ({
           returning: () =>
             Promise.resolve([{ ...sampleNews, id: 99 }]),
+          onConflictDoNothing: () => ({
+            returning: () => Promise.resolve([{ id: 1, userId: "u1", orgId: "o1", newsItemId: 1 }]),
+          }),
         }),
       }),
       update: () => ({

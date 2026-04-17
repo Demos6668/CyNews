@@ -86,7 +86,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
         return {
           values: (value: unknown) => {
             insertedBatches.push(value);
-            return Promise.resolve(value);
+            return {
+              onConflictDoNothing: () => Promise.resolve(value),
+              then: (resolve: (v: unknown) => void, reject?: (r: unknown) => void) =>
+                Promise.resolve(value).then(resolve, reject),
+            };
           },
         };
       },

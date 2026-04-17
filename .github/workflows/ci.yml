@@ -57,6 +57,12 @@ jobs:
       - name: Audit dependencies
         run: pnpm audit --prod --audit-level=high
 
+      - name: Scan for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   e2e:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest

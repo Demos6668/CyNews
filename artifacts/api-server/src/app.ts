@@ -26,21 +26,64 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
+      // 'unsafe-inline' retained for styles: React component libraries (Radix,
+      // shadcn) and Tailwind utilities emit inline style attributes for
+      // animations and computed sizing. Script-src stays strict.
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "ws:", "wss:"],
-      fontSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: [],
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "same-site" },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
     preload: true,
   },
 }));
+
+// Permissions-Policy — disable browser APIs the SPA doesn't need.
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader(
+    "Permissions-Policy",
+    [
+      "accelerometer=()",
+      "camera=()",
+      "geolocation=()",
+      "gyroscope=()",
+      "magnetometer=()",
+      "microphone=()",
+      "payment=()",
+      "usb=()",
+      "interest-cohort=()",
+    ].join(", "),
+  );
+  next();
+});
+
+// RFC 9116 — well-known security contact for vulnerability reporting.
+app.get("/.well-known/security.txt", (_req: Request, res: Response) => {
+  const contact = process.env.SECURITY_CONTACT ?? "mailto:security@cynews.local";
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  res.type("text/plain").send(
+    [
+      `Contact: ${contact}`,
+      `Expires: ${expires}`,
+      "Preferred-Languages: en",
+      "Policy: https://cynews.local/security",
+      "",
+    ].join("\n"),
+  );
+});
 
 // Request ID for log correlation
 app.use((req: Request, res: Response, next: NextFunction) => {

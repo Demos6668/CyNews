@@ -1,0 +1,25 @@
+# gitleaks configuration — extends the default rule set with project-specific
+# allowlists for fixtures, docs examples, and obvious test values.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow well-known test/fixture values that would otherwise trigger detection"
+paths = [
+  '''\.env\.example$''',
+  '''docs/.*\.md$''',
+  '''README\.md$''',
+  '''SECURITY\.md$''',
+  '''artifacts/e2e/.*\.(ts|tsx|js|json)$''',
+  '''.*\.test\.(ts|tsx|js)$''',
+  '''.*\.spec\.(ts|tsx|js)$''',
+]
+
+# Whitelist common test tokens that match generic-high-entropy rules.
+regexes = [
+  '''postgresql://test:test@''',
+  '''postgres://cyfy:cyfy@''',
+  '''sk_test_[A-Za-z0-9]+''',
+  '''whsec_test_[A-Za-z0-9]+''',
+]
