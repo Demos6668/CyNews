@@ -3,6 +3,7 @@ import { resolve, join } from "path";
 import { existsSync } from "fs";
 import { randomUUID } from "crypto";
 import cors from "cors";
+import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
@@ -129,6 +130,18 @@ app.get("/metrics", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to render metrics" });
   }
 });
+
+// Response compression — applies to JSON, HTML, and static assets.
+// Skipped for Prometheus /metrics (small, scraped often) and when clients
+// send `x-no-compression`.
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.path === "/metrics") return false;
+    if (req.headers["x-no-compression"]) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // CORS - restrict to known origins in production
 const allowedOrigins = process.env.CORS_ORIGINS

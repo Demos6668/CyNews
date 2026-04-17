@@ -5,10 +5,15 @@
  * CYFY News Board API
  * OpenAPI spec version: 0.1.0
  */
+import type { SearchScope } from "./searchScope";
 import type { SearchType } from "./searchType";
 
 export type SearchParams = {
   q: string;
   type?: SearchType;
   limit?: number;
+  /**
+   * Restrict results to local (India-related) or global news only.
+   */
+  scope?: SearchScope;
 };

@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import Parser from "rss-parser";
 import { load } from "cheerio";
 import { logger } from "./logger";
-import { fetchWithTimeout } from "./fetchWithTimeout";
+import { fetchWithResilience as fetchWithTimeout } from "./resilientFetch";
 
 const CERT_IN_BASE = "https://www.cert-in.org.in";
 

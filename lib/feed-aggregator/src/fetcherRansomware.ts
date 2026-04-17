@@ -6,7 +6,7 @@ import { db, threatIntelTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
-import { fetchWithTimeout } from "./fetchWithTimeout";
+import { fetchWithResilience as fetchWithTimeout } from "./resilientFetch";
 import { type FeedUpdateResult, detectScopeFromCountry } from "./feedUtils";
 
 export type RansomwareVictim = {

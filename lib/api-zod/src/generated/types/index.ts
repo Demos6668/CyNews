@@ -76,6 +76,7 @@ export * from "./product";
 export * from "./searchListResponse";
 export * from "./searchParams";
 export * from "./searchResult";
+export * from "./searchScope";
 export * from "./searchType";
 export * from "./successResponse";
 export * from "./threatIntelItem";

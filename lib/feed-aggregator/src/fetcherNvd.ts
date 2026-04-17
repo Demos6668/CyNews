@@ -6,7 +6,7 @@ import { db, advisoriesTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
-import { fetchWithTimeout } from "./fetchWithTimeout";
+import { fetchWithResilience as fetchWithTimeout } from "./resilientFetch";
 import { type FeedUpdateResult, cvssToSeverity } from "./feedUtils";
 
 export const NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";

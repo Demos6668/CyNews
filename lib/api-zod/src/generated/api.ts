@@ -700,6 +700,10 @@ export const SearchQueryParams = zod.object({
   q: zod.coerce.string(),
   type: zod.enum(["threat", "news", "advisory"]).optional(),
   limit: zod.coerce.number().default(searchQueryLimitDefault),
+  scope: zod
+    .enum(["local", "global"])
+    .optional()
+    .describe("Restrict results to local (India-related) or global news only."),
 });
 
 export const SearchResponse = zod.object({

@@ -10,7 +10,7 @@ import { db, advisoriesTable, newsItemsTable, threatIntelTable } from "@workspac
 import { gte } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { cyberRelevanceDetector } from "./cyberRelevanceDetector";
-import { fetchWithTimeout } from "./fetchWithTimeout";
+import { fetchWithResilience as fetchWithTimeout } from "./resilientFetch";
 import {
   type FeedUpdateResult,
   type OnBroadcast,

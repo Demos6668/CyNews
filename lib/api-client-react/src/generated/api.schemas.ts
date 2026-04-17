@@ -887,6 +887,10 @@ export type SearchParams = {
   q: string;
   type?: SearchType;
   limit?: number;
+  /**
+   * Restrict results to local (India-related) or global news only.
+   */
+  scope?: SearchScope;
 };
 
 export type SearchType = (typeof SearchType)[keyof typeof SearchType];
@@ -895,6 +899,13 @@ export const SearchType = {
   threat: "threat",
   news: "news",
   advisory: "advisory",
+} as const;
+
+export type SearchScope = (typeof SearchScope)[keyof typeof SearchScope];
+
+export const SearchScope = {
+  local: "local",
+  global: "global",
 } as const;
 
 export type GetWorkspaceFeedParams = {

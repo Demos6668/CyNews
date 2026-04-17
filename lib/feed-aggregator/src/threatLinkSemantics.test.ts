@@ -32,6 +32,16 @@ vi.mock("./fetchWithTimeout", () => ({
   })),
 }));
 
+vi.mock("./resilientFetch", () => ({
+  fetchWithResilience: vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => responsePayload,
+  })),
+  CircuitOpenError: class CircuitOpenError extends Error {},
+  __resetCircuitBreakers: () => {},
+}));
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@workspace/db")>();
 
@@ -40,14 +50,23 @@ vi.mock("@workspace/db", async (importOriginal) => {
     db: {
       select: () => ({
         from: () => ({
-          where: () => ({
-            limit: () => Promise.resolve(existingRows),
-          }),
+          where: () => {
+            const whereResult = Promise.resolve(existingRows);
+            return Object.assign(whereResult, {
+              limit: () => Promise.resolve(existingRows),
+            });
+          },
         }),
       }),
       insert: () => ({
-        values: async (row: Record<string, unknown>) => {
-          insertedRows.push(row);
+        values: (row: Record<string, unknown> | Array<Record<string, unknown>>) => {
+          const rows = Array.isArray(row) ? row : [row];
+          insertedRows.push(...rows);
+          const result = Promise.resolve(undefined);
+          return Object.assign(result, {
+            onConflictDoNothing: () => Promise.resolve(undefined),
+            returning: () => Promise.resolve(rows),
+          });
         },
       }),
     },
@@ -146,13 +165,14 @@ describe("threat source link semantics", () => {
   });
 
   it("stores Feodo rows without repeating sourceUrl in references", async () => {
+    const recent = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     responsePayload = [
       {
         ip_address: "10.0.0.5",
         port: 443,
         malware: "Feodo",
         country: "DE",
-        first_seen: "2026-04-04T00:00:00Z",
+        first_seen: recent,
       },
     ];
 
@@ -167,12 +187,13 @@ describe("threat source link semantics", () => {
   });
 
   it("stores Ransomware.live rows without repeating sourceUrl in references", async () => {
+    const recent = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     responsePayload = [
       {
         post_title: "Victim Org",
         group_name: "krybit",
         country: "US",
-        published: "2026-04-04T00:00:00Z",
+        published: recent,
         post_url: "http://exampleonion.onion/post/123",
       },
     ];

@@ -635,6 +635,12 @@ paths:
           schema:
             type: integer
             default: 20
+        - name: scope
+          in: query
+          description: Restrict results to local (India-related) or global news only.
+          schema:
+            type: string
+            enum: [local, global]
       responses:
         "200":
           description: Search results

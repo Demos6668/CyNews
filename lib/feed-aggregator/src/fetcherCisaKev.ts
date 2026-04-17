@@ -6,7 +6,7 @@ import { db, advisoriesTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { indiaDetector } from "@workspace/india-detector";
 import { logger } from "./logger";
-import { fetchWithTimeout } from "./fetchWithTimeout";
+import { fetchWithResilience as fetchWithTimeout } from "./resilientFetch";
 import { type FeedUpdateResult } from "./feedUtils";
 
 const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";

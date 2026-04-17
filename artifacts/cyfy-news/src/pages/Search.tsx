@@ -1,4 +1,4 @@
-import { useSearch } from "@workspace/api-client-react";
+import { useSearch, type SearchParams } from "@workspace/api-client-react";
 import { useSearch as useWouterSearch } from "wouter";
 import { Card, Badge, Skeleton } from "@/components/ui/shared";
 import { getSeverityBadgeColors, formatDate, stripHtml } from "@/lib/utils";
@@ -89,7 +89,7 @@ export default function Search() {
   // Reset display limit when query or filter changes
   useEffect(() => { setDisplayLimit(10); }, [query, typeFilter]);
 
-  const searchParams = scope ? { q: query, scope } : { q: query };
+  const searchParams: SearchParams = scope ? { q: query, scope } : { q: query };
   const { data, isLoading, isError, error, refetch } = useSearch(searchParams, {
     query: {
       enabled: query.length > 0,
